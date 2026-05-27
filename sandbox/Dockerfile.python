@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install basic tools
+RUN pip install --no-cache-dir ruff pytest requests
+
+# Create a non-root user
+RUN useradd -m sandboxuser
+USER sandboxuser
+
+CMD ["bash"]

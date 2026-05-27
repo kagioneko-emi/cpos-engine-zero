@@ -1,0 +1,32 @@
+- cases:
+  - bad: eval(user_input)
+    good: ast.literal_eval(user_input)
+    verified: true
+  description: unsafe eval
+  rule_id: PY-MISTAKE-0002
+- cases:
+  - bad: subprocess.run(f"tar -cvf backup.tar {user_provided_path}", shell=True)
+    good: subprocess.run(["tar", "-cvf", "backup.tar", user_provided_path], shell=False)
+    verified: true
+  description: insecure subprocess with shell=True
+  rule_id: PY-MISTAKE-0003
+- cases:
+  - bad: os.system("rm -rf /var/log/*.log")
+    good: "import glob\n    for f in glob.glob(\"/var/log/*.log\"):\n        os.remove(f)"
+    verified: true
+  description: unsafe os.system
+  rule_id: PY-MISTAKE-0004
+- cases:
+  - bad: api_key = "sk-1234567890abcdef1234567890abcdef"
+    good: "# Fetch from Vault\n    import os\n    from hvac import Client\n    # Note:\
+      \ Use the project standard vault access method\n    api_key = os.getenv(\"STRIPE_API_KEY\"\
+      ) # Or actual vault call: client.secrets.kv.v2.read_secret_version(...)"
+    verified: true
+  description: hardcoded API key
+  rule_id: PY-MISTAKE-0005
+- cases:
+  - bad: return requests.get(url).json()
+    good: return requests.get(url, timeout=10).json()
+    verified: true
+  description: requests timeout missing
+  rule_id: PY-MISTAKE-0001

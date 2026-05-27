@@ -1,0 +1,15 @@
+agent:
+  name: "CPOS-Defensive-Agent"
+  version: "0.1-mvp"
+  default_language: "python"
+
+safety:
+  sandbox_enabled: true
+  network_disabled: true
+  read_only_mount: true
+  memory_limit: "256m"
+  cpu_limit: "0.5"
+
+logging:
+  audit_log: "cpos/audit_log.jsonl"
+  verbose: true

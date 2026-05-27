@@ -1,0 +1,15 @@
+*
+!agents/
+!cpos/
+!memory/
+!sandbox/
+!tapes/
+!workspace/
+!server.py
+!generate_report.py
+!Dockerfile
+!requirements.txt
+!README.md
+.venv/
+.git/
+__pycache__/

@@ -1,0 +1,10 @@
+safety_policy:
+  forbidden_patterns:
+    - "import os; os.system("
+    - "subprocess.Popen(..., shell=True)"
+    - "eval("
+    - "exec("
+  
+  review_gate:
+    require_human_approval: true
+    auto_fix_allowed: false
