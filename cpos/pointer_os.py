@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Iterable
 import json
 import re
+from .crypto import EncryptedStorageDriver
 
 from .hash_chain import append_chained_jsonl, verify_hash_chain
 
@@ -156,23 +157,28 @@ class PointerManager:
     def __init__(self, pointer_path: str | Path, audit_path: str | Path | None = None):
         self.pointer_path = Path(pointer_path)
         self.audit_path = Path(audit_path) if audit_path is not None else None
+        self.crypto = EncryptedStorageDriver()
 
     def load(self) -> list[ContextPointer]:
         if not self.pointer_path.exists():
             return []
         pointers: list[ContextPointer] = []
-        with self.pointer_path.open("r", encoding="utf-8") as f:
-            for line in f:
-                if not line.strip():
-                    continue
+        for line in self.crypto.wrap_file_reader(str(self.pointer_path)):
+            if not line.strip():
+                continue
+            try:
                 pointers.append(ContextPointer.from_dict(json.loads(line)))
+            except json.JSONDecodeError:
+                continue
         return pointers
 
     def save(self, pointers: Iterable[ContextPointer]) -> None:
         self.pointer_path.parent.mkdir(parents=True, exist_ok=True)
         with self.pointer_path.open("w", encoding="utf-8") as f:
             for pointer in pointers:
-                f.write(json.dumps(pointer.to_dict(), ensure_ascii=False) + "\n")
+                plaintext = json.dumps(pointer.to_dict(), ensure_ascii=False)
+                encrypted = self.crypto.encrypt_line(plaintext)
+                f.write(encrypted + "\n")
 
     def create_pointer(
         self,

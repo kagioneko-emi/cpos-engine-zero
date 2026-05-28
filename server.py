@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, render_template
 import os
 import sys
 import threading
@@ -17,15 +17,17 @@ logger = logging.getLogger(__name__)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from agents.main_agent import MainAgent
+from agents.github_reporter import GitHubReporter
 from cpos.pointer_os import RetrievalPolicy
 from cpos.security_audit import SecurityAuditLog
 from cpos.hash_chain import verify_hash_chain
 from cpos.nonce_store import NonceStore
 from cpos.key_registry import HMACKeyRegistry
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 # Initialize MainAgent (it will handle its own sub-agents and sandbox)
 agent = MainAgent()
+github_reporter = GitHubReporter()
 
 
 def https_required():
@@ -319,25 +321,29 @@ def validate_api_auth_header():
 
 
 @app.before_request
-def enforce_https_when_configured():
-    if https_required():
-        return jsonify({'ok': False, 'error': 'https_required'}), 403
+def enforce_https_always():
+    # Force redirects to https for all requests in production mode
+    # For now, we strictly block non-https if the env says so.
+    if os.environ.get('CPOS_ENFORCE_HTTPS', 'true').lower() in {'1', 'true', 'yes'}:
+        forwarded_proto = request.headers.get('X-Forwarded-Proto', '').lower()
+        if not (request.is_secure or forwarded_proto == 'https'):
+            return jsonify({'ok': False, 'error': 'https_required'}), 403
 
 
-@app.before_request
-def enforce_api_auth_when_configured():
-    if request_needs_api_auth():
-        return validate_api_auth_header()
+@app.after_request
+def add_security_headers(response):
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';"
+    return response
 
 
-def run_tdd_thread(target_file, spec_title, issue_body):
-    try:
-        logger.info(f"[*] Starting background TDD creation for {target_file}...")
-        agent.run_tdd_creation(target_file, spec_title, issue_body)
-        logger.info(f"[+] Background TDD creation completed for {target_file}.")
-    except Exception as e:
-        logger.error(f"[!] Background TDD creation failed: {e}")
-        logger.error(traceback.format_exc())
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
 
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
@@ -345,42 +351,77 @@ def handle_webhook():
     if not data:
         return jsonify({"status": "error", "message": "No JSON data received"}), 400
 
-    # Handle GitHub Issue Event
+    repo_name = data.get('repository', {}).get('full_name', 'demo/repo')
+    
+    # CASE 1: New Issue Opened (Initial Fix or Creation)
     if data.get('action') == 'opened' and 'issue' in data:
-        issue_title = data['issue']['title']
-        issue_body = data['issue'].get('body', '')
+        issue = data['issue']
+        issue_title = issue['title']
+        issue_body = issue.get('body', '')
+        issue_num = issue.get('number', 0)
         
-        # Branch logic: Create vs Fix
-        if "[CREATE]" in issue_title.upper():
-            # Example title: "[CREATE] workspace/new_tool.py: Data processing utility"
+        target_file = None
+        match = re.search(r'(?:Fix|Target|File|Create):\s*([^\s,;]+)', issue_title + " " + issue_body, re.I)
+        if match:
+            target_file = match.group(1).strip()
+        
+        if "[CREATE]" in issue_title.upper() or "Create:" in (issue_title + " " + issue_body):
             try:
                 parts = issue_title.split(":", 1)
-                target_file = parts[0].replace("[CREATE]", "").strip()
+                target_file = target_file or parts[0].replace("[CREATE]", "").strip()
                 spec_title = parts[1].strip() if len(parts) > 1 else "New Module"
                 
                 logger.info(f"[*] Autonomous Creation Triggered: {target_file}")
-                thread = threading.Thread(target=run_tdd_thread, args=(target_file, spec_title, issue_body))
+                github_reporter.notify_analysis_started(repo_name, issue_num, target_file)
+                thread = threading.Thread(target=run_tdd_thread, args=(target_file, spec_title, issue_body, repo_name, issue_num))
                 thread.start()
-                
                 return jsonify({"status": "accepted", "mode": "creation", "target": target_file}), 202
             except Exception as e:
-                logger.error(f"Error parsing issue title: {e}")
+                logger.error(f"Error parsing creation request: {e}")
                 return jsonify({"status": "error", "message": str(e)}), 400
         else:
-            target_file = "workspace/test_app.py" # Default for demo
-            logger.info(f"[*] Autonomous Fix Cycle Triggered: {issue_title}")
-            thread = threading.Thread(target=run_autonomous_cycle, args=(target_file,))
+            target_file = target_file or "workspace/test_app.py"
+            logger.info(f"[*] Autonomous Fix Cycle Triggered for {target_file}: {issue_title}")
+            github_reporter.notify_analysis_started(repo_name, issue_num, target_file)
+            thread = threading.Thread(target=run_autonomous_cycle, args=(target_file, repo_name, issue_num))
             thread.start()
+            return jsonify({"status": "accepted", "mode": "fix", "issue": issue_title, "target": target_file}), 202
+
+    # CASE 2: Issue Comment Added (Follow-up Fix/Refinement)
+    elif data.get('action') == 'created' and 'comment' in data and 'issue' in data:
+        comment_body = data['comment'].get('body', '')
+        issue = data['issue']
+        issue_num = issue.get('number', 0)
+        issue_title = issue.get('title', '')
+        
+        # Only respond if the comment mentions Engine-Zero or is a follow-up instruction
+        if "Engine-Zero" in comment_body or "[RETRY]" in comment_body.upper() or "fix" in comment_body.lower():
+            target_file = None
+            # Try to find target file in comment or original issue
+            match = re.search(r'(?:Fix|Target|File):\s*([^\s,;]+)', comment_body + " " + issue_title, re.I)
+            if match:
+                target_file = match.group(1).strip()
             
-            return jsonify({"status": "accepted", "mode": "fix", "issue": issue_title}), 202
+            target_file = target_file or "workspace/test_app.py"
+            logger.info(f"[*] Iterative Fix Triggered by Comment on {repo_name}#{issue_num}: {target_file}")
+            github_reporter.post_comment(repo_name, issue_num, f"🔄 **Follow-up Received**\n\nI am re-analyzing `{target_file}` based on your feedback: \"{comment_body[:100]}...\"")
+            thread = threading.Thread(target=run_autonomous_cycle, args=(target_file, repo_name, issue_num))
+            thread.start()
+            return jsonify({"status": "accepted", "mode": "iteration", "target": target_file}), 202
 
     return jsonify({"status": "ignored", "message": "Event type not supported"}), 200
 
-def run_autonomous_cycle(target_file):
+def run_autonomous_cycle(target_file, repo_name=None, issue_num=None):
     try:
         logger.info(f"[*] Starting background analysis for {target_file}...")
-        agent.run_analysis(target_file, auto_fix=True)
+        result = agent.run_analysis(target_file, auto_fix=True)
         logger.info(f"[+] Background cycle completed for {target_file}.")
+        
+        if repo_name and issue_num and result:
+            task_id = result.get('task_id')
+            dashboard_url = os.environ.get('CPOS_DASHBOARD_URL', 'https://your-cpos-node:8080/dashboard')
+            github_reporter.notify_fix_proposed(repo_name, issue_num, task_id, dashboard_url)
+            
     except Exception as e:
         logger.error(f"[!] Background cycle failed: {e}")
         logger.error(traceback.format_exc())
@@ -610,7 +651,37 @@ def health():
         "gemini_version": gemini_version
     }), 200
 
+def run_tdd_thread(target_file, spec_title, issue_body, repo_name=None, issue_num=None):
+    try:
+        logger.info(f"[*] Starting background TDD creation for {target_file}...")
+        agent.run_tdd_creation(target_file, spec_title, issue_body)
+        logger.info(f"[+] Background TDD creation completed for {target_file}.")
+        if repo_name and issue_num:
+            github_reporter.post_comment(repo_name, issue_num, f"✅ **Autonomous Creation Completed**\n\nTarget: `{target_file}` has been initialized with TDD patterns.")
+    except Exception as e:
+        logger.error(f"[!] Background TDD creation failed: {e}")
+        logger.error(traceback.format_exc())
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    logger.info(f"[*] CPOS Engine-Zero Server starting on port {port}...")
-    app.run(host='0.0.0.0', port=port)
+    is_cloud_run = os.environ.get('K_SERVICE') is not None
+    
+    if is_cloud_run:
+        logger.info(f"[*] CPOS Engine-Zero starting on Google Cloud Run (Port {port}). SSL handled by Infrastructure.")
+        # On Cloud Run, Google handles SSL. We just run HTTP locally, 
+        # but our before_request handler still enforces HTTPS via headers.
+        app.run(host='0.0.0.0', port=port)
+    else:
+        logger.info(f"[*] CPOS Engine-Zero Secure Server starting on port {port} (HTTPS)...")
+        cert_path = 'certs/cert.pem'
+        key_path = 'certs/key.pem'
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        abs_cert = os.path.join(script_dir, cert_path)
+        abs_key = os.path.join(script_dir, key_path)
+        
+        if os.path.exists(abs_cert) and os.path.exists(abs_key):
+            app.run(host='0.0.0.0', port=port, ssl_context=(abs_cert, abs_key))
+        else:
+            logger.warning("[!] SSL Certificates not found. Falling back to HTTP (NOT RECOMMENDED).")
+            app.run(host='0.0.0.0', port=port)

@@ -3,3 +3,4 @@ requests
 ruff
 pytest
 pyyaml
+cryptography
