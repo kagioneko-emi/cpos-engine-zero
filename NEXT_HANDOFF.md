@@ -1,5 +1,70 @@
 # NEXT HANDOFF
 
+
+## Latest session handoff (2026-05-30)
+
+Repository / safety status:
+
+- Working repo: `/home/mayutama/cpos_defensive_agent`
+- Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`
+- Do **not** push to similarly named `emi`/hackathon repos. This is CPOS-only.
+- Latest pushed commits at handoff:
+  - `ad94395 Document safe autonomy demo flow`
+  - `c372157 Show sandbox diff intakes on dashboard`
+  - `9a5ef27 Ignore runtime JSONL artifacts`
+  - `b971557 Add sandbox replan diff intakes`
+  - `77fd2b0 Classify sandbox execution failures`
+- Validation after latest pushed work: `219 passed`; secret scan `ok=true count=0`.
+- `.gitignore` now blocks `*.jsonl`, `.venv/`, `__pycache__/`, `.pytest_cache/`, runtime ledgers, certs, secret/env/key/cert files.
+- Before any future commit/push, always run:
+  - `git status --short`
+  - `git remote -v` and confirm `kagioneko/cpos-engine-zero`
+  - tracked bad artifact check for `.venv`, pycache, pytest cache, JSONL runtime files, `.env`, keys/certs
+  - full tests
+  - secret scan
+
+Security / credentials rules to preserve:
+
+- API keys, tokens, SSH keys, OAuth tokens, passwords, and `.env` values must stay in Vault/secret files only.
+- Never hardcode or print secrets. Never push secrets to GitHub.
+- Raw diff text, raw stdout/stderr, request bodies, checkpoint contents, and raw handoff bodies should not be persisted in Task Tape/dashboard/report. Store hashes, sizes, exit codes, status flags, and metadata only.
+- `authorized_keys` changes are forbidden. User creation/deletion requires confirmation. `rm -rf`, destructive overwrite, and systemd stop/delete require confirmation.
+
+Recent feature state:
+
+- Safe autonomy loop is now documented in README under `Safe Autonomy Demo Flow`.
+- Dashboard now shows PR dry-runs, diff reviews, sandbox patch plans, execution reviews, completed execution results, retry reviews, replan templates, and diff intakes.
+- Sandbox execution run applies patches only in ephemeral workspace copies and stores result metadata only.
+- Validation commands are allowlisted (`pytest` style), shell metacharacters are rejected, and `local-dev` runner mode requires `CPOS_ALLOW_LOCAL_DEV_RUN=true`.
+- Failure kinds are classified as `patch_apply`, `validation_command`, `sandbox_unavailable`, or `policy_rejected`.
+- Failed sandbox execution flow now supports:
+  1. completed result metadata
+  2. retry review
+  3. approved retry -> replan template
+  4. replan template -> diff intake checklist
+  5. human supplies new diff through normal GitHub diff review path
+- Diff intake records `required_human_inputs` and `target_api` only; it never stores raw diff and never executes automatically.
+
+Recommended next steps:
+
+1. Update `SECURITY.md` with an explicit “Data We Never Persist” section:
+   - secrets/tokens/keys
+   - raw stdout/stderr
+   - raw diff text
+   - request bodies
+   - checkpoint contents
+   - `.venv`, pycache, pytest cache, runtime JSONL
+2. Update `OSS_RELEASE_CHECKLIST.md` to include the tracked bad artifact check and secret scan command.
+3. Add a small release-readiness CLI/check script if useful, but keep it non-destructive.
+4. Consider dashboard action button from replan template to diff intake creation, still metadata-only.
+5. Only after release docs/checklist are clean, consider tagging v0.1.0.
+
+Current honest product assessment:
+
+- Strong unique direction: memory/task separation, Context Pointer OS, Task Tape, review-gated safe autonomy, metadata-only retry/replan loop, text-first MCP governance.
+- Not ready for “Hermes/OpenClaw surpassed” claim yet; likely needs final docs/release polish and a crisp demo. If/when it crosses that line, explicitly report it.
+
+
 ## Current state
 
 - Project: `cpos_defensive_agent`
