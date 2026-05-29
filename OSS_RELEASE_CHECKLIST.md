@@ -17,6 +17,12 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
     --exclude task_runs.jsonl --exclude task_checkpoints.jsonl --json
   ```
 
+- [ ] Run the release-readiness CLI and confirm it reports OK:
+
+  ```bash
+  PYTHONPATH=. .venv/bin/python -m cpos.release_check
+  ```
+
 - [ ] Run tracked bad-artifact check and confirm it prints nothing:
 
   ```bash

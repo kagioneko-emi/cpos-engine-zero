@@ -30,3 +30,9 @@ def test_oss_release_checklist_contains_artifact_and_secret_checks():
     assert 'Never stage / never publish' in checklist
     assert '.venv/' in checklist
     assert 'runtime `*.jsonl`' in checklist
+
+
+def test_release_check_cli_documented_in_oss_checklist():
+    checklist = open('OSS_RELEASE_CHECKLIST.md', encoding='utf-8').read()
+    assert 'cpos.release_check' in checklist
+    assert 'release-readiness CLI' in checklist
