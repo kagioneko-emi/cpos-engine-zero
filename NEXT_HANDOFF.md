@@ -81,17 +81,18 @@
 
 - MCP Capability Probe Harness dry-run/metadata-only added in `cpos/mcp_probe.py` with API routes `GET /mcp/probes`, `POST /mcp/probes/dry-run`, `POST /mcp/probes/<task_id>/approve|reject`. It creates approval-gated probe plans only: no server start, no network request, no tool call, no secret file read.
 - GitHub PR Dry-run Workflow added in `cpos/github_pr_flow.py` with API routes `GET /github/pr-dry-runs`, `POST /github/pr-dry-runs`, `POST /github/pr-dry-runs/<task_id>/approve|reject`. It creates approval-gated issue-to-PR metadata plans only: no branch creation, no commits, no push, no GitHub PR creation, no raw summary storage; dashboard/report show pending plans.
+- GitHub Diff Review Adapter added in `cpos/github_diff_review.py` with API routes `GET /github/diff-reviews`, `POST /github/pr-dry-runs/<source_task_id>/create-diff-review`, `POST /github/diff-reviews/<task_id>/approve|reject`. It requires an approved PR dry-run first and stores diff metadata only: hash/size/file list/line counts; no raw diff persistence, no patch apply, no commit, no push, no PR.
 - OSS release prep added: `.gitignore`, `LICENSE` (MIT), `SECURITY.md`, `CONTRIBUTING.md`, `OSS_RELEASE_CHECKLIST.md`, and README OSS positioning. Test/source dummy secret fixtures were changed to avoid source-tree secret-scan false positives while preserving runtime scan tests.
 
 - OSS publish cleanup started: `.venv`, pycache, workspace demos, runtime JSONL ledgers, certs, and generated `hackathon_report.html` were removed from Git index with `git rm --cached` only; files remain on disk. `.gitignore` now excludes them. `git ls-files` check for tracked bad artifacts returns none.
-- Added `RELEASE_NOTES_v0.1.0.md`. Validation after cleanup: `181 passed`; secret scan `ok=true count=0`. Current status after GitHub PR dry-run work: source/docs/tests modified locally; run `git status --short`, secret scan, commit, and push when ready.
+- Added `RELEASE_NOTES_v0.1.0.md`. Validation after cleanup: `187 passed`; secret scan `ok=true count=0`. Current status after GitHub PR dry-run work: source/docs/tests modified locally; run `git status --short`, secret scan, commit, and push when ready.
 
 ## Verification
 
 ```bash
 .venv/bin/python -m py_compile generate_report.py server.py cpos/pointer_os.py cpos/pointer_cli.py agents/main_agent.py
 .venv/bin/python -m pytest tests -q
-# 181 passed
+# 187 passed
 .venv/bin/python generate_report.py
 ```
 

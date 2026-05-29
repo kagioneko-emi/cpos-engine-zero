@@ -38,6 +38,7 @@ from cpos.resume_planner import build_next_action_proposals, create_resume_propo
 from cpos.mcp_execution import request_mcp_execution, pending_mcp_execution_reviews, approve_mcp_execution_review, reject_mcp_execution_review
 from cpos.mcp_probe import request_mcp_capability_probe, pending_mcp_probe_reviews, approve_mcp_probe_review, reject_mcp_probe_review
 from cpos.github_pr_flow import create_github_pr_dry_run, pending_github_pr_reviews, approve_github_pr_dry_run, reject_github_pr_dry_run
+from cpos.github_diff_review import create_github_diff_review, pending_github_diff_reviews, approve_github_diff_review, reject_github_diff_review
 
 apply_security_profile_defaults()
 
@@ -768,6 +769,47 @@ def github_pr_dry_run_reject(task_id):
     result = reject_github_pr_dry_run(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
     status = 200 if result.get('ok') else 404
     audit_security_event('security_mutation', 'github_pr_dry_run_rejected' if result.get('ok') else result.get('error', 'github_pr_dry_run_reject_denied'), status, required_scope_for_request(), {'task_id': task_id, 'reason': data.get('reason')})
+    return jsonify(result), status
+
+
+@app.route('/github/diff-reviews', methods=['GET'])
+def github_diff_review_reviews():
+    reviews = pending_github_diff_reviews(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews}), 200
+
+
+@app.route('/github/pr-dry-runs/<source_task_id>/create-diff-review', methods=['POST'])
+def github_diff_review_create(source_task_id):
+    data = request.get_json(silent=True) or {}
+    result = create_github_diff_review(
+        agent.task_tape,
+        source_task_id=source_task_id,
+        diff_text=data.get('diff_text') or '',
+        changed_files=data.get('changed_files') if isinstance(data.get('changed_files'), list) else [],
+        validation_commands=data.get('validation_commands') if isinstance(data.get('validation_commands'), list) else [],
+        actor=request_actor(),
+        dry_run=data.get('dry_run', True) is not False,
+    )
+    status = 200 if result.get('ok') else 400
+    audit_security_event('security_mutation', 'github_diff_review_created' if result.get('ok') else result.get('error', 'github_diff_review_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'source_task_id': source_task_id})
+    return jsonify(result), status
+
+
+@app.route('/github/diff-reviews/<task_id>/approve', methods=['POST'])
+def github_diff_review_approve(task_id):
+    data = request.get_json(silent=True) or {}
+    result = approve_github_diff_review(agent.task_tape, task_id, approver=request_actor(), reason=data.get('reason'), confirm=data.get('confirm') is True)
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'pending_github_diff_review_not_found' else 400)
+    audit_security_event('security_mutation', 'github_diff_review_approved' if result.get('ok') else result.get('error', 'github_diff_review_approve_denied'), status, required_scope_for_request(), {'task_id': task_id})
+    return jsonify(result), status
+
+
+@app.route('/github/diff-reviews/<task_id>/reject', methods=['POST'])
+def github_diff_review_reject(task_id):
+    data = request.get_json(silent=True) or {}
+    result = reject_github_diff_review(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
+    status = 200 if result.get('ok') else 404
+    audit_security_event('security_mutation', 'github_diff_review_rejected' if result.get('ok') else result.get('error', 'github_diff_review_reject_denied'), status, required_scope_for_request(), {'task_id': task_id, 'reason': data.get('reason')})
     return jsonify(result), status
 
 

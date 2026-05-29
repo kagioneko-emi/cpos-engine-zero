@@ -696,3 +696,21 @@ The plan stores metadata only: summary hash/size, candidate file paths, proposed
 branch name, proposed commit message, and PR title. Raw summary text and secrets are
 not stored. Approval currently marks the dry-run plan as approved only; automation
 still remains disabled until a later explicit execution adapter is added.
+
+
+## GitHub Diff Review: Metadata-only
+
+Approved PR dry-run plans can advance to a diff-review stage. This stage records
+only diff metadata and remains non-executing:
+
+```bash
+curl -X POST https://<host>/github/pr-dry-runs/<source_task_id>/create-diff-review \
+  -d '{"diff_text":"+example","changed_files":["README.md"],"validation_commands":["pytest -q tests/test_report.py"]}'
+curl 'https://<host>/github/diff-reviews'
+curl -X POST https://<host>/github/diff-reviews/<task_id>/approve -d '{"confirm":true}'
+curl -X POST https://<host>/github/diff-reviews/<task_id>/reject -d '{"reason":"manual_reject"}'
+```
+
+Raw diff text is not stored. The Task Tape keeps hash, byte size, changed file
+paths, validation command strings, and line counters only. Approval does not apply
+the patch; it only marks the diff plan ready for a future sandbox patch runner.
