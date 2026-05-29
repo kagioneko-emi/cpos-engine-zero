@@ -437,6 +437,12 @@
             <div id="sandbox-execution-result-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox patch execution results...</div>
             <div id="sandbox-execution-result-container"></div>
         </div>
+        <div id="sandbox-retry-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Sandbox Patch Execution Retry Reviews</h2>
+            <p class="muted">Failure-metadata review only: no raw stdout/stderr, no raw patch text, no workspace reuse, and no automatic rerun.</p>
+            <div id="sandbox-retry-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox retry reviews...</div>
+            <div id="sandbox-retry-container"></div>
+        </div>
 
         <div id="handoff-flow-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
             <h2>Handoff Flow Graph</h2>
@@ -550,12 +556,17 @@
                 const sandboxExecutionData = sandboxExecutionRes.ok ? await sandboxExecutionRes.json() : {ok: false, count: 0, reviews: []};
                 const sandboxExecutionResultRes = await fetch('/sandbox/executions/completed');
                 const sandboxExecutionResultData = sandboxExecutionResultRes.ok ? await sandboxExecutionResultRes.json() : {ok: false, count: 0, results: []};
+                const sandboxRetryRes = await fetch('/sandbox/execution-retries');
+                const sandboxRetryData = sandboxRetryRes.ok ? await sandboxRetryRes.json() : {ok: false, count: 0, reviews: []};
                 const pendingSandboxExecutions = sandboxExecutionData.count || 0;
                 const completedSandboxExecutions = sandboxExecutionResultData.count || 0;
-                document.getElementById('sandbox-execution-count').innerText = completedSandboxExecutions ? `${pendingSandboxExecutions}+${completedSandboxExecutions}` : pendingSandboxExecutions;
-                document.getElementById('sandbox-execution-detail').innerText = pendingSandboxExecutions || completedSandboxExecutions ? `pending=${pendingSandboxExecutions}, completed=${completedSandboxExecutions}` : 'No sandbox executions yet';
+                const pendingSandboxRetries = sandboxRetryData.count || 0;
+                const sandboxExecutionTotal = pendingSandboxExecutions + completedSandboxExecutions + pendingSandboxRetries;
+                document.getElementById('sandbox-execution-count').innerText = pendingSandboxRetries ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}` : (completedSandboxExecutions ? `${pendingSandboxExecutions}+${completedSandboxExecutions}` : pendingSandboxExecutions);
+                document.getElementById('sandbox-execution-detail').innerText = sandboxExecutionTotal ? `pending=${pendingSandboxExecutions}, completed=${completedSandboxExecutions}, retry=${pendingSandboxRetries}` : 'No sandbox executions yet';
                 renderSandboxPatchExecutions(sandboxExecutionData);
                 renderSandboxPatchExecutionResults(sandboxExecutionResultData);
+                renderSandboxPatchExecutionRetries(sandboxRetryData);
 
                 const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
                 const handoffSource = document.getElementById('handoff-flow-source-filter')?.value || '';
@@ -801,6 +812,48 @@
                                 <span class="muted">patch_apply=${payload.patch_apply_stage || '-'} exit=${payload.patch_apply_exit_code}</span><br>
                                 <span class="muted">stdout_sha256=${payload.patch_apply_stdout_sha256 || '-'} / stderr_sha256=${payload.patch_apply_stderr_sha256 || '-'}</span>
                                 <div style="margin-top: 8px;"><strong>Command metadata</strong><br>${commandSummary}</div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderSandboxPatchExecutionRetries(sandboxRetryData) {
+                    const section = document.getElementById('sandbox-retry-section');
+                    const summary = document.getElementById('sandbox-retry-summary');
+                    const container = document.getElementById('sandbox-retry-container');
+                    const reviews = (sandboxRetryData && sandboxRetryData.reviews) || [];
+                    if (!reviews.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `pending_retry_reviews=${reviews.length}, raw_outputs_stored=false, workspace_reused=false, execute_automatically=false`;
+
+                    container.innerHTML = '';
+                    reviews.forEach(review => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-orange)';
+                        const payload = review.payload || {};
+                        const plan = payload.plan || {};
+                        const failed = plan.failed_command || {};
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div>
+                                    <strong style="color: var(--accent-orange);">[SANDBOX RETRY REVIEW]</strong> <code>${review.task_id}</code><br>
+                                    <span class="muted">source=${plan.source_execution_task_id || '-'} / failure=${plan.failure_kind || '-'} / status=${plan.source_execution_status || '-'}</span><br>
+                                    <span class="muted">patch_apply=${plan.patch_apply_stage || '-'} exit=${plan.patch_apply_exit_code}</span><br>
+                                    <span class="muted">failed_cmd=${failed.command_index ?? '-'} exit=${failed.exit_code ?? '-'} sha=${(failed.command_sha256 || '').slice(0, 12) || '-'}</span><br>
+                                    <span class="muted">retry_plan_sha256=${plan.retry_plan_sha256 || '-'}</span><br>
+                                    <span class="muted">raw_outputs_stored=${plan.raw_outputs_stored} / raw_patch_stored=${plan.raw_patch_stored} / workspace_reused=${plan.workspace_reused}</span>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button class="btn btn-success" onclick="approveSandboxPatchExecutionRetry('${review.task_id}')">Approve Retry Plan</button>
+                                    <button class="btn btn-danger" onclick="rejectSandboxPatchExecutionRetry('${review.task_id}')">Reject</button>
+                                </div>
                             </div>
                         `;
                         container.appendChild(div);
@@ -1106,6 +1159,17 @@
             const reason = prompt('Reject sandbox patch execution reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/sandbox/executions/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveSandboxPatchExecutionRetry(taskId) {
+            if (!confirm(`Approve sandbox retry review ${taskId}? This will not rerun automatically.`)) return;
+            await postJson(`/sandbox/execution-retries/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectSandboxPatchExecutionRetry(taskId) {
+            const reason = prompt('Reject sandbox retry review reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/sandbox/execution-retries/${taskId}/reject`, {reason: reason});
         }
 
         async function approveMcpExecution(taskId) {

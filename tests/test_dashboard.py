@@ -148,3 +148,19 @@ def test_dashboard_contains_sandbox_patch_execution_results_ui():
     assert 'renderSandboxPatchExecutionResults' in html
     assert 'Sandbox Patch Execution Results' in html
     assert 'raw patch text or command output' in html
+
+
+def test_dashboard_contains_sandbox_patch_execution_retry_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-retry-section' in html
+    assert 'sandbox-retry-container' in html
+    assert '/sandbox/execution-retries' in html
+    assert 'renderSandboxPatchExecutionRetries' in html
+    assert 'approveSandboxPatchExecutionRetry' in html
+    assert 'rejectSandboxPatchExecutionRetry' in html
+    assert 'SANDBOX RETRY REVIEW' in html
+    assert 'no raw stdout/stderr' in html
+    assert 'no automatic rerun' in html
