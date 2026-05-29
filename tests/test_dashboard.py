@@ -164,3 +164,18 @@ def test_dashboard_contains_sandbox_patch_execution_retry_ui():
     assert 'SANDBOX RETRY REVIEW' in html
     assert 'no raw stdout/stderr' in html
     assert 'no automatic rerun' in html
+
+
+def test_dashboard_contains_sandbox_patch_replan_templates_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-replan-section' in html
+    assert 'sandbox-replan-container' in html
+    assert '/sandbox/replan-templates' in html
+    assert 'renderSandboxPatchReplanTemplates' in html
+    assert 'SANDBOX REPLAN TEMPLATE' in html
+    assert 'suggested_focus' in html
+    assert 'next_review_chain' in html
+    assert 'without diff text' in html
