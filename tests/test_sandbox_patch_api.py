@@ -229,10 +229,30 @@ def test_sandbox_patch_execution_retry_review_flow(tmp_path, monkeypatch):
     assert missing_confirm.status_code == 400
     assert missing_confirm.get_json()["error"] == "confirm_required"
 
+    before_approve_template = client.post(f"/sandbox/execution-retries/{retry_task_id}/create-replan-template", json={})
+    assert before_approve_template.status_code == 404
+    assert before_approve_template.get_json()["error"] == "approved_sandbox_retry_required"
+
     approved = client.post(f"/sandbox/execution-retries/{retry_task_id}/approve", json={"confirm": True})
     assert approved.status_code == 200
     assert approved.get_json()["status"] == "approved_retry_plan_only"
     assert client.get("/sandbox/execution-retries").get_json()["count"] == 0
+
+    template = client.post(f"/sandbox/execution-retries/{retry_task_id}/create-replan-template", json={"reason": "make_new_plan"})
+    assert template.status_code == 200
+    template_payload = template.get_json()
+    assert template_payload["status"] == "template_created"
+    assert template_payload["template"]["failure_kind"] == "validation_command"
+    assert template_payload["template"]["raw_outputs_stored"] is False
+    assert template_payload["template"]["raw_patch_stored"] is False
+    assert template_payload["template"]["workspace_reused"] is False
+    assert template_payload["template"]["diff_text_included"] is False
+    assert template_payload["template"]["execute_automatically"] is False
+    assert "github_diff_review" in template_payload["template"]["next_review_chain"]
+
+    templates = client.get("/sandbox/replan-templates")
+    assert templates.status_code == 200
+    assert templates.get_json()["count"] == 1
 
 
 def test_sandbox_patch_execution_retry_requires_failed_completed_run(tmp_path):

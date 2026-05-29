@@ -749,4 +749,11 @@ curl -X POST https://<host>/sandbox/executions/<task_id>/create-retry-review \
 curl https://<host>/sandbox/execution-retries
 curl -X POST https://<host>/sandbox/execution-retries/<retry_task_id>/approve \
   -d '{"confirm":true}'
+curl -X POST https://<host>/sandbox/execution-retries/<retry_task_id>/create-replan-template \
+  -d '{"reason":"make_new_plan"}'
+curl https://<host>/sandbox/replan-templates
 ```
+
+Approved retry reviews can create a replan template. The template contains only
+failure metadata and a suggested next review chain; it does not include diff
+text, raw outputs, raw patch text, commits, pushes, or PR creation.

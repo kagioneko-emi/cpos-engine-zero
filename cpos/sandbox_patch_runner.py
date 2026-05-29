@@ -16,6 +16,7 @@ from .task_tape import TaskTapeStore
 
 REVIEW_TYPE = "sandbox_patch_execution"
 RETRY_REVIEW_TYPE = "sandbox_patch_execution_retry"
+REPLAN_REVIEW_TYPE = "sandbox_patch_replan_template"
 TERMINAL_EVENTS = {"sandbox_patch_execution_approved", "sandbox_patch_execution_rejected"}
 RETRY_TERMINAL_EVENTS = {"sandbox_patch_execution_retry_approved", "sandbox_patch_execution_retry_rejected"}
 DANGEROUS_COMMAND_CHARS = set(";&|`$<>\n\r")
@@ -304,6 +305,94 @@ def reject_sandbox_patch_execution_retry(store: TaskTapeStore, task_id: str, *, 
         payload={"review_type": RETRY_REVIEW_TYPE, "reason": reason, "execute_automatically": False},
     )
     return {"ok": True, "task_id": task_id, "status": "rejected", "event": event.to_dict(), "execute_automatically": False}
+
+
+def _approved_retry_plan(store: TaskTapeStore, task_id: str) -> dict[str, Any] | None:
+    events = store.events_for_task(task_id)
+    review = next((event for event in events if event.event == "review_required" and event.payload.get("review_type") == RETRY_REVIEW_TYPE), None)
+    approved = next((event for event in events if event.event == "sandbox_patch_execution_retry_approved" and event.payload.get("review_type") == RETRY_REVIEW_TYPE), None)
+    if review is None or approved is None:
+        return None
+    return (review.payload or {}).get("plan") or {}
+
+
+def sandbox_patch_replan_templates(store: TaskTapeStore) -> list[dict[str, Any]]:
+    return [event.to_dict() for event in store.events() if event.event == "sandbox_patch_replan_template_created"]
+
+
+def create_sandbox_patch_replan_template(
+    store: TaskTapeStore,
+    *,
+    retry_task_id: str,
+    actor: str = "SandboxPatchReplanTemplate",
+    reason: str | None = None,
+) -> dict[str, Any]:
+    retry_plan = _approved_retry_plan(store, retry_task_id)
+    if retry_plan is None:
+        return {"ok": False, "error": "approved_sandbox_retry_required", "retry_task_id": retry_task_id, "execute_automatically": False}
+
+    failure_kind = retry_plan.get("failure_kind")
+    failed_command = retry_plan.get("failed_command") or {}
+    suggested_focus = {
+        "patch_apply": ["regenerate_diff_against_current_base", "verify_changed_file_paths", "rerun_git_apply_check_in_sandbox"],
+        "validation_command": ["inspect_failed_test_metadata", "create_new_diff_review", "preserve_or_reduce_validation_command_scope"],
+    }.get(str(failure_kind), ["review_failure_metadata", "create_new_diff_review"] )
+    template = {
+        "schema": "cpos.sandbox_patch_replan_template.v1",
+        "retry_task_id": retry_task_id,
+        "source_execution_task_id": retry_plan.get("source_execution_task_id"),
+        "failure_kind": failure_kind,
+        "source_execution_status": retry_plan.get("source_execution_status"),
+        "patch_apply_stage": retry_plan.get("patch_apply_stage"),
+        "patch_apply_exit_code": retry_plan.get("patch_apply_exit_code"),
+        "failed_command": failed_command,
+        "validation_command_hashes": retry_plan.get("validation_command_hashes") or [],
+        "validation_command_count": retry_plan.get("validation_command_count", 0),
+        "suggested_focus": suggested_focus,
+        "next_review_chain": [
+            "github_diff_review",
+            "sandbox_patch_plan",
+            "sandbox_patch_execution_review",
+            "sandbox_patch_execution_run",
+        ],
+        "raw_outputs_stored": False,
+        "raw_patch_stored": False,
+        "workspace_reused": False,
+        "diff_text_included": False,
+        "execute_automatically": False,
+        "commit_created": False,
+        "pushed": False,
+        "pr_created": False,
+        "requires_human_approval": True,
+        "reason": reason,
+        "guardrails": [
+            "template contains metadata only; no raw stdout/stderr",
+            "new diff text must be supplied through the normal diff review path",
+            "do not reuse failed ephemeral workspace",
+            "no commit/push/PR from replan template",
+        ],
+    }
+    template["replan_template_sha256"] = _digest(template)
+    target = f"sandbox://replan-template/{retry_task_id}"
+    task_id = store.create_task(
+        target=target,
+        action="sandbox_patch_replan_template_request",
+        payload={
+            "review_type": REPLAN_REVIEW_TYPE,
+            "retry_task_id": retry_task_id,
+            "source_execution_task_id": retry_plan.get("source_execution_task_id"),
+            "replan_template_sha256": template["replan_template_sha256"],
+            "actor": actor,
+        },
+    )
+    event = store.append_event(
+        task_id=task_id,
+        event="sandbox_patch_replan_template_created",
+        target=target,
+        status="template_created",
+        payload={"review_type": REPLAN_REVIEW_TYPE, "template": template, "actor": actor},
+    )
+    return {"ok": True, "task_id": task_id, "status": "template_created", "event": event.to_dict(), "template": template, "execute_automatically": False}
 
 def create_sandbox_patch_execution(
     store: TaskTapeStore,

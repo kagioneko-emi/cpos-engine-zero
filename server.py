@@ -40,7 +40,7 @@ from cpos.mcp_probe import request_mcp_capability_probe, pending_mcp_probe_revie
 from cpos.github_pr_flow import create_github_pr_dry_run, pending_github_pr_reviews, approve_github_pr_dry_run, reject_github_pr_dry_run
 from cpos.github_diff_review import create_github_diff_review, pending_github_diff_reviews, approve_github_diff_review, reject_github_diff_review
 from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_patch_plans, approve_sandbox_patch_plan, reject_sandbox_patch_plan
-from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry
+from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry, create_sandbox_patch_replan_template, sandbox_patch_replan_templates
 
 apply_security_profile_defaults()
 
@@ -952,6 +952,26 @@ def sandbox_patch_execution_retry_reject(task_id):
     result = reject_sandbox_patch_execution_retry(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
     status = 200 if result.get('ok') else 404
     audit_security_event('security_mutation', 'sandbox_patch_execution_retry_rejected' if result.get('ok') else result.get('error', 'sandbox_patch_execution_retry_reject_denied'), status, required_scope_for_request(), {'task_id': task_id, 'reason': data.get('reason')})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/replan-templates', methods=['GET'])
+def sandbox_patch_replan_templates_list():
+    templates = sandbox_patch_replan_templates(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(templates), 'templates': templates}), 200
+
+
+@app.route('/sandbox/execution-retries/<task_id>/create-replan-template', methods=['POST'])
+def sandbox_patch_replan_template_create(task_id):
+    data = request.get_json(silent=True) or {}
+    result = create_sandbox_patch_replan_template(
+        agent.task_tape,
+        retry_task_id=task_id,
+        actor=request_actor(),
+        reason=data.get('reason'),
+    )
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'approved_sandbox_retry_required' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_replan_template_created' if result.get('ok') else result.get('error', 'sandbox_patch_replan_template_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'retry_task_id': task_id})
     return jsonify(result), status
 
 
