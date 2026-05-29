@@ -182,3 +182,62 @@ def test_sandbox_patch_execution_rejects_local_dev_without_opt_in(tmp_path, monk
     payload = res.get_json()
     assert payload["error"] == "local_dev_runner_mode_requires_explicit_opt_in"
     assert payload["runner_mode"] == "local-dev"
+
+
+def test_sandbox_patch_execution_retry_review_flow(tmp_path, monkeypatch):
+    configure(tmp_path)
+    client = server.app.test_client()
+    exec_task_id = create_approved_execution(client, validation_commands=["pytest -q tests/test_report.py"])
+
+    src_root = tmp_path / "src-fail"
+    src_root.mkdir()
+    (src_root / "README.md").write_text("old\n", encoding="utf-8")
+    monkeypatch.setattr("cpos.sandbox_patch_runner._project_root", lambda: src_root)
+    monkeypatch.setattr("cpos.sandbox_patch_runner._apply_patch", lambda workspace, diff_text: {"ok": True, "stage": "apply", "exit_code": 0, "stdout_sha256": "ok", "stderr_sha256": ""})
+
+    class FailingSandboxRunner:
+        def __init__(self, *args, **kwargs):
+            self.mode = kwargs.get("mode")
+        def run_command(self, target_dir, command):
+            return {"stdout": "", "stderr": "failed", "exit_code": 2, "sandbox": {"backend": "fake", "mode": self.mode, "isolated": True, "fallback_used": False}}
+
+    monkeypatch.setattr("cpos.sandbox_patch_runner.SandboxRunner", FailingSandboxRunner)
+
+    run_res = client.post(f"/sandbox/executions/{exec_task_id}/run", json={
+        "diff_text": "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n",
+        "validation_commands": ["pytest -q tests/test_report.py"],
+        "runner_mode": "strict",
+    })
+    assert run_res.status_code == 200
+    assert run_res.get_json()["ok"] is False
+    assert run_res.get_json()["status"] == "completed_with_failures"
+
+    created = client.post(f"/sandbox/executions/{exec_task_id}/create-retry-review", json={"reason": "test_retry"})
+    assert created.status_code == 200
+    payload = created.get_json()
+    retry_task_id = payload["task_id"]
+    assert payload["plan"]["failure_kind"] == "validation_command"
+    assert payload["plan"]["failed_command"]["exit_code"] == 2
+    assert payload["plan"]["raw_outputs_stored"] is False
+    assert payload["execute_automatically"] is False
+
+    listed = client.get("/sandbox/execution-retries")
+    assert listed.status_code == 200
+    assert listed.get_json()["count"] == 1
+
+    missing_confirm = client.post(f"/sandbox/execution-retries/{retry_task_id}/approve", json={})
+    assert missing_confirm.status_code == 400
+    assert missing_confirm.get_json()["error"] == "confirm_required"
+
+    approved = client.post(f"/sandbox/execution-retries/{retry_task_id}/approve", json={"confirm": True})
+    assert approved.status_code == 200
+    assert approved.get_json()["status"] == "approved_retry_plan_only"
+    assert client.get("/sandbox/execution-retries").get_json()["count"] == 0
+
+
+def test_sandbox_patch_execution_retry_requires_failed_completed_run(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    missing = client.post("/sandbox/executions/task_missing/create-retry-review", json={})
+    assert missing.status_code == 404
+    assert missing.get_json()["error"] == "completed_sandbox_execution_required"

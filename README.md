@@ -733,3 +733,20 @@ reports: no raw patch text, no raw stdout/stderr, no commit, no push, and no PR.
 Validation commands are constrained before execution: only pytest-style prefixes are
 accepted by default, shell metacharacters are rejected, and `local-dev` runner mode
 requires explicit `CPOS_ALLOW_LOCAL_DEV_RUN=true` opt-in.
+
+
+## Sandbox Patch Execution Retry Review
+
+Failed sandbox executions can create a retry review from failure metadata only.
+The retry review never stores raw stdout/stderr or raw patch text, does not reuse
+the ephemeral workspace, and does not rerun automatically. Approval only records
+that a human accepted the retry strategy; a new diff/patch plan must still pass
+the normal review chain.
+
+```bash
+curl -X POST https://<host>/sandbox/executions/<task_id>/create-retry-review \
+  -d '{"reason":"validation_failed"}'
+curl https://<host>/sandbox/execution-retries
+curl -X POST https://<host>/sandbox/execution-retries/<retry_task_id>/approve \
+  -d '{"confirm":true}'
+```

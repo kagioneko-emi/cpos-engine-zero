@@ -40,7 +40,7 @@ from cpos.mcp_probe import request_mcp_capability_probe, pending_mcp_probe_revie
 from cpos.github_pr_flow import create_github_pr_dry_run, pending_github_pr_reviews, approve_github_pr_dry_run, reject_github_pr_dry_run
 from cpos.github_diff_review import create_github_diff_review, pending_github_diff_reviews, approve_github_diff_review, reject_github_diff_review
 from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_patch_plans, approve_sandbox_patch_plan, reject_sandbox_patch_plan
-from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run
+from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry
 
 apply_security_profile_defaults()
 
@@ -911,8 +911,47 @@ def sandbox_patch_execution_run(task_id):
         actor=request_actor(),
         runner_mode=data.get('runner_mode'),
     )
-    status = 200 if result.get('ok') else (404 if result.get('error') == 'approved_sandbox_patch_execution_required' else 400)
-    audit_security_event('security_mutation', 'sandbox_patch_execution_run' if result.get('ok') else result.get('error', 'sandbox_patch_execution_run_denied'), status, required_scope_for_request(), {'task_id': task_id, 'workspace_copied': result.get('workspace_copied'), 'patch_applied': result.get('patch_applied')})
+    completed_status = str(result.get('status') or '').startswith(('completed_', 'failed_patch_apply'))
+    status = 200 if result.get('ok') or completed_status else (404 if result.get('error') == 'approved_sandbox_patch_execution_required' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_execution_run' if result.get('ok') or completed_status else result.get('error', 'sandbox_patch_execution_run_denied'), status, required_scope_for_request(), {'task_id': task_id, 'workspace_copied': result.get('workspace_copied'), 'patch_applied': result.get('patch_applied')})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/execution-retries', methods=['GET'])
+def sandbox_patch_execution_retry_reviews():
+    reviews = pending_sandbox_patch_execution_retries(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews}), 200
+
+
+@app.route('/sandbox/executions/<task_id>/create-retry-review', methods=['POST'])
+def sandbox_patch_execution_retry_create(task_id):
+    data = request.get_json(silent=True) or {}
+    result = create_sandbox_patch_execution_retry_review(
+        agent.task_tape,
+        source_task_id=task_id,
+        actor=request_actor(),
+        reason=data.get('reason'),
+    )
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'completed_sandbox_execution_required' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_execution_retry_created' if result.get('ok') else result.get('error', 'sandbox_patch_execution_retry_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'source_task_id': task_id})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/execution-retries/<task_id>/approve', methods=['POST'])
+def sandbox_patch_execution_retry_approve(task_id):
+    data = request.get_json(silent=True) or {}
+    result = approve_sandbox_patch_execution_retry(agent.task_tape, task_id, approver=request_actor(), reason=data.get('reason'), confirm=data.get('confirm') is True)
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'pending_sandbox_patch_execution_retry_not_found' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_execution_retry_approved' if result.get('ok') else result.get('error', 'sandbox_patch_execution_retry_approve_denied'), status, required_scope_for_request(), {'task_id': task_id})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/execution-retries/<task_id>/reject', methods=['POST'])
+def sandbox_patch_execution_retry_reject(task_id):
+    data = request.get_json(silent=True) or {}
+    result = reject_sandbox_patch_execution_retry(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
+    status = 200 if result.get('ok') else 404
+    audit_security_event('security_mutation', 'sandbox_patch_execution_retry_rejected' if result.get('ok') else result.get('error', 'sandbox_patch_execution_retry_reject_denied'), status, required_scope_for_request(), {'task_id': task_id, 'reason': data.get('reason')})
     return jsonify(result), status
 
 

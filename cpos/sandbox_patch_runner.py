@@ -15,7 +15,9 @@ from .sandbox_patch_plan import REVIEW_TYPE as PATCH_PLAN_REVIEW_TYPE, _digest
 from .task_tape import TaskTapeStore
 
 REVIEW_TYPE = "sandbox_patch_execution"
+RETRY_REVIEW_TYPE = "sandbox_patch_execution_retry"
 TERMINAL_EVENTS = {"sandbox_patch_execution_approved", "sandbox_patch_execution_rejected"}
+RETRY_TERMINAL_EVENTS = {"sandbox_patch_execution_retry_approved", "sandbox_patch_execution_retry_rejected"}
 DANGEROUS_COMMAND_CHARS = set(";&|`$<>\n\r")
 VALID_RUNNER_MODES = {"strict", "permissive", "local-dev"}
 ALLOWED_VALIDATION_COMMAND_PREFIXES = (
@@ -155,6 +157,153 @@ def pending_sandbox_patch_executions(store: TaskTapeStore) -> list[dict[str, Any
 def completed_sandbox_patch_executions(store: TaskTapeStore) -> list[dict[str, Any]]:
     return [event.to_dict() for event in store.events() if event.event == "sandbox_patch_execution_completed"]
 
+
+
+def _latest_completed_execution_event(store: TaskTapeStore, task_id: str) -> dict[str, Any] | None:
+    matches = [event.to_dict() for event in store.events_for_task(task_id) if event.event == "sandbox_patch_execution_completed"]
+    return matches[-1] if matches else None
+
+
+def _first_failed_command(command_results: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for index, result in enumerate(command_results):
+        if result.get("exit_code") != 0:
+            return {
+                "command_index": index,
+                "command_sha256": result.get("command_sha256"),
+                "exit_code": result.get("exit_code"),
+                "stdout_sha256": result.get("stdout_sha256"),
+                "stderr_sha256": result.get("stderr_sha256"),
+                "stdout_size_bytes": result.get("stdout_size_bytes"),
+                "stderr_size_bytes": result.get("stderr_size_bytes"),
+                "sandbox_backend": result.get("sandbox_backend"),
+                "sandbox_mode": result.get("sandbox_mode"),
+                "isolated": result.get("isolated"),
+                "fallback_used": result.get("fallback_used"),
+            }
+    return None
+
+
+def pending_sandbox_patch_execution_retries(store: TaskTapeStore) -> list[dict[str, Any]]:
+    terminal_task_ids = {event.task_id for event in store.events() if event.event in RETRY_TERMINAL_EVENTS and event.payload.get("review_type") == RETRY_REVIEW_TYPE}
+    return [
+        event.to_dict()
+        for event in store.events()
+        if event.event == "review_required" and event.payload.get("review_type") == RETRY_REVIEW_TYPE and event.task_id not in terminal_task_ids
+    ]
+
+
+def create_sandbox_patch_execution_retry_review(
+    store: TaskTapeStore,
+    *,
+    source_task_id: str,
+    actor: str = "SandboxPatchRetryPlanner",
+    reason: str | None = None,
+) -> dict[str, Any]:
+    completed = _latest_completed_execution_event(store, source_task_id)
+    if completed is None:
+        return {"ok": False, "error": "completed_sandbox_execution_required", "source_task_id": source_task_id, "execute_automatically": False}
+    payload = completed.get("payload") or {}
+    if payload.get("success") is True or completed.get("status") == "completed_success":
+        return {"ok": False, "error": "failed_sandbox_execution_required", "source_task_id": source_task_id, "execute_automatically": False}
+
+    command_results = payload.get("command_results") or []
+    failed_command = _first_failed_command(command_results)
+    retry_plan = {
+        "schema": "cpos.sandbox_patch_execution_retry.v1",
+        "source_execution_task_id": source_task_id,
+        "source_execution_status": completed.get("status"),
+        "source_event_id": completed.get("id"),
+        "failure_kind": "patch_apply" if not payload.get("patch_applied") else "validation_command",
+        "patch_applied": payload.get("patch_applied"),
+        "commands_executed": payload.get("commands_executed"),
+        "tests_run": payload.get("tests_run"),
+        "workspace_copied": payload.get("workspace_copied"),
+        "patch_apply_stage": payload.get("patch_apply_stage"),
+        "patch_apply_exit_code": payload.get("patch_apply_exit_code"),
+        "patch_apply_stdout_sha256": payload.get("patch_apply_stdout_sha256"),
+        "patch_apply_stderr_sha256": payload.get("patch_apply_stderr_sha256"),
+        "validation_command_hashes": payload.get("validation_command_hashes") or [],
+        "validation_command_count": payload.get("validation_command_count", 0),
+        "failed_command": failed_command,
+        "retry_strategy": "create_new_diff_or_validation_plan_before_rerun",
+        "raw_outputs_stored": False,
+        "raw_patch_stored": False,
+        "workspace_reused": False,
+        "execute_automatically": False,
+        "requires_human_approval": True,
+        "next_step": "review_failure_metadata_then_create_new_sandbox_patch_plan",
+        "reason": reason,
+        "guardrails": [
+            "retry review uses failure metadata only; no raw stdout/stderr",
+            "do not reuse ephemeral workspace",
+            "do not rerun automatically",
+            "new patch/diff content must pass the full review chain again",
+        ],
+    }
+    retry_plan["retry_plan_sha256"] = _digest(retry_plan)
+    target = f"sandbox://execution-retry/{source_task_id}"
+    task_id = store.create_task(
+        target=target,
+        action="sandbox_patch_execution_retry_request",
+        payload={
+            "review_type": RETRY_REVIEW_TYPE,
+            "source_execution_task_id": source_task_id,
+            "retry_plan_sha256": retry_plan["retry_plan_sha256"],
+            "actor": actor,
+        },
+    )
+    event = store.append_event(
+        task_id=task_id,
+        event="review_required",
+        target=target,
+        status="pending_review",
+        payload={"review_type": RETRY_REVIEW_TYPE, "plan": retry_plan, "actor": actor},
+    )
+    return {"ok": True, "task_id": task_id, "status": "pending_review", "review": event.to_dict(), "plan": retry_plan, "execute_automatically": False}
+
+
+def approve_sandbox_patch_execution_retry(store: TaskTapeStore, task_id: str, *, approver: str = "SandboxPatchRetryReviewer", reason: str | None = None, confirm: bool = False) -> dict[str, Any]:
+    if not confirm:
+        return {"ok": False, "error": "confirm_required", "task_id": task_id}
+    review = next((row for row in pending_sandbox_patch_execution_retries(store) if row.get("task_id") == task_id), None)
+    if review is None:
+        return {"ok": False, "error": "pending_sandbox_patch_execution_retry_not_found", "task_id": task_id}
+    plan = (review.get("payload") or {}).get("plan") or {}
+    event = store.append_event(
+        task_id=task_id,
+        event="sandbox_patch_execution_retry_approved",
+        target=review.get("target"),
+        status="approved_retry_plan_only",
+        payload={
+            "review_type": RETRY_REVIEW_TYPE,
+            "approved_by": approver,
+            "reason": reason,
+            "source_execution_task_id": plan.get("source_execution_task_id"),
+            "retry_plan_sha256": plan.get("retry_plan_sha256"),
+            "next_step": "create_new_diff_or_validation_plan_before_rerun",
+            "execute_automatically": False,
+            "raw_outputs_stored": False,
+            "workspace_reused": False,
+            "commit_created": False,
+            "pushed": False,
+            "pr_created": False,
+        },
+    )
+    return {"ok": True, "task_id": task_id, "status": "approved_retry_plan_only", "event": event.to_dict(), "execute_automatically": False}
+
+
+def reject_sandbox_patch_execution_retry(store: TaskTapeStore, task_id: str, *, reason: str = "manual_reject") -> dict[str, Any]:
+    review = next((row for row in pending_sandbox_patch_execution_retries(store) if row.get("task_id") == task_id), None)
+    if review is None:
+        return {"ok": False, "error": "pending_sandbox_patch_execution_retry_not_found", "task_id": task_id}
+    event = store.append_event(
+        task_id=task_id,
+        event="sandbox_patch_execution_retry_rejected",
+        target=review.get("target"),
+        status="rejected",
+        payload={"review_type": RETRY_REVIEW_TYPE, "reason": reason, "execute_automatically": False},
+    )
+    return {"ok": True, "task_id": task_id, "status": "rejected", "event": event.to_dict(), "execute_automatically": False}
 
 def create_sandbox_patch_execution(
     store: TaskTapeStore,
