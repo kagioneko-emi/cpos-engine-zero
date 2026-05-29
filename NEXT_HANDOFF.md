@@ -80,17 +80,18 @@
 - MCP Execution Adapter dry-run/metadata-only mode added in `cpos/mcp_execution.py`. API routes: `GET /mcp/executions`, `POST /mcp/executions/dry-run`, `POST /mcp/executions/<task_id>/approve|reject`. It checks connector status, allowlist/blocklist, secret-like argument keys, and approval requirements. It never launches MCP servers, never executes tools, never stores raw argument values; Task Tape stores only args hash/size/top-level keys. Dashboard/report now show pending MCP execution reviews. Approval is dry-run-only and still `tool_executed=false`.
 
 - MCP Capability Probe Harness dry-run/metadata-only added in `cpos/mcp_probe.py` with API routes `GET /mcp/probes`, `POST /mcp/probes/dry-run`, `POST /mcp/probes/<task_id>/approve|reject`. It creates approval-gated probe plans only: no server start, no network request, no tool call, no secret file read.
+- GitHub PR Dry-run Workflow added in `cpos/github_pr_flow.py` with API routes `GET /github/pr-dry-runs`, `POST /github/pr-dry-runs`, `POST /github/pr-dry-runs/<task_id>/approve|reject`. It creates approval-gated issue-to-PR metadata plans only: no branch creation, no commits, no push, no GitHub PR creation, no raw summary storage; dashboard/report show pending plans.
 - OSS release prep added: `.gitignore`, `LICENSE` (MIT), `SECURITY.md`, `CONTRIBUTING.md`, `OSS_RELEASE_CHECKLIST.md`, and README OSS positioning. Test/source dummy secret fixtures were changed to avoid source-tree secret-scan false positives while preserving runtime scan tests.
 
 - OSS publish cleanup started: `.venv`, pycache, workspace demos, runtime JSONL ledgers, certs, and generated `hackathon_report.html` were removed from Git index with `git rm --cached` only; files remain on disk. `.gitignore` now excludes them. `git ls-files` check for tracked bad artifacts returns none.
-- Added `RELEASE_NOTES_v0.1.0.md`. Validation after cleanup: `171 passed`; secret scan `ok=true count=0`. Current status summary after cleanup: staged deletions for removed artifacts are expected (`D 2566`), plus source/doc modifications/additions.
+- Added `RELEASE_NOTES_v0.1.0.md`. Validation after cleanup: `181 passed`; secret scan `ok=true count=0`. Current status after GitHub PR dry-run work: source/docs/tests modified locally; run `git status --short`, secret scan, commit, and push when ready.
 
 ## Verification
 
 ```bash
 .venv/bin/python -m py_compile generate_report.py server.py cpos/pointer_os.py cpos/pointer_cli.py agents/main_agent.py
 .venv/bin/python -m pytest tests -q
-# 171 passed
+# 181 passed
 .venv/bin/python generate_report.py
 ```
 

@@ -12,6 +12,7 @@ from cpos.handoff_graph import build_handoff_graph
 from cpos.footprint import build_footprint
 from cpos.mcp_registry import MCPRegistry
 from cpos.mcp_execution import pending_mcp_execution_reviews
+from cpos.github_pr_flow import pending_github_pr_reviews
 
 
 def load_jsonl(path):
@@ -579,6 +580,41 @@ def render_mcp_execution_summary(task_tape_path, task_checkpoint_path):
     html += '</tbody></table></div>'
     return html
 
+
+def render_github_pr_dry_run_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    reviews = pending_github_pr_reviews(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">GitHub PR Dry-run</div>
+            <h2>Review-gated PR Planning</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(reviews)}</strong><span>Pending Reviews</span></div>
+                <div class="metric"><strong>no</strong><span>Branch Created</span></div>
+                <div class="metric"><strong>no</strong><span>Push</span></div>
+                <div class="metric"><strong>no</strong><span>PR Created</span></div>
+            </div>
+            <p class="muted">Plans GitHub PR work without creating branches, commits, pushes, or pull requests. Raw issue summaries are not stored; only hashes and metadata are recorded.</p>
+    """
+    if not reviews:
+        html += '<p class="muted">No pending GitHub PR dry-run reviews.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Task</th><th>Repo</th><th>Branch</th><th>Plan</th><th>Files</th></tr></thead><tbody>'
+    for review in reviews[:10]:
+        plan = (review.get('payload') or {}).get('plan') or {}
+        files = ''.join(f'<span class="pill"><code>{escape(str(path))}</code></span>' for path in plan.get('candidate_files', [])) or '<span class="muted">none</span>'
+        html += f"""
+            <tr>
+                <td><code>{escape(str(review.get('task_id')))}</code></td>
+                <td><code>{escape(str(plan.get('repo') or '-'))}</code></td>
+                <td>{escape(str(plan.get('proposed_branch') or '-'))}</td>
+                <td><code>{escape(str(plan.get('plan_sha256') or '-'))}</code><br><span class="muted">pr_created={escape(str(plan.get('pr_created')))}</span></td>
+                <td>{files}</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
 def render_rate_limit_backend_summary(environ=None):
     environ = os.environ if environ is None else environ
     enabled = str(environ.get('CPOS_RATE_LIMIT_ENABLED', 'false')).lower() in {'1', 'true', 'yes'}
@@ -769,6 +805,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_handoff_graph_report(pointer_path, task_tape_path, task_checkpoint_path)
     html += render_mcp_connector_summary(mcp_registry_path, mcp_audit_path, mcp_review_path)
     html += render_mcp_execution_summary(task_tape_path, task_checkpoint_path)
+    html += render_github_pr_dry_run_summary(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
     html += render_security_profile_validation()
     html += render_secret_inventory_summary(secret_inventory_path)

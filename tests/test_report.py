@@ -610,3 +610,43 @@ def test_generate_report_renders_mcp_execution_adapter_summary(tmp_path):
     assert "Args Fingerprint" in html
     assert "SENSITIVE_QUERY_VALUE_X" not in html
     assert "It does not launch MCP servers or execute tools" in html
+
+
+def test_generate_report_renders_github_pr_dry_run_summary(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.github_pr_flow import create_github_pr_dry_run
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    result = create_github_pr_dry_run(
+        store,
+        repo="kagioneko/cpos-engine-zero",
+        title="Fix docs",
+        summary="RAW_SUMMARY_SHOULD_NOT_APPEAR",
+        files=["README.md"],
+    )
+    assert result["ok"] is True
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "GitHub PR Dry-run" in html
+    assert "Review-gated PR Planning" in html
+    assert "kagioneko/cpos-engine-zero" in html
+    assert "README.md" in html
+    assert "RAW_SUMMARY_SHOULD_NOT_APPEAR" not in html
+    assert "PR Created" in html

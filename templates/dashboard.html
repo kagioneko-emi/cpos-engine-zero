@@ -270,6 +270,7 @@
             <a href="#" class="nav-item">Task Tape</a>
             <a href="#" class="nav-item">Security Audit</a>
             <a href="#mcp-review-section" class="nav-item">MCP Review</a>
+            <a href="#github-pr-section" class="nav-item">GitHub PR</a>
             <a href="#" class="nav-item">Settings</a>
         </nav>
         <div style="margin-top: auto; font-size: 0.8rem; color: var(--muted-color);">
@@ -342,6 +343,11 @@
                 <div class="metric" id="mcp-connector-count">--</div>
                 <div class="muted" id="mcp-connector-detail">Text-first connector registry</div>
             </div>
+            <div class="card" id="github-pr-card" style="border-color: var(--accent-blue);">
+                <h2>GitHub PR Dry-run</h2>
+                <div class="metric" id="github-pr-count">--</div>
+                <div class="muted" id="github-pr-detail">Review-gated PR planning</div>
+            </div>
             <div class="card" id="handoff-inbox-card" style="border-color: var(--accent-orange);">
                 <h2>Handoff Inbox</h2>
                 <div class="metric" id="handoff-inbox-count">--</div>
@@ -394,6 +400,13 @@
             <div id="mcp-pending-review-container" style="margin-bottom: 16px;"></div>
             <div id="mcp-execution-review-container" style="margin-bottom: 16px;"></div>
             <div id="mcp-review-container"></div>
+        </div>
+
+        <div id="github-pr-section" class="card" style="display: none; border-color: var(--accent-blue); margin-bottom: 30px;">
+            <h2>GitHub PR Dry-run Reviews</h2>
+            <p class="muted">Planning only: no branch creation, no commits, no push, and no pull request creation. Approval only unlocks the next diff-review step.</p>
+            <div id="github-pr-summary" class="muted" style="margin-bottom: 12px;">Loading GitHub PR dry-runs...</div>
+            <div id="github-pr-container"></div>
         </div>
 
         <div id="handoff-flow-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
@@ -493,6 +506,12 @@
                 const approvalMcp = mcpConnectors.filter(c => c.requires_human_approval).length;
                 document.getElementById('mcp-connector-detail').innerText = mcpConnectors.length === 0 && !pendingMcpTotal ? 'No MCP connectors registered' : `active=${activeMcp}, approval_required=${approvalMcp}, connector_reviews=${mcpReviewsData.count || 0}, execution_reviews=${mcpExecutionData.count || 0}`;
                 renderMcpReview(mcpData, mcpReviewsData, mcpExecutionData);
+
+                const githubPrRes = await fetch('/github/pr-dry-runs');
+                const githubPrData = githubPrRes.ok ? await githubPrRes.json() : {ok: false, count: 0, reviews: []};
+                document.getElementById('github-pr-count').innerText = githubPrData.count || 0;
+                document.getElementById('github-pr-detail').innerText = (githubPrData.reviews || []).length === 0 ? 'No pending PR dry-runs' : `${githubPrData.count} pending dry-run review(s)`;
+                renderGithubPrDryRuns(githubPrData);
 
                 const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
                 const handoffSource = document.getElementById('handoff-flow-source-filter')?.value || '';
@@ -625,6 +644,46 @@
                     `;
                     return div;
                 });
+
+                function renderGithubPrDryRuns(githubPrData) {
+                    const section = document.getElementById('github-pr-section');
+                    const summary = document.getElementById('github-pr-summary');
+                    const container = document.getElementById('github-pr-container');
+                    const reviews = (githubPrData && githubPrData.reviews) || [];
+                    if (!reviews.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `pending_reviews=${reviews.length}, branch_created=false, pushed=false, pr_created=false`;
+                    container.innerHTML = '';
+                    reviews.forEach(review => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-blue)';
+                        const payload = review.payload || {};
+                        const plan = payload.plan || {};
+                        const files = (plan.candidate_files || []).map(f => `<span class="pill"><code>${f}</code></span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div>
+                                    <strong style="color: var(--accent-blue);">[GITHUB PR DRY-RUN]</strong> <code>${review.task_id}</code><br>
+                                    <span class="muted"><code>${plan.repo || '-'}</code> / branch=${plan.proposed_branch || '-'}</span><br>
+                                    <span class="muted">branch_created=${plan.branch_created} / pushed=${plan.pushed} / pr_created=${plan.pr_created}</span><br>
+                                    <span class="muted">plan_sha256=${plan.plan_sha256 || '-'}</span>
+                                    <div style="margin-top: 8px;"><strong>Candidate files</strong><br>${files}</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button class="btn btn-success" onclick="approveGithubPrDryRun('${review.task_id}')">Approve Plan</button>
+                                    <button class="btn btn-danger" onclick="rejectGithubPrDryRun('${review.task_id}')">Reject</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
 
                 function renderMcpReview(mcpData, mcpReviewsData, mcpExecutionData) {
                     const section = document.getElementById('mcp-review-section');
@@ -892,6 +951,17 @@
             const reason = prompt('Reject resume review reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/resume-reviews/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveGithubPrDryRun(taskId) {
+            if (!confirm(`Approve GitHub PR dry-run plan ${taskId}? This will not create a branch, push, or PR.`)) return;
+            await postJson(`/github/pr-dry-runs/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectGithubPrDryRun(taskId) {
+            const reason = prompt('Reject GitHub PR dry-run reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/github/pr-dry-runs/${taskId}/reject`, {reason: reason});
         }
 
         async function approveMcpExecution(taskId) {

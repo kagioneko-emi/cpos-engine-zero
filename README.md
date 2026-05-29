@@ -677,3 +677,22 @@ keys, and approval requirements. It never launches MCP servers, never executes M
 tools, and never stores raw argument values; only argument hashes, sizes, and top-level
 keys are written to Task Tape. Approval currently means “approved for dry-run only”
 and still does not execute the tool.
+
+## GitHub PR Workflow: Dry-run / Metadata-only
+
+Issue-to-PR planning now has a safe first stage. The API can create review-gated
+GitHub PR dry-run plans, but it does **not** create branches, commits, pushes, or
+pull requests:
+
+```bash
+curl -X POST https://<host>/github/pr-dry-runs \
+  -d '{"repo":"kagioneko/cpos-engine-zero","title":"Add docs","issue_number":1,"summary":"Docs update","files":["README.md"]}'
+curl 'https://<host>/github/pr-dry-runs'
+curl -X POST https://<host>/github/pr-dry-runs/<task_id>/approve -d '{"confirm":true}'
+curl -X POST https://<host>/github/pr-dry-runs/<task_id>/reject -d '{"reason":"manual_reject"}'
+```
+
+The plan stores metadata only: summary hash/size, candidate file paths, proposed
+branch name, proposed commit message, and PR title. Raw summary text and secrets are
+not stored. Approval currently marks the dry-run plan as approved only; automation
+still remains disabled until a later explicit execution adapter is added.

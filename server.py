@@ -37,6 +37,7 @@ from cpos.promotion_executor import create_execution_review, pending_execution_r
 from cpos.resume_planner import build_next_action_proposals, create_resume_proposal_review, pending_resume_reviews, approve_resume_review, reject_resume_review
 from cpos.mcp_execution import request_mcp_execution, pending_mcp_execution_reviews, approve_mcp_execution_review, reject_mcp_execution_review
 from cpos.mcp_probe import request_mcp_capability_probe, pending_mcp_probe_reviews, approve_mcp_probe_review, reject_mcp_probe_review
+from cpos.github_pr_flow import create_github_pr_dry_run, pending_github_pr_reviews, approve_github_pr_dry_run, reject_github_pr_dry_run
 
 apply_security_profile_defaults()
 
@@ -177,7 +178,7 @@ def load_api_scopes():
 
 
 def protected_request_path():
-    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
+    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
 
 
 def client_ip():
@@ -459,7 +460,7 @@ def request_needs_api_auth():
     # Health stays unauthenticated for load balancers / Cloud Run probes.
     if request.path == '/health':
         return False
-    return request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/footprint', '/webhook', '/integrity', '/security-profile'))
+    return request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/footprint', '/webhook', '/integrity', '/security-profile'))
 
 
 def required_scope_for_request():
@@ -471,6 +472,8 @@ def required_scope_for_request():
         return 'read:pointers' if request.method == 'GET' else 'write:pointers'
     if request.path.startswith('/mcp'):
         return 'read:mcp' if request.method == 'GET' else 'write:mcp'
+    if request.path.startswith('/github'):
+        return 'read:github' if request.method == 'GET' else 'write:github'
     if request.path.startswith('/handoff-inbox') or request.path.startswith('/handoff-graph') or request.path.startswith('/handoff-executions') or request.path.startswith('/resume-reviews'):
         return 'read:reviews' if request.method == 'GET' else 'write:reviews'
     if request.path.startswith('/tasks'):
@@ -721,6 +724,51 @@ def pointer_policy_from_request():
         allowed_sensitivity_levels=levels,
     )
 
+
+
+@app.route('/github/pr-dry-runs', methods=['GET'])
+def github_pr_dry_run_reviews():
+    reviews = pending_github_pr_reviews(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews}), 200
+
+
+@app.route('/github/pr-dry-runs', methods=['POST'])
+def github_pr_dry_run_create():
+    data = request.get_json(silent=True) or {}
+    result = create_github_pr_dry_run(
+        agent.task_tape,
+        repo=data.get('repo') or 'kagioneko/cpos-engine-zero',
+        title=data.get('title') or '',
+        issue_url=data.get('issue_url'),
+        issue_number=data.get('issue_number'),
+        summary=data.get('summary'),
+        files=data.get('files') if isinstance(data.get('files'), list) else [],
+        metadata=data.get('metadata') if isinstance(data.get('metadata'), dict) else {},
+        actor=request_actor(),
+        base_branch=data.get('base_branch') or 'main',
+        dry_run=data.get('dry_run', True) is not False,
+    )
+    status = 200 if result.get('ok') else 400
+    audit_security_event('security_mutation', 'github_pr_dry_run_created' if result.get('ok') else result.get('error', 'github_pr_dry_run_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'repo': data.get('repo'), 'issue_number': data.get('issue_number')})
+    return jsonify(result), status
+
+
+@app.route('/github/pr-dry-runs/<task_id>/approve', methods=['POST'])
+def github_pr_dry_run_approve(task_id):
+    data = request.get_json(silent=True) or {}
+    result = approve_github_pr_dry_run(agent.task_tape, task_id, approver=request_actor(), reason=data.get('reason'), confirm=data.get('confirm') is True)
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'pending_github_pr_review_not_found' else 400)
+    audit_security_event('security_mutation', 'github_pr_dry_run_approved' if result.get('ok') else result.get('error', 'github_pr_dry_run_approve_denied'), status, required_scope_for_request(), {'task_id': task_id})
+    return jsonify(result), status
+
+
+@app.route('/github/pr-dry-runs/<task_id>/reject', methods=['POST'])
+def github_pr_dry_run_reject(task_id):
+    data = request.get_json(silent=True) or {}
+    result = reject_github_pr_dry_run(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
+    status = 200 if result.get('ok') else 404
+    audit_security_event('security_mutation', 'github_pr_dry_run_rejected' if result.get('ok') else result.get('error', 'github_pr_dry_run_reject_denied'), status, required_scope_for_request(), {'task_id': task_id, 'reason': data.get('reason')})
+    return jsonify(result), status
 
 
 @app.route('/mcp/probes', methods=['GET'])

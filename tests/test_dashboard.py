@@ -90,3 +90,18 @@ def test_dashboard_contains_mcp_execution_review_ui():
     assert 'rejectMcpExecution' in html
     assert 'metadata-only: args_values_stored' in html
     assert 'Approve Dry-run' in html
+
+
+def test_dashboard_contains_github_pr_dry_run_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'github-pr-section' in html
+    assert 'github-pr-count' in html
+    assert '/github/pr-dry-runs' in html
+    assert 'renderGithubPrDryRuns' in html
+    assert 'approveGithubPrDryRun' in html
+    assert 'rejectGithubPrDryRun' in html
+    assert 'GITHUB PR DRY-RUN' in html
+    assert 'no branch creation, no commits, no push' in html
