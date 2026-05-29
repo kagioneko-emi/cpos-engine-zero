@@ -6,6 +6,12 @@ from cpos.sandbox_patch_plan import (
     pending_sandbox_patch_plans,
     reject_sandbox_patch_plan,
 )
+from cpos.sandbox_patch_runner import (
+    approve_sandbox_patch_execution,
+    create_sandbox_patch_execution,
+    pending_sandbox_patch_executions,
+    reject_sandbox_patch_execution,
+)
 from cpos.task_tape import TaskTapeStore
 
 
@@ -85,3 +91,64 @@ def test_sandbox_patch_plan_real_execution_disabled(tmp_path):
     result = create_sandbox_patch_plan(store, diff_task_id="missing", dry_run=False)
     assert result["ok"] is False
     assert result["error"] == "real_sandbox_execution_disabled"
+
+
+def test_sandbox_patch_execution_requires_approved_patch_plan(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    result = create_sandbox_patch_execution(store, patch_task_id="missing")
+    assert result["ok"] is False
+    assert result["error"] == "approved_sandbox_patch_plan_required"
+
+
+def test_sandbox_patch_execution_is_metadata_only(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    diff_task_id = approved_diff_task(store)
+    patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff_task_id)
+    approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
+
+    result = create_sandbox_patch_execution(store, patch_task_id=patch_plan["task_id"])
+    assert result["ok"] is True
+    plan = result["plan"]
+    assert plan["workspace_copied"] is False
+    assert plan["patch_applied"] is False
+    assert plan["commands_executed"] is False
+    assert plan["tests_run"] is False
+    assert plan["command_outputs_stored"] is False
+    assert plan["commit_created"] is False
+    assert plan["pushed"] is False
+    assert plan["pr_created"] is False
+    assert plan["runner_mode"] == "strict"
+    assert len(plan["validation_command_hashes"]) == 2
+
+
+def test_sandbox_patch_execution_approve_and_reject_are_metadata_only(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    diff_task_id = approved_diff_task(store)
+    patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff_task_id)
+    approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
+    execution = create_sandbox_patch_execution(store, patch_task_id=patch_plan["task_id"])
+    task_id = execution["task_id"]
+
+    missing = approve_sandbox_patch_execution(store, task_id, confirm=False)
+    assert missing["error"] == "confirm_required"
+
+    approved = approve_sandbox_patch_execution(store, task_id, confirm=True)
+    assert approved["ok"] is True
+    assert approved["workspace_copied"] is False
+    assert approved["patch_applied"] is False
+    assert approved["commands_executed"] is False
+
+    second_patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff_task_id)
+    approve_sandbox_patch_plan(store, second_patch_plan["task_id"], confirm=True)
+    second = create_sandbox_patch_execution(store, patch_task_id=second_patch_plan["task_id"])
+    rejected = reject_sandbox_patch_execution(store, second["task_id"], reason="no")
+    assert rejected["ok"] is True
+    assert rejected["workspace_copied"] is False
+    assert rejected["patch_applied"] is False
+
+
+def test_sandbox_patch_execution_real_execution_disabled(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    result = create_sandbox_patch_execution(store, patch_task_id="missing", dry_run=False)
+    assert result["ok"] is False
+    assert result["error"] == "real_sandbox_patch_execution_disabled"

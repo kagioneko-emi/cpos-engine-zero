@@ -689,3 +689,45 @@ def test_generate_report_renders_sandbox_patch_plan_summary(tmp_path):
     assert plan["task_id"] in html
     assert "patch_applied" in html
     assert "commands_executed" in html
+
+
+def test_generate_report_renders_sandbox_patch_execution_summary(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.github_diff_review import approve_github_diff_review, create_github_diff_review
+    from cpos.github_pr_flow import approve_github_pr_dry_run, create_github_pr_dry_run
+    from cpos.sandbox_patch_plan import approve_sandbox_patch_plan, create_sandbox_patch_plan
+    from cpos.sandbox_patch_runner import create_sandbox_patch_execution
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    pr = create_github_pr_dry_run(store, repo="kagioneko/cpos-engine-zero", title="Fix sandbox", files=["README.md"], summary="ctx")
+    approve_github_pr_dry_run(store, pr["task_id"], confirm=True)
+    diff = create_github_diff_review(store, source_task_id=pr["task_id"], diff_text="+hello\n-old\n", changed_files=["README.md"], validation_commands=["pytest -q tests/test_report.py"])
+    approve_github_diff_review(store, diff["task_id"], confirm=True)
+    patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff["task_id"])
+    approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
+    execution = create_sandbox_patch_execution(store, patch_task_id=patch_plan["task_id"])
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Sandbox Patch Execution" in html
+    assert "Isolated Runner Readiness" in html
+    assert execution["task_id"] in html
+    assert "workspace_copied" in html
+    assert "commands_executed" in html

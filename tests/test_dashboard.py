@@ -120,3 +120,18 @@ def test_dashboard_contains_sandbox_patch_plan_ui():
     assert 'rejectSandboxPatchPlan' in html
     assert 'Sandbox Patch Plans' in html
     assert 'no live repo writes' in html
+
+
+def test_dashboard_contains_sandbox_patch_execution_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-execution-section' in html
+    assert 'sandbox-execution-count' in html
+    assert '/sandbox/executions' in html
+    assert 'renderSandboxPatchExecutions' in html
+    assert 'approveSandboxPatchExecution' in html
+    assert 'rejectSandboxPatchExecution' in html
+    assert 'SANDBOX PATCH EXECUTION' in html
+    assert 'Isolated Runner Readiness' in html

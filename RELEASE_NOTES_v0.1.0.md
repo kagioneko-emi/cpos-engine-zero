@@ -31,6 +31,7 @@ Core idea:
 - GitHub PR dry-run workflow: approval-gated issue-to-PR metadata plans with no branch/commit/push/PR creation
 - GitHub diff review adapter: metadata-only diff hashes/sizes/line counts with no patch apply or commit
 - Sandbox patch plan gate: metadata-only ephemeral workspace plan with no patch apply or command execution
+- Sandbox patch execution review: metadata-only isolated runner readiness plan with no workspace copy or command execution
 
 ## Security posture
 
@@ -48,7 +49,7 @@ Latest local validation before this release candidate:
 
 ```text
 PYTHONPATH=. .venv/bin/pytest -q tests
-196 passed
+204 passed
 
 python3 -m cpos.secret_scan ... --json
 ok=true count=0

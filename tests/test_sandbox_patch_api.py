@@ -65,3 +65,42 @@ def test_sandbox_scope_mapping():
         assert server.required_scope_for_request() == "read:sandbox"
     with server.app.test_request_context("/sandbox/patch-plans", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
+
+
+def test_sandbox_patch_execution_api_flow(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    diff_task_id = create_approved_diff(client)
+
+    created_plan = client.post(f"/github/diff-reviews/{diff_task_id}/create-sandbox-plan", json={})
+    assert created_plan.status_code == 200
+    patch_task_id = created_plan.get_json()["task_id"]
+    approved_plan = client.post(f"/sandbox/patch-plans/{patch_task_id}/approve", json={"confirm": True})
+    assert approved_plan.status_code == 200
+
+    created = client.post(f"/sandbox/patch-plans/{patch_task_id}/create-execution-review", json={})
+    assert created.status_code == 200
+    payload = created.get_json()
+    task_id = payload["task_id"]
+    assert payload["plan"]["workspace_copied"] is False
+
+    listed = client.get("/sandbox/executions")
+    assert listed.status_code == 200
+    assert listed.get_json()["count"] == 1
+
+    missing = client.post(f"/sandbox/executions/{task_id}/approve", json={})
+    assert missing.status_code == 400
+    assert missing.get_json()["error"] == "confirm_required"
+
+    approved = client.post(f"/sandbox/executions/{task_id}/approve", json={"confirm": True})
+    assert approved.status_code == 200
+    assert approved.get_json()["workspace_copied"] is False
+    assert client.get("/sandbox/executions").get_json()["count"] == 0
+
+
+def test_sandbox_patch_execution_api_requires_approved_plan(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    res = client.post("/sandbox/patch-plans/task_missing/create-execution-review", json={})
+    assert res.status_code == 400
+    assert res.get_json()["error"] == "approved_sandbox_patch_plan_required"

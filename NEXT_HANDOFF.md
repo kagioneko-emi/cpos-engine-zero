@@ -83,17 +83,18 @@
 - GitHub PR Dry-run Workflow added in `cpos/github_pr_flow.py` with API routes `GET /github/pr-dry-runs`, `POST /github/pr-dry-runs`, `POST /github/pr-dry-runs/<task_id>/approve|reject`. It creates approval-gated issue-to-PR metadata plans only: no branch creation, no commits, no push, no GitHub PR creation, no raw summary storage; dashboard/report show pending plans.
 - GitHub Diff Review Adapter added in `cpos/github_diff_review.py` with API routes `GET /github/diff-reviews`, `POST /github/pr-dry-runs/<source_task_id>/create-diff-review`, `POST /github/diff-reviews/<task_id>/approve|reject`. It requires an approved PR dry-run first and stores diff metadata only: hash/size/file list/line counts; no raw diff persistence, no patch apply, no commit, no push, no PR.
 - Sandbox Patch Plan gate added in `cpos/sandbox_patch_plan.py` with API routes `GET /sandbox/patch-plans`, `POST /github/diff-reviews/<diff_task_id>/create-sandbox-plan`, `POST /sandbox/patch-plans/<task_id>/approve|reject`. It requires an approved diff review and records ephemeral-workspace validation metadata only: no live repo writes, no patch apply, no command execution, no commit/push/PR.
+- Sandbox Patch Execution review added in `cpos/sandbox_patch_runner.py` with API routes `GET /sandbox/executions`, `POST /sandbox/patch-plans/<patch_task_id>/create-execution-review`, `POST /sandbox/executions/<task_id>/approve|reject`. It requires an approved sandbox patch plan and remains metadata-only: no workspace copy, no patch apply, no command execution, no commit/push/PR, and no raw command output storage.
 - OSS release prep added: `.gitignore`, `LICENSE` (MIT), `SECURITY.md`, `CONTRIBUTING.md`, `OSS_RELEASE_CHECKLIST.md`, and README OSS positioning. Test/source dummy secret fixtures were changed to avoid source-tree secret-scan false positives while preserving runtime scan tests.
 
 - OSS publish cleanup started: `.venv`, pycache, workspace demos, runtime JSONL ledgers, certs, and generated `hackathon_report.html` were removed from Git index with `git rm --cached` only; files remain on disk. `.gitignore` now excludes them. `git ls-files` check for tracked bad artifacts returns none.
-- Added `RELEASE_NOTES_v0.1.0.md`. Validation after cleanup: `196 passed`; secret scan `ok=true count=0`. Current status after GitHub PR dry-run work: source/docs/tests modified locally; run `git status --short`, secret scan, commit, and push when ready.
+- Added `RELEASE_NOTES_v0.1.0.md`. Validation after cleanup: `204 passed`; secret scan `ok=true count=0`. Current status after Sandbox Patch Execution work: source/docs/tests modified locally; run `git status --short`, secret scan, commit, and push when ready.
 
 ## Verification
 
 ```bash
 .venv/bin/python -m py_compile generate_report.py server.py cpos/pointer_os.py cpos/pointer_cli.py agents/main_agent.py
 .venv/bin/python -m pytest tests -q
-# 196 passed
+# 204 passed
 .venv/bin/python generate_report.py
 ```
 

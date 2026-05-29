@@ -696,3 +696,20 @@ curl -X POST https://<host>/sandbox/patch-plans/<task_id>/reject -d '{"reason":"
 The Task Tape stores only plan hashes, file names, validation command hashes, and
 status flags. It does not store live patch application results, command output, or
 live repository writes.
+
+
+## Sandbox Patch Execution: Isolated Runner Readiness
+
+Approved sandbox patch plans can advance to an execution-review stage. This stage
+still stays metadata-only: it prepares an isolated runner plan, but it does not
+copy workspaces or execute commands yet.
+
+```bash
+curl -X POST https://<host>/sandbox/patch-plans/<patch_task_id>/create-execution-review -d '{}'
+curl 'https://<host>/sandbox/executions'
+curl -X POST https://<host>/sandbox/executions/<task_id>/approve -d '{"confirm":true}'
+curl -X POST https://<host>/sandbox/executions/<task_id>/reject -d '{"reason":"manual_reject"}'
+```
+
+The Task Tape stores hashes and status flags only. Workspace copy, patch apply,
+command execution, and test outputs remain deferred to a later isolated executor.
