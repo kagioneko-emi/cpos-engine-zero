@@ -280,3 +280,333 @@ def test_generate_report_renders_integrity_summary(tmp_path):
     assert "pointer_audit" in html
     assert "security_audit" in html
     assert "task_events" in html
+
+
+def test_generate_report_renders_security_profile_validation(tmp_path, monkeypatch):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.write_text("", encoding="utf-8")
+    monkeypatch.setenv("CPOS_SECURITY_PROFILE", "hardened")
+    monkeypatch.setenv("CPOS_ENFORCE_HTTPS", "true")
+    monkeypatch.setenv("CPOS_REQUIRE_API_AUTH", "true")
+    monkeypatch.setenv("CPOS_REQUIRE_HMAC_AUTH", "true")
+    monkeypatch.setenv("CPOS_REQUIRE_CLIENT_CERT", "true")
+    monkeypatch.setenv("CPOS_SANDBOX_MODE", "strict")
+    monkeypatch.setenv("CPOS_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.delenv("CPOS_API_HMAC_SECRET_FILE", raising=False)
+    monkeypatch.delenv("CPOS_API_HMAC_KEY_REGISTRY_FILE", raising=False)
+    monkeypatch.delenv("CPOS_CLIENT_CERT_FINGERPRINTS_FILE", raising=False)
+
+    generate_hackathon_report(str(audit_path), output_path=str(output_path), pointer_path=str(pointer_path))
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Security Profile Validation" in html
+    assert "Posture: hardened" in html
+    assert "hmac_secret_or_registry_configured" in html
+    assert "client_cert_fingerprints_configured" in html
+
+
+def test_generate_report_renders_secret_inventory_summary(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    inventory_path = tmp_path / "cpos" / "secret_inventory.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.write_text("", encoding="utf-8")
+    from cpos.secret_inventory import add_artifact, mark_status
+    add_artifact(inventory_path, artifact_path="certs/key.pem", artifact_type="tls_private_key", vault_path="secret/cpos/tls", field="private_key")
+    mark_status(inventory_path, artifact_path="certs/key.pem", status="stored_in_vault")
+
+    generate_hackathon_report(str(audit_path), output_path=str(output_path), pointer_path=str(pointer_path), secret_inventory_path=str(inventory_path))
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Secret Inventory" in html
+    assert "Vault Migration Metadata" in html
+    assert "certs/key.pem" in html
+    assert "stored_in_vault" in html
+
+
+def test_generate_report_renders_handoff_queue_summary(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text(
+        "\n".join(
+            [
+                json.dumps({
+                    "pointer_id": "ptr://handoff/a",
+                    "context_type": "handoff_summary",
+                    "summary": "pending handoff",
+                    "source": "handoff:AgentA",
+                    "location": "handoff://a",
+                    "priority": 0.5,
+                    "trust_score": 0.4,
+                    "retrieval_rule": "handoff_review_required",
+                    "status": "active",
+                    "metadata": {"counts": {"tasks": 1, "pointers": 2}, "signature": {"ok": True}},
+                }),
+                json.dumps({
+                    "pointer_id": "ptr://handoff/p",
+                    "context_type": "handoff_promotion_plan",
+                    "summary": "promotion",
+                    "source": "handoff_promotion_rules",
+                    "location": "handoff-promotion://abc",
+                    "priority": 0.6,
+                    "trust_score": 0.6,
+                    "retrieval_rule": "handoff_promotion_review_required",
+                    "status": "active",
+                    "metadata": {"plan": {"schema": "cpos.handoff_promotion_plan.v1"}},
+                }),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    task_id = store.create_task(target="ptr://handoff/p", action="handoff_promotion_execution_review")
+    store.append_event(task_id=task_id, event="review_required", target="ptr://handoff/p", status="pending_review", payload={"review_type": "handoff_promotion_execution", "promotion_pointer_id": "ptr://handoff/p"})
+    store.append_event(task_id=task_id, event="handoff_promotion_execution_ready", target="ptr://handoff/p", status="ready", payload={"review_type": "handoff_promotion_execution", "promotion_pointer_id": "ptr://handoff/p"})
+    resume_task_id = store.create_task(target="task_123", action="resume")
+    store.append_event(task_id=resume_task_id, event="review_required", target="task_123", status="pending_review", payload={"review_type": "execution_resume_action", "proposal": {"schema": "cpos.execution_resume_proposal.v1", "proposals": [{"title": "Inspect"}]}})
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Handoff Queue Overview" in html
+    assert "Pending Handoffs" in html
+    assert "Execution Reviews" in html
+    assert "Resume Reviews" in html
+    assert "ptr://handoff/a" in html
+    assert "task_123" in html
+
+
+def test_generate_report_renders_footprint_summary(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("", encoding="utf-8")
+    manager = PointerManager(pointer_path)
+    manager.create_pointer(context_type="spec", summary="demo", source="unit", location="demo.md")
+    from cpos.task_tape import TaskTapeStore
+    TaskTapeStore(tape_path, checkpoint_path).create_task(target="demo", action="unit")
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Lightweight Footprint" in html
+    assert "Pointer/Tape Context Economy" in html
+    assert "relationship_memory_full_logs_in_context" in html
+    assert "secrets_included" in html
+
+
+def test_generate_report_renders_rate_limit_backend_summary(tmp_path, monkeypatch):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.write_text("", encoding="utf-8")
+    monkeypatch.setenv("CPOS_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setenv("CPOS_RATE_LIMIT_BACKEND", "file")
+    monkeypatch.setenv("CPOS_RATE_LIMIT_STORE_PATH", str(tmp_path / "rate_limit.json"))
+
+    generate_hackathon_report(str(audit_path), output_path=str(output_path), pointer_path=str(pointer_path))
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Rate Limit Backend" in html
+    assert "Request Throttling Posture" in html
+    assert "file" in html
+    assert "Authorization headers" in html
+
+
+def test_generate_report_renders_handoff_flow_graph_widget(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("", encoding="utf-8")
+
+    from cpos.handoff_inbox import approve_handoff
+    from cpos.handoff_promotion import create_promotion_pointer
+    from cpos.promotion_executor import approve_execution_review, create_execution_review
+    from cpos.resume_planner import create_resume_proposal_review
+    from cpos.task_tape import TaskTapeStore
+
+    manager = PointerManager(pointer_path)
+    handoff = manager.create_pointer(
+        pointer_id="ptr://handoff/report",
+        context_type="handoff_summary",
+        summary="report handoff",
+        source="test",
+        location="handoff://report",
+        retrieval_rule="handoff_review_required",
+        metadata={"counts": {"tasks": 1}, "signature": {"ok": True}},
+    )
+    approve_handoff(manager, handoff.pointer_id, reviewer="Tester")
+    promotion = create_promotion_pointer(manager, handoff.pointer_id, reviewer="Promoter")
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    execution = create_execution_review(manager, store, promotion.pointer_id)
+    approve_execution_review(store, execution["task_id"])
+    create_resume_proposal_review(store, execution["task_id"])
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Handoff Flow Graph" in html
+    assert "Handoff → Promotion → Execution → Resume" in html
+    assert "ptr://handoff/report" in html
+    assert promotion.pointer_id in html
+    assert execution["task_id"] in html
+    assert "Raw handoff bodies" in html
+
+
+def test_generate_report_renders_mcp_connector_registry_summary(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    mcp_registry_path = tmp_path / "cpos" / "mcp_connectors.json"
+    mcp_audit_path = tmp_path / "cpos" / "mcp_audit.jsonl"
+    mcp_review_path = tmp_path / "cpos" / "mcp_reviews.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.mcp_registry import MCPRegistry
+
+    registry = MCPRegistry(mcp_registry_path, mcp_audit_path, mcp_review_path)
+    pending = registry.submit_review(
+        {
+            "connector_id": "mcp://docs/pending",
+            "name": "Pending Docs MCP",
+            "transport": "https",
+            "url": "https://mcp.example.test/pending",
+            "allowed_tools": ["docs.pending"],
+            "requires_human_approval": True,
+            "env_secret_files": {"DOCS_TOKEN_FILE": str(tmp_path / "pending_token_file")},
+        },
+        actor="Reporter",
+    )
+    assert pending["ok"] is True
+    result = registry.register(
+        {
+            "connector_id": "mcp://docs/search",
+            "name": "Docs Search MCP",
+            "transport": "https",
+            "url": "https://mcp.example.test/docs",
+            "allowed_tools": ["docs.search"],
+            "blocked_tools": ["docs.write"],
+            "requires_human_approval": True,
+            "env_secret_files": {"DOCS_TOKEN_FILE": str(tmp_path / "docs_token_file")},
+        },
+        confirm=True,
+    )
+    assert result["ok"] is True
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        mcp_registry_path=str(mcp_registry_path),
+        mcp_audit_path=str(mcp_audit_path),
+        mcp_review_path=str(mcp_review_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "MCP Connector Registry" in html
+    assert "Text-first Tool Governance" in html
+    assert "mcp://docs/search" in html
+    assert "docs.search" in html
+    assert "Remote URLs must be HTTPS" in html
+    assert "raw_values_hidden=true" in html
+    assert "Pending MCP Reviews" in html
+    assert "mcp://docs/pending" in html
+    assert "docs.pending" in html
+
+
+def test_generate_report_renders_mcp_execution_adapter_summary(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    mcp_registry_path = tmp_path / "cpos" / "mcp_connectors.json"
+    mcp_audit_path = tmp_path / "cpos" / "mcp_audit.jsonl"
+    mcp_review_path = tmp_path / "cpos" / "mcp_reviews.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.mcp_execution import request_mcp_execution
+    from cpos.mcp_registry import MCPRegistry
+    from cpos.task_tape import TaskTapeStore
+
+    registry = MCPRegistry(mcp_registry_path, mcp_audit_path, mcp_review_path)
+    registry.register(
+        {
+            "connector_id": "mcp://docs/search",
+            "name": "Docs Search MCP",
+            "transport": "https",
+            "url": "https://mcp.example.test/docs",
+            "allowed_tools": ["docs.search"],
+            "requires_human_approval": True,
+            "env_secret_files": {"DOCS_TOKEN_FILE": str(tmp_path / "docs_token_file")},
+        },
+        confirm=True,
+    )
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    result = request_mcp_execution(registry, store, connector_id="mcp://docs/search", tool_name="docs.search", arguments={"query": "SENSITIVE_QUERY_VALUE_X"})
+    assert result["ok"] is True
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+        mcp_registry_path=str(mcp_registry_path),
+        mcp_audit_path=str(mcp_audit_path),
+        mcp_review_path=str(mcp_review_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "MCP Execution Adapter" in html
+    assert "Dry-run / Metadata-only Tool Gate" in html
+    assert "mcp://docs/search" in html
+    assert "docs.search" in html
+    assert "Args Fingerprint" in html
+    assert "SENSITIVE_QUERY_VALUE_X" not in html
+    assert "It does not launch MCP servers or execute tools" in html

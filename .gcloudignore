@@ -10,6 +10,10 @@
 !Dockerfile
 !requirements.txt
 !README.md
+!templates/
+!static/
+!trigger_demo.py
+!PITCH.md
 .venv/
 .git/
 __pycache__/

@@ -1,0 +1,27 @@
+[Unit]
+Description=CPOS Engine-Zero Hardened API
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+User=mayutama
+WorkingDirectory=/home/mayutama/cpos_defensive_agent
+EnvironmentFile=/home/mayutama/cpos_defensive_agent/deploy/hardened/hardened.env.example
+# Render /run/secrets/* from Vault before service start.
+# Example only; do not put secrets directly in this unit or EnvironmentFile.
+ExecStartPre=/home/mayutama/cpos_defensive_agent/.venv/bin/python -m cpos.preflight --profile hardened
+ExecStart=/home/mayutama/cpos_defensive_agent/.venv/bin/python server.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/mayutama/cpos_defensive_agent/cpos /home/mayutama/cpos_defensive_agent/tapes /var/lib/cpos /tmp
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

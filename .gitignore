@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments / local deps
+.venv/
+venv/
+env/
+
+# Runtime logs / local state
+*.log
+cpos/*.jsonl
+cpos/*_state.json
+tapes/*.jsonl
+memory/**/*.jsonl
+workspace/
+certs/
+
+# Generated reports / local demos
+hackathon_report.html
+NEXT_SESSION_HANDOFF.md
+
+# Secrets / env files - use Vault or secret files instead
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+*.secret
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/

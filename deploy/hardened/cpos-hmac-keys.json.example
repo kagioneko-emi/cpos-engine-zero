@@ -1,0 +1,25 @@
+{
+  "keys": {
+    "2026-05-active": {
+      "secret_file": "/run/secrets/cpos_hmac_2026_05",
+      "status": "active",
+      "scopes": [
+        "read:tasks",
+        "read:reviews",
+        "write:reviews",
+        "write:rollback",
+        "read:pointers",
+        "write:pointers",
+        "read:integrity",
+        "webhook:github"
+      ],
+      "not_before": 1770000000,
+      "not_after": 1800000000
+    },
+    "2026-04-old": {
+      "secret_file": "/run/secrets/cpos_hmac_2026_04",
+      "status": "deprecated",
+      "scopes": ["read:tasks", "read:pointers", "read:integrity"]
+    }
+  }
+}

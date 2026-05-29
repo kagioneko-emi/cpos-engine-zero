@@ -25,7 +25,7 @@ fixer.register_fix(
 fixer.register_fix(
     rule_id="PY-MISTAKE-0005",
     description="hardcoded API key",
-    bad_code='api_key = "sk-1234567890abcdef1234567890abcdef"',
+    bad_code='api_key = "sk-EXAMPLE-REDACTED"',
     good_code='# Fetch from Vault\n    import os\n    from hvac import Client\n    # Note: Use the project standard vault access method\n    api_key = os.getenv("STRIPE_API_KEY") # Or actual vault call: client.secrets.kv.v2.read_secret_version(...)'
 )
 

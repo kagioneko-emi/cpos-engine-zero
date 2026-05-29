@@ -17,23 +17,10 @@ class EncryptedStorageDriver:
     def _get_fernet(self):
         if self._fernet:
             return self._fernet
-        
         if not self.key_file or not os.path.exists(self.key_file):
-            # Fallback to a default derived from a master secret if provided,
-            # but in production we require a key file from Vault.
-            master_secret = os.environ.get('CPOS_MASTER_SECRET', 'cpos-engine-zero-default-secret')
-            salt = b'cpos-salt-01' # In production, use a unique per-installation salt
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=salt,
-                iterations=100000,
-            )
-            key = base64.urlsafe_b64encode(kdf.derive(master_secret.encode()))
-        else:
-            with open(self.key_file, 'rb') as f:
-                key = f.read().strip()
-        
+            return None
+        with open(self.key_file, 'rb') as f:
+            key = f.read().strip()
         self._fernet = Fernet(key)
         return self._fernet
 
@@ -41,7 +28,10 @@ class EncryptedStorageDriver:
         """Encrypts a single plaintext line (JSON string)."""
         if not line.strip():
             return line
-        encrypted = self._get_fernet().encrypt(line.encode('utf-8'))
+        fernet = self._get_fernet()
+        if fernet is None:
+            return line
+        encrypted = fernet.encrypt(line.encode('utf-8'))
         return encrypted.decode('utf-8')
 
     def decrypt_line(self, encrypted_line: str) -> str:
@@ -49,7 +39,10 @@ class EncryptedStorageDriver:
         if not encrypted_line.strip():
             return encrypted_line
         try:
-            decrypted = self._get_fernet().decrypt(encrypted_line.encode('utf-8'))
+            fernet = self._get_fernet()
+            if fernet is None:
+                return encrypted_line
+            decrypted = fernet.decrypt(encrypted_line.encode('utf-8'))
             return decrypted.decode('utf-8')
         except Exception:
             # If decryption fails, it might be plaintext (migration case)

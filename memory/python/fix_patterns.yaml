@@ -17,7 +17,7 @@
   description: unsafe os.system
   rule_id: PY-MISTAKE-0004
 - cases:
-  - bad: api_key = "sk-1234567890abcdef1234567890abcdef"
+  - bad: api_key = "sk-EXAMPLE-REDACTED"
     good: "# Fetch from Vault\n    import os\n    from hvac import Client\n    # Note:\
       \ Use the project standard vault access method\n    api_key = os.getenv(\"STRIPE_API_KEY\"\
       ) # Or actual vault call: client.secrets.kv.v2.read_secret_version(...)"

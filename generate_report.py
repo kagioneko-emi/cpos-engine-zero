@@ -3,9 +3,15 @@ import datetime
 import os
 from html import escape
 
-from cpos.pointer_os import ContextPointer
+from cpos.pointer_os import ContextPointer, PointerManager
 from cpos.task_tape import TaskTapeStore
 from cpos.hash_chain import verify_hash_chain
+from cpos.secret_inventory import latest_records
+from cpos.security_validation import validate_security_posture
+from cpos.handoff_graph import build_handoff_graph
+from cpos.footprint import build_footprint
+from cpos.mcp_registry import MCPRegistry
+from cpos.mcp_execution import pending_mcp_execution_reviews
 
 
 def load_jsonl(path):
@@ -14,7 +20,12 @@ def load_jsonl(path):
         with open(path, 'r', encoding='utf-8') as f:
             for line in f:
                 if line.strip():
-                    rows.append(json.loads(line))
+                    try:
+                        rows.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        # Some stores may contain encrypted legacy rows. Skip unreadable
+                        # rows rather than failing report generation.
+                        continue
     return rows
 
 
@@ -330,7 +341,351 @@ def render_integrity_summary(audit_log_path, task_tape_path, task_checkpoint_pat
     """
     return html
 
-def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html", pointer_path=None, task_tape_path=None, task_checkpoint_path=None, security_audit_path=None):
+
+
+def default_secret_inventory_path(audit_log_path):
+    audit_dir = os.path.dirname(os.path.abspath(audit_log_path))
+    return os.path.join(audit_dir, 'secret_inventory.jsonl')
+
+
+def render_secret_inventory_summary(inventory_path):
+    records = list(latest_records(inventory_path).values()) if os.path.exists(inventory_path) else []
+    by_status = {}
+    for record in records:
+        status = str(record.get('status', 'unknown'))
+        by_status[status] = by_status.get(status, 0) + 1
+    status_items = ''.join(
+        f"<span class=\"pill\">{escape(status)}: {count}</span>"
+        for status, count in sorted(by_status.items())
+    ) or '<span class="muted">No secret inventory records yet</span>'
+    html = f"""
+        <div class="card secret-inventory-card">
+            <div class="step-label">Secret Inventory</div>
+            <h2>Vault Migration Metadata</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(records)}</strong><span>Artifacts</span></div>
+                <div class="metric"><strong>{by_status.get('stored_in_vault', 0)}</strong><span>Stored</span></div>
+                <div class="metric"><strong>{by_status.get('preflight_passed', 0)}</strong><span>Preflight</span></div>
+                <div class="metric"><strong>{by_status.get('removed', 0)}</strong><span>Removed</span></div>
+            </div>
+            <div class="step-label">Statuses</div>
+            <p>{status_items}</p>
+    """
+    if not records:
+        html += '</div>'
+        return html
+    html += """
+            <table>
+                <thead><tr><th>Artifact</th><th>Type</th><th>Status</th><th>Vault Ref</th><th>Runtime</th></tr></thead>
+                <tbody>
+    """
+    for record in records[-10:]:
+        html += f"""
+                    <tr>
+                        <td><code>{escape(str(record.get('artifact_path', '-')))}</code></td>
+                        <td>{escape(str(record.get('artifact_type', '-')))}</td>
+                        <td>{escape(str(record.get('status', '-')))}</td>
+                        <td>{escape(str(record.get('vault_path', '-')))} field={escape(str(record.get('field', '-')))}</td>
+                        <td>{escape(str(record.get('runtime_destination') or '-'))}</td>
+                    </tr>
+        """
+    html += """
+                </tbody>
+            </table>
+        </div>
+    """
+    return html
+
+
+
+
+
+def render_footprint_summary(footprint):
+    sizes = footprint.get('sizes', {})
+    counts = footprint.get('counts', {})
+    props = footprint.get('lightweight_properties', {})
+    prop_items = ''.join(
+        f'<span class="pill">{escape(str(key))}: {escape(str(value))}</span>'
+        for key, value in sorted(props.items())
+    ) or '<span class="muted">No footprint properties recorded</span>'
+    html = f"""
+        <div class="card integrity-card">
+            <div class="step-label">Lightweight Footprint</div>
+            <h2>Pointer/Tape Context Economy</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{footprint.get('total_bytes', 0) / 1024:.1f}</strong><span>Total KiB</span></div>
+                <div class="metric"><strong>{counts.get('pointers', 0)}</strong><span>Pointers</span></div>
+                <div class="metric"><strong>{counts.get('tasks', 0)}</strong><span>Tasks</span></div>
+                <div class="metric"><strong>{counts.get('task_events', 0)}</strong><span>Task Events</span></div>
+            </div>
+            <div class="step-label">Properties</div>
+            <p>{prop_items}</p>
+            <table>
+                <thead><tr><th>Ledger</th><th>Bytes</th></tr></thead>
+                <tbody>
+    """
+    for name, size in sorted(sizes.items()):
+        html += f"<tr><td>{escape(str(name))}</td><td>{escape(str(size))}</td></tr>"
+    html += """
+                </tbody>
+            </table>
+        </div>
+    """
+    return html
+def queue_summary(pointers, task_events):
+    handoff_pending = [p for p in pointers if p.context_type == 'handoff_summary' and p.retrieval_rule == 'handoff_review_required' and p.status == 'active']
+    handoff_approved = [p for p in pointers if p.context_type == 'handoff_summary' and p.retrieval_rule == 'handoff_approved' and p.status == 'active']
+    promotion_plans = [p for p in pointers if p.context_type == 'handoff_promotion_plan']
+    execution_pending = [event for event in task_events if event.get('event') == 'review_required' and event.get('payload', {}).get('review_type') == 'handoff_promotion_execution']
+    execution_ready = [event for event in task_events if event.get('event') == 'handoff_promotion_execution_ready']
+    resume_pending = [event for event in task_events if event.get('event') == 'review_required' and event.get('payload', {}).get('review_type') == 'execution_resume_action']
+    resume_ready = [event for event in task_events if event.get('event') == 'resume_action_ready']
+    return {
+        'handoff_pending': handoff_pending,
+        'handoff_approved': handoff_approved,
+        'promotion_plans': promotion_plans,
+        'execution_pending': execution_pending,
+        'execution_ready': execution_ready,
+        'resume_pending': resume_pending,
+        'resume_ready': resume_ready,
+    }
+
+
+def render_handoff_queue_summary(queue):
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Handoff Queue Overview</div>
+            <h2>Inbox → Promotion → Resume</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(queue['handoff_pending'])}</strong><span>Pending Handoffs</span></div>
+                <div class="metric"><strong>{len(queue['handoff_approved'])}</strong><span>Approved Handoffs</span></div>
+                <div class="metric"><strong>{len(queue['execution_pending'])}</strong><span>Execution Reviews</span></div>
+                <div class="metric"><strong>{len(queue['resume_pending'])}</strong><span>Resume Reviews</span></div>
+            </div>
+    """
+    if not any(queue.values()):
+        html += '<p class="muted">No handoff queue activity yet.</p></div>'
+        return html
+    def render_ids(items, key):
+        rendered = []
+        for item in items[:8]:
+            value = item.get(key, '-') if isinstance(item, dict) else getattr(item, key, '-')
+            rendered.append(f'<span class="pill">{escape(str(value))}</span>')
+        return ''.join(rendered) or '<span class="muted">none</span>'
+    html += f"""
+            <div class="step-label">Pending Handoff IDs</div>
+            <p>{render_ids(queue['handoff_pending'], 'pointer_id')}</p>
+            <div class="step-label">Execution Review Task IDs</div>
+            <p>{render_ids(queue['execution_pending'], 'task_id')}</p>
+            <div class="step-label">Resume Review Task IDs</div>
+            <p>{render_ids(queue['resume_pending'], 'task_id')}</p>
+        </div>
+    """
+    return html
+
+
+
+
+def default_mcp_registry_path(audit_log_path):
+    return os.path.join(os.path.dirname(os.path.abspath(audit_log_path)), 'mcp_connectors.json')
+
+
+def default_mcp_audit_path(audit_log_path):
+    return os.path.join(os.path.dirname(os.path.abspath(audit_log_path)), 'mcp_audit.jsonl')
+
+
+def default_mcp_review_path(audit_log_path):
+    return os.path.join(os.path.dirname(os.path.abspath(audit_log_path)), 'mcp_reviews.jsonl')
+
+
+def render_mcp_connector_summary(registry_path, mcp_audit_path, mcp_review_path=None):
+    registry = MCPRegistry(registry_path, mcp_audit_path, mcp_review_path)
+    connectors = registry.load() if os.path.exists(registry_path) else []
+    pending_reviews = registry.reviews(status='pending') if mcp_review_path and os.path.exists(mcp_review_path) else []
+    active = [c for c in connectors if c.status == 'active']
+    approval_required = [c for c in connectors if c.requires_human_approval]
+    audit_integrity = verify_hash_chain(mcp_audit_path) if os.path.exists(mcp_audit_path) else {'ok': True, 'row_count': 0}
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">MCP Connector Registry</div>
+            <h2>Text-first Tool Governance</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(connectors)}</strong><span>Connectors</span></div>
+                <div class="metric"><strong>{len(active)}</strong><span>Active</span></div>
+                <div class="metric"><strong>{len(pending_reviews)}</strong><span>Pending Reviews</span></div>
+                <div class="metric"><strong>{'OK' if audit_integrity.get('ok') else 'CHECK'}</strong><span>MCP Audit Chain</span></div>
+            </div>
+            <p class="muted">MCP connector definitions are checked as text before registration. No MCP tool execution is performed here. Remote URLs must be HTTPS; secrets are file references only.</p>
+    """
+    if pending_reviews:
+        html += '<h3>Pending MCP Reviews</h3><table><thead><tr><th>Review</th><th>Connector</th><th>Allowed Tools</th><th>Status</th></tr></thead><tbody>'
+        for review in pending_reviews[:10]:
+            connector = review.get('connector') or {}
+            allowed = ''.join(f'<span class="pill"><code>{escape(str(tool))}</code></span>' for tool in connector.get('allowed_tools', [])) or '<span class="muted">none</span>'
+            html += f"""<tr><td><code>{escape(str(review.get('review_id')))}</code></td><td><code>{escape(str(review.get('connector_id')))}</code></td><td>{allowed}</td><td>{escape(str(review.get('status')))}</td></tr>"""
+        html += '</tbody></table>'
+    if not connectors:
+        html += '<p class="muted">No MCP connectors registered yet.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Connector</th><th>Transport</th><th>Status</th><th>Approval</th><th>Allowed Tools</th><th>Secret Handling</th></tr></thead><tbody>'
+    for connector in connectors[:20]:
+        allowed = ''.join(f'<span class="pill"><code>{escape(str(tool))}</code></span>' for tool in connector.allowed_tools) or '<span class="muted">none</span>'
+        url_line = f'<br><span class="muted">{escape(str(connector.url))}</span>' if connector.url else ''
+        html += f"""
+            <tr>
+                <td><code>{escape(connector.connector_id)}</code><br>{escape(connector.name)}{url_line}</td>
+                <td>{escape(connector.transport)}</td>
+                <td>{escape(connector.status)}</td>
+                <td>{'required' if connector.requires_human_approval else 'not required'}</td>
+                <td>{allowed}</td>
+                <td>env_secret_files={len(connector.env_secret_files)} / raw_values_hidden=true</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+
+
+def render_mcp_execution_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    reviews = pending_mcp_execution_reviews(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">MCP Execution Adapter</div>
+            <h2>Dry-run / Metadata-only Tool Gate</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(reviews)}</strong><span>Pending Reviews</span></div>
+                <div class="metric"><strong>no</strong><span>Tool Executed</span></div>
+                <div class="metric"><strong>no</strong><span>Args Values Stored</span></div>
+                <div class="metric"><strong>dry-run</strong><span>Mode</span></div>
+            </div>
+            <p class="muted">The adapter evaluates connector status, tool allowlists, argument safety, and approval gates. It does not launch MCP servers or execute tools.</p>
+    """
+    if not reviews:
+        html += '<p class="muted">No pending MCP execution reviews.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Task</th><th>Connector</th><th>Tool</th><th>Args Fingerprint</th><th>Mode</th></tr></thead><tbody>'
+    for review in reviews[:10]:
+        payload = review.get('payload') or {}
+        html += f"""
+            <tr>
+                <td><code>{escape(str(review.get('task_id')))}</code></td>
+                <td><code>{escape(str(payload.get('connector_id') or '-'))}</code></td>
+                <td>{escape(str(payload.get('tool_name') or '-'))}</td>
+                <td><code>{escape(str(payload.get('args_sha256') or '-'))}</code><br><span class="muted">values_stored={escape(str(payload.get('args_values_stored')))}</span></td>
+                <td>{escape(str(payload.get('execution_mode') or '-'))}</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+def render_rate_limit_backend_summary(environ=None):
+    environ = os.environ if environ is None else environ
+    enabled = str(environ.get('CPOS_RATE_LIMIT_ENABLED', 'false')).lower() in {'1', 'true', 'yes'}
+    backend = str(environ.get('CPOS_RATE_LIMIT_BACKEND', 'memory')).lower()
+    file_path = environ.get('CPOS_RATE_LIMIT_STORE_PATH') if backend == 'file' else None
+    redis_file = environ.get('CPOS_RATE_LIMIT_REDIS_URL_FILE') if backend == 'redis' else None
+    redis_configured = bool(redis_file and os.path.exists(redis_file))
+    html = f"""
+        <div class="card security-card">
+            <div class="step-label">Rate Limit Backend</div>
+            <h2>Request Throttling Posture</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{'ON' if enabled else 'OFF'}</strong><span>Enabled</span></div>
+                <div class="metric"><strong>{escape(backend)}</strong><span>Backend</span></div>
+                <div class="metric"><strong>{'yes' if redis_configured else '-'}</strong><span>Redis URL File</span></div>
+                <div class="metric"><strong>{escape(str(environ.get('CPOS_RATE_LIMIT_WINDOW_SECONDS', '60')))}</strong><span>Window Seconds</span></div>
+            </div>
+            <p class="muted">Stores bucket keys and timestamps only; no Authorization headers, request bodies, tokens, or secrets.</p>
+    """
+    if file_path:
+        html += f'<p>File store: <code>{escape(file_path)}</code></p>'
+    if redis_file:
+        html += f'<p>Redis URL file: <code>{escape(redis_file)}</code> value_hidden=true configured={escape(str(redis_configured))}</p>'
+    html += '</div>'
+    return html
+
+
+def render_handoff_graph_report(pointer_path, task_tape_path, task_checkpoint_path):
+    graph = build_handoff_graph(PointerManager(pointer_path), TaskTapeStore(task_tape_path, task_checkpoint_path), limit=20)
+    counts = graph.get('counts', {})
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Handoff Flow Graph</div>
+            <h2>Handoff → Promotion → Execution → Resume</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{counts.get('handoffs', 0)}</strong><span>Handoffs</span></div>
+                <div class="metric"><strong>{counts.get('promotions', 0)}</strong><span>Promotions</span></div>
+                <div class="metric"><strong>{counts.get('execution_reviews', 0)}</strong><span>Executions</span></div>
+                <div class="metric"><strong>{counts.get('resume_reviews', 0)}</strong><span>Resumes</span></div>
+            </div>
+            <p class="muted">Metadata-only graph. Raw handoff bodies, checkpoint contents, request bodies, proposed code, and secrets are excluded.</p>
+    """
+    if not graph.get('handoffs'):
+        html += '<p class="muted">No handoff graph records yet.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Handoff</th><th>Status</th><th>Promotion</th><th>Execution</th><th>Resume</th></tr></thead><tbody>'
+    for handoff in graph.get('handoffs', [])[:10]:
+        promotions = handoff.get('promotions', [])
+        promotion_ids = {p.get('pointer_id') for p in promotions}
+        executions = [e for e in graph.get('execution_reviews', []) if e.get('promotion_pointer_id') in promotion_ids]
+        execution_task_ids = {e.get('task_id') for e in executions}
+        resumes = [r for r in graph.get('resume_reviews', []) if r.get('task_id') in execution_task_ids]
+        promotion_text = '<br>'.join(f"<code>{escape(str(p.get('pointer_id')))}</code><br><span class='muted'>warnings={escape(str(len(p.get('warnings', []))))} blocked={escape(str(len(p.get('blocked_inputs', []))))}</span>" for p in promotions) or '<span class="muted">none</span>'
+        execution_text = '<br>'.join(f"<code>{escape(str(e.get('task_id')))}</code><br><span class='muted'>{escape(str(e.get('execution_mode') or '-'))}</span>" for e in executions) or '<span class="muted">none</span>'
+        resume_text = '<br>'.join(f"<code>{escape(str(r.get('task_id')))}</code><br><span class='muted'>{escape(str(r.get('first_action_title') or r.get('first_action_id') or '-'))}</span>" for r in resumes) or '<span class="muted">none</span>'
+        html += f"""
+            <tr>
+                <td><code>{escape(str(handoff.get('pointer_id')))}</code><br><span class="muted">{escape(str(handoff.get('summary') or ''))}</span></td>
+                <td>{escape(str(handoff.get('review_status') or '-'))}</td>
+                <td>{promotion_text}</td>
+                <td>{execution_text}</td>
+                <td>{resume_text}</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+def render_security_profile_validation(validation=None):
+    validation = validation or validate_security_posture()
+    failures = validation.get('failures', [])
+    profile = validation.get('profile', 'custom')
+    status = 'OK' if validation.get('ok') else 'CHECK'
+    border = '#3fb950' if validation.get('ok') else '#f85149'
+    html = f"""
+        <div class="card profile-card" style="border-color: {border};">
+            <div class="step-label">Security Profile Validation</div>
+            <h2>Posture: {escape(str(profile))} / {escape(status)}</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{escape(str(profile))}</strong><span>Profile</span></div>
+                <div class="metric"><strong>{len(validation.get('checks', []))}</strong><span>Checks</span></div>
+                <div class="metric"><strong>{len(failures)}</strong><span>Failures</span></div>
+                <div class="metric"><strong>{escape(status)}</strong><span>Status</span></div>
+            </div>
+    """
+    if not failures:
+        html += '<p class="success">Security profile validation passed or no strict checks apply.</p></div>'
+        return html
+    html += """
+            <table>
+                <thead><tr><th>Check</th><th>Severity</th><th>Message</th></tr></thead>
+                <tbody>
+    """
+    for failure in failures:
+        html += f"""
+                    <tr>
+                        <td>{escape(str(failure.get('name', '-')))}</td>
+                        <td>{escape(str(failure.get('severity', '-')))}</td>
+                        <td>{escape(str(failure.get('message', '-')))}</td>
+                    </tr>
+        """
+    html += """
+                </tbody>
+            </table>
+        </div>
+    """
+    return html
+
+def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html", pointer_path=None, task_tape_path=None, task_checkpoint_path=None, security_audit_path=None, secret_inventory_path=None, mcp_registry_path=None, mcp_audit_path=None, mcp_review_path=None):
     events = load_jsonl(audit_log_path)
     pointer_path = pointer_path if pointer_path is not None else default_pointer_path(audit_log_path)
     pointers = load_pointers(pointer_path)
@@ -338,6 +693,10 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     task_tape_path = task_tape_path if task_tape_path is not None else default_tape_path
     task_checkpoint_path = task_checkpoint_path if task_checkpoint_path is not None else default_checkpoint_path
     security_audit_path = security_audit_path if security_audit_path is not None else default_security_audit_path(audit_log_path)
+    secret_inventory_path = secret_inventory_path if secret_inventory_path is not None else default_secret_inventory_path(audit_log_path)
+    mcp_registry_path = mcp_registry_path if mcp_registry_path is not None else default_mcp_registry_path(audit_log_path)
+    mcp_audit_path = mcp_audit_path if mcp_audit_path is not None else default_mcp_audit_path(audit_log_path)
+    mcp_review_path = mcp_review_path if mcp_review_path is not None else default_mcp_review_path(audit_log_path)
     generated_at = datetime.datetime.now().isoformat(timespec='seconds')
 
     html = f"""
@@ -375,6 +734,8 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
         .task-card {{ border-color: #d29922; }}
         .security-card {{ border-color: #f85149; }}
         .integrity-card {{ border-color: #3fb950; }}
+        .profile-card {{ border-color: #f85149; }}
+        .secret-inventory-card {{ border-color: #8957e5; }}
     </style>
 </head>
 <body>
@@ -395,6 +756,22 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_task_tape_summary(task_tape_path, task_checkpoint_path)
     html += render_security_audit_summary(security_audit_path)
     html += render_integrity_summary(audit_log_path, task_tape_path, task_checkpoint_path, security_audit_path)
+    html += render_footprint_summary(build_footprint(
+        pointer_path=pointer_path,
+        pointer_audit_path=audit_log_path,
+        task_tape_path=task_tape_path,
+        task_checkpoint_path=task_checkpoint_path,
+        security_audit_path=security_audit_path,
+        secret_inventory_path=secret_inventory_path,
+    ))
+    queue = queue_summary(pointers, events)
+    html += render_handoff_queue_summary(queue)
+    html += render_handoff_graph_report(pointer_path, task_tape_path, task_checkpoint_path)
+    html += render_mcp_connector_summary(mcp_registry_path, mcp_audit_path, mcp_review_path)
+    html += render_mcp_execution_summary(task_tape_path, task_checkpoint_path)
+    html += render_rate_limit_backend_summary()
+    html += render_security_profile_validation()
+    html += render_secret_inventory_summary(secret_inventory_path)
 
     for event in reversed(events):
         target = event.get('target', 'Unknown')

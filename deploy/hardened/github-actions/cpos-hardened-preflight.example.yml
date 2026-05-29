@@ -1,0 +1,51 @@
+# Example GitHub Actions workflow. Not active unless copied to .github/workflows/.
+# Do not store real secrets in this file. Use GitHub Environments/Secrets or Vault OIDC.
+
+name: CPOS Hardened Preflight
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "cpos_defensive_agent/**"
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cpos_defensive_agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Secret pattern scan
+        run: |
+          .venv/bin/python -m cpos.secret_scan . \
+            --exclude cpos \
+            --exclude tapes \
+            --exclude certs
+
+      - name: Vault render dry-run
+        run: |
+          .venv/bin/python -m cpos.vault_render deploy/hardened/vault-render-manifest.example.json --dry-run --json
+
+      - name: Hardened preflight config check
+        run: |
+          .venv/bin/python -m cpos.preflight --profile hardened --skip-docker --json
+
+      - name: Unit tests
+        run: |
+          .venv/bin/python -m pytest tests -q
+
+      - name: Generate report
+        run: |
+          .venv/bin/python generate_report.py

@@ -1,0 +1,105 @@
+from __future__ import annotations
+
+from typing import Any
+
+from .mcp_registry import MCPRegistry
+from .task_tape import TaskTapeStore
+
+TERMINAL_EVENTS = {"mcp_probe_approved", "mcp_probe_rejected", "mcp_probe_dry_run_ready"}
+
+
+def _target(connector_id: str) -> str:
+    return f"mcp://probe/{connector_id.replace('/', '_')}"
+
+
+def request_mcp_capability_probe(
+    registry: MCPRegistry,
+    task_tape: TaskTapeStore,
+    *,
+    connector_id: str,
+    actor: str = "MCPProbeHarness",
+    purpose: str = "capability_probe",
+    dry_run: bool = True,
+) -> dict[str, Any]:
+    """Create a metadata-only MCP capability probe plan.
+
+    This does not start stdio servers, does not perform HTTPS/SSE requests, does not
+    read secret files, and does not call tools. It only records the probe plan and
+    approval gate metadata.
+    """
+    connector = next((item for item in registry.load() if item.connector_id == connector_id), None)
+    if connector is None:
+        return {"ok": False, "error": "connector_not_found", "connector_id": connector_id, "execute_automatically": False}
+    if connector.status != "active":
+        registry.audit("probe_denied", actor=actor, connector_id=connector_id, decision="connector_not_active", metadata={"purpose": purpose})
+        return {"ok": False, "error": "connector_not_active", "connector_id": connector_id, "execute_automatically": False}
+    if not dry_run:
+        registry.audit("probe_denied", actor=actor, connector_id=connector_id, decision="real_probe_disabled", metadata={"purpose": purpose})
+        return {"ok": False, "error": "real_probe_disabled", "connector_id": connector_id, "execute_automatically": False}
+
+    payload = {
+        "review_type": "mcp_capability_probe",
+        "connector_id": connector.connector_id,
+        "transport": connector.transport,
+        "purpose": purpose,
+        "actor": actor,
+        "probe_mode": "dry_run_metadata_only",
+        "execute_automatically": False,
+        "server_started": False,
+        "network_requested": False,
+        "tool_called": False,
+        "secret_files_read": False,
+        "declared_allowed_tools": list(connector.allowed_tools),
+        "declared_blocked_tools": list(connector.blocked_tools),
+        "requires_human_approval": True,
+    }
+    if connector.transport == "stdio":
+        payload["probe_plan"] = ["validate argv shape", "prepare isolated process policy", "list_tools handshake only after approval"]
+        payload["command_shape"] = {"argc": len(connector.command), "argv0": connector.command[0] if connector.command else None, "argv_values_stored": False}
+    else:
+        payload["probe_plan"] = ["validate https endpoint", "prepare timeout policy", "list_tools request only after approval"]
+        payload["url_host_only"] = connector.url.split("/", 3)[2] if connector.url and "://" in connector.url else None
+
+    task_id = task_tape.create_task(target=_target(connector.connector_id), action="mcp_capability_probe_request", payload=payload)
+    event = task_tape.append_event(
+        task_id=task_id,
+        event="review_required",
+        target=_target(connector.connector_id),
+        status="pending_review",
+        payload=payload,
+    )
+    registry.audit("probe_review_created", actor=actor, connector_id=connector_id, decision="approval_required", metadata={"task_id": task_id, "purpose": purpose})
+    return {"ok": True, "status": "pending_review", "task_id": task_id, "event": event.to_dict(), **{k: payload[k] for k in ["execute_automatically", "server_started", "network_requested", "tool_called", "secret_files_read"]}}
+
+
+def pending_mcp_probe_reviews(task_tape: TaskTapeStore) -> list[dict[str, Any]]:
+    terminal_task_ids = {event.task_id for event in task_tape.events() if event.event in TERMINAL_EVENTS}
+    reviews = []
+    for event in task_tape.events():
+        if event.event != "review_required" or event.task_id in terminal_task_ids:
+            continue
+        if event.payload.get("review_type") == "mcp_capability_probe":
+            reviews.append(event.to_dict())
+    return reviews
+
+
+def approve_mcp_probe_review(task_tape: TaskTapeStore, task_id: str, *, approver: str = "MCPProbeReviewer", reason: str | None = None, confirm: bool = False) -> dict[str, Any]:
+    if not confirm:
+        return {"ok": False, "error": "confirm_required", "task_id": task_id}
+    review = next((row for row in pending_mcp_probe_reviews(task_tape) if row.get("task_id") == task_id), None)
+    if review is None:
+        return {"ok": False, "error": "pending_mcp_probe_review_not_found", "task_id": task_id}
+    payload = dict(review.get("payload") or {})
+    payload.update({"approved_by": approver, "approval_reason": reason, "execute_automatically": False, "server_started": False, "network_requested": False, "tool_called": False, "secret_files_read": False})
+    event = task_tape.append_event(task_id=task_id, event="mcp_probe_approved", target=review.get("target"), status="approved_dry_run_only", payload=payload)
+    return {"ok": True, "task_id": task_id, "event": event.to_dict(), "execute_automatically": False, "server_started": False, "network_requested": False, "tool_called": False}
+
+
+def reject_mcp_probe_review(task_tape: TaskTapeStore, task_id: str, *, reason: str = "manual_reject") -> dict[str, Any]:
+    review = next((row for row in pending_mcp_probe_reviews(task_tape) if row.get("task_id") == task_id), None)
+    if review is None:
+        return {"ok": False, "error": "pending_mcp_probe_review_not_found", "task_id": task_id}
+    payload = dict(review.get("payload") or {})
+    payload.update({"rejection_reason": reason, "execute_automatically": False, "server_started": False, "network_requested": False, "tool_called": False, "secret_files_read": False})
+    event = task_tape.append_event(task_id=task_id, event="mcp_probe_rejected", target=review.get("target"), status="rejected", payload=payload)
+    return {"ok": True, "task_id": task_id, "event": event.to_dict(), "execute_automatically": False, "server_started": False, "network_requested": False, "tool_called": False}

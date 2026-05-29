@@ -184,6 +184,15 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
+        .pill {
+            display: inline-block;
+            background: #0d1117;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            padding: 4px 10px;
+            margin: 4px 6px 4px 0;
+        }
+
         /* Actions */
         .btn {
             padding: 6px 12px;
@@ -260,6 +269,7 @@
             <a href="#" class="nav-item">Context Pointers</a>
             <a href="#" class="nav-item">Task Tape</a>
             <a href="#" class="nav-item">Security Audit</a>
+            <a href="#mcp-review-section" class="nav-item">MCP Review</a>
             <a href="#" class="nav-item">Settings</a>
         </nav>
         <div style="margin-top: auto; font-size: 0.8rem; color: var(--muted-color);">
@@ -307,6 +317,46 @@
                 <div class="metric" id="review-count">--</div>
                 <div class="muted">Approval required for fix</div>
             </div>
+            <div class="card" id="security-profile-card" style="border-color: var(--accent-orange);">
+                <h2>Security Profile</h2>
+                <div class="metric" id="security-profile-status">--</div>
+                <div class="muted" id="security-profile-detail">Validation pending</div>
+            </div>
+            <div class="card" id="secret-inventory-card" style="border-color: var(--accent-purple);">
+                <h2>Secret Inventory</h2>
+                <div class="metric" id="secret-inventory-count">--</div>
+                <div class="muted" id="secret-inventory-detail">Vault migration metadata</div>
+            </div>
+            <div class="card" id="footprint-card" style="border-color: var(--accent-green);">
+                <h2>Lightweight Footprint</h2>
+                <div class="metric" id="footprint-bytes">--</div>
+                <div class="muted" id="footprint-detail">Pointer/Tape storage estimate</div>
+            </div>
+            <div class="card" id="rate-limit-card" style="border-color: var(--accent-blue);">
+                <h2>Rate Limit Backend</h2>
+                <div class="metric" id="rate-limit-backend">--</div>
+                <div class="muted" id="rate-limit-detail">Request throttling status</div>
+            </div>
+            <div class="card" id="mcp-card" style="border-color: var(--accent-purple);">
+                <h2>MCP Connectors</h2>
+                <div class="metric" id="mcp-connector-count">--</div>
+                <div class="muted" id="mcp-connector-detail">Text-first connector registry</div>
+            </div>
+            <div class="card" id="handoff-inbox-card" style="border-color: var(--accent-orange);">
+                <h2>Handoff Inbox</h2>
+                <div class="metric" id="handoff-inbox-count">--</div>
+                <div class="muted" id="handoff-inbox-detail">Imported summaries awaiting review</div>
+            </div>
+            <div class="card" id="handoff-execution-card" style="border-color: var(--accent-orange);">
+                <h2>Execution Reviews</h2>
+                <div class="metric" id="handoff-execution-count">--</div>
+                <div class="muted" id="handoff-execution-detail">Promotion plan execution gate</div>
+            </div>
+            <div class="card" id="resume-review-card" style="border-color: var(--accent-orange);">
+                <h2>Resume Reviews</h2>
+                <div class="metric" id="resume-review-count">--</div>
+                <div class="muted" id="resume-review-detail">Scoped next-action proposals</div>
+            </div>
             <div class="card" style="border-color: var(--accent-purple);">
                 <h2>Context Memory</h2>
                 <div id="memory-bar-container" style="height: 10px; background: #161b22; border-radius: 5px; margin: 15px 0; overflow: hidden; display: flex;">
@@ -337,6 +387,47 @@
             <p class="muted" style="margin-top: 10px; font-size: 0.75rem;">Interactive visualization of files (blue), pointers (purple), and rule-findings (red).</p>
         </div>
 
+        <div id="mcp-review-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
+            <h2>MCP Connector Review</h2>
+            <p class="muted">Text-first governance only. No MCP tool execution is performed from this dashboard. HTTP connectors must be HTTPS and secrets must stay in Vault-rendered files.</p>
+            <div id="mcp-review-summary" class="muted" style="margin-bottom: 12px;">Loading MCP connectors...</div>
+            <div id="mcp-pending-review-container" style="margin-bottom: 16px;"></div>
+            <div id="mcp-execution-review-container" style="margin-bottom: 16px;"></div>
+            <div id="mcp-review-container"></div>
+        </div>
+
+        <div id="handoff-flow-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
+            <h2>Handoff Flow Graph</h2>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+                <label class="muted">Status</label>
+                <select id="handoff-flow-status-filter" class="btn" onchange="updateDashboard()">
+                    <option value="">all</option>
+                    <option value="pending">pending</option>
+                    <option value="approved">approved</option>
+                    <option value="rejected">rejected</option>
+                </select>
+                <label class="muted">Source</label>
+                <input id="handoff-flow-source-filter" class="btn" style="min-width: 260px;" placeholder="ptr://handoff/..." onchange="updateDashboard()">
+            </div>
+            <div id="handoff-flow-summary" class="muted" style="margin-bottom: 12px;">Loading handoff flow...</div>
+            <div id="handoff-flow-container"></div>
+            <div id="handoff-flow-detail" class="card" style="display: none; margin-top: 12px; background: #161b22; border-color: var(--accent-purple);"></div>
+        </div>
+
+        <div id="handoff-inbox-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Handoff Inbox</h2>
+            <div id="handoff-inbox-container"></div>
+        </div>
+
+        <div id="handoff-executions-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Execution Reviews</h2>
+            <div id="handoff-executions-container"></div>
+        </div>
+
+        <div id="resume-reviews-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Resume Reviews</h2>
+            <div id="resume-reviews-container"></div>
+        </div>
         <div id="reviews-section" class="card" style="display: none; border-color: var(--accent-orange);">
             <h2>Pending Fix Reviews</h2>
             <div id="reviews-container"></div>
@@ -379,7 +470,326 @@
                 const reviewsData = await reviewsRes.json();
                 document.getElementById('review-count').innerText = reviewsData.count;
 
-                // Handle Reviews
+                const footprintRes = await fetch('/footprint');
+                if (footprintRes.ok) {
+                    const footprintData = await footprintRes.json();
+                    const totalBytes = footprintData.total_bytes || 0;
+                    const totalKiB = (totalBytes / 1024).toFixed(1);
+                    document.getElementById('footprint-bytes').innerText = `${totalKiB} KiB`;
+                    const counts = footprintData.counts || {};
+                    document.getElementById('footprint-detail').innerText = `pointers=${counts.pointers || 0}, tasks=${counts.tasks || 0}, events=${counts.task_events || 0}`;
+                }
+
+                const mcpRes = await fetch('/mcp/connectors');
+                const mcpData = mcpRes.ok ? await mcpRes.json() : {ok: false, count: 0, connectors: []};
+                const mcpReviewsRes = await fetch('/mcp/reviews?status=pending');
+                const mcpReviewsData = mcpReviewsRes.ok ? await mcpReviewsRes.json() : {ok: false, count: 0, reviews: []};
+                const mcpExecutionRes = await fetch('/mcp/executions');
+                const mcpExecutionData = mcpExecutionRes.ok ? await mcpExecutionRes.json() : {ok: false, count: 0, reviews: []};
+                const mcpConnectors = mcpData.connectors || [];
+                const pendingMcpTotal = (mcpReviewsData.count || 0) + (mcpExecutionData.count || 0);
+                document.getElementById('mcp-connector-count').innerText = (mcpData.count || 0) + (pendingMcpTotal ? `+${pendingMcpTotal}` : '');
+                const activeMcp = mcpConnectors.filter(c => c.status === 'active').length;
+                const approvalMcp = mcpConnectors.filter(c => c.requires_human_approval).length;
+                document.getElementById('mcp-connector-detail').innerText = mcpConnectors.length === 0 && !pendingMcpTotal ? 'No MCP connectors registered' : `active=${activeMcp}, approval_required=${approvalMcp}, connector_reviews=${mcpReviewsData.count || 0}, execution_reviews=${mcpExecutionData.count || 0}`;
+                renderMcpReview(mcpData, mcpReviewsData, mcpExecutionData);
+
+                const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
+                const handoffSource = document.getElementById('handoff-flow-source-filter')?.value || '';
+                const handoffGraphParams = new URLSearchParams();
+                if (handoffStatus) handoffGraphParams.set('review_status', handoffStatus);
+                if (handoffSource) handoffGraphParams.set('source_pointer_id', handoffSource);
+                const handoffGraphRes = await fetch(`/handoff-graph?${handoffGraphParams.toString()}`);
+                const handoffGraphData = await handoffGraphRes.json();
+                const handoffInboxRes = await fetch('/handoff-inbox?status=pending&limit=5');
+                const handoffInboxData = await handoffInboxRes.json();
+                const handoffExecutionRes = await fetch('/handoff-executions');
+                const handoffExecutionData = await handoffExecutionRes.json();
+                const resumeReviewsRes = await fetch('/resume-reviews');
+                const resumeReviewsData = await resumeReviewsRes.json();
+
+                const handoffInboxCountEl = document.getElementById('handoff-inbox-count');
+                const handoffInboxDetailEl = document.getElementById('handoff-inbox-detail');
+                const handoffExecutionCountEl = document.getElementById('handoff-execution-count');
+                const handoffExecutionDetailEl = document.getElementById('handoff-execution-detail');
+                const resumeReviewCountEl = document.getElementById('resume-review-count');
+                const resumeReviewDetailEl = document.getElementById('resume-review-detail');
+                handoffInboxCountEl.innerText = handoffInboxData.count || 0;
+                handoffExecutionCountEl.innerText = handoffExecutionData.count || 0;
+                resumeReviewCountEl.innerText = resumeReviewsData.count || 0;
+                handoffInboxDetailEl.innerText = (handoffInboxData.handoffs || []).length === 0 ? 'No pending handoff summaries' : `${(handoffInboxData.handoffs || []).slice(0, 2).map(h => h.pointer_id.split('/').pop()).join(', ')}`;
+                handoffExecutionDetailEl.innerText = (handoffExecutionData.reviews || []).length === 0 ? 'No execution reviews waiting' : `${(handoffExecutionData.reviews || []).slice(0, 2).map(r => r.task_id).join(', ')}`;
+                resumeReviewDetailEl.innerText = (resumeReviewsData.reviews || []).length === 0 ? 'No resume proposals waiting' : `${(resumeReviewsData.reviews || []).slice(0, 2).map(r => r.task_id).join(', ')}`;
+
+                const profileRes = await fetch('/security-profile');
+                if (profileRes.ok) {
+                    const profileData = await profileRes.json();
+                    const validation = profileData.validation || {};
+                    const profile = (profileData.security_profile || {}).profile || 'custom';
+                    const failures = validation.failures || [];
+                    const statusEl = document.getElementById('security-profile-status');
+                    const detailEl = document.getElementById('security-profile-detail');
+                    const cardEl = document.getElementById('security-profile-card');
+                    statusEl.innerText = `${profile} ${validation.ok ? 'OK' : 'CHECK'}`;
+                    statusEl.style.color = validation.ok ? 'var(--accent-green)' : 'var(--accent-red)';
+                    cardEl.style.borderColor = validation.ok ? 'var(--accent-green)' : 'var(--accent-red)';
+                    detailEl.innerText = failures.length === 0 ? 'No validation failures' : `${failures.length} validation failure(s): ${failures.slice(0, 2).map(f => f.name).join(', ')}`;
+                    const inventory = profileData.secret_inventory || {count: 0, by_status: {}};
+                    document.getElementById('secret-inventory-count').innerText = inventory.count || 0;
+                    document.getElementById('secret-inventory-detail').innerText = Object.keys(inventory.by_status || {}).length === 0 ? 'No inventory records' : Object.entries(inventory.by_status).map(([k,v]) => `${k}: ${v}`).join(', ');
+                    const rateLimit = profileData.rate_limit || {};
+                    document.getElementById('rate-limit-backend').innerText = rateLimit.enabled ? (rateLimit.backend || 'memory') : 'off';
+                    document.getElementById('rate-limit-detail').innerText = rateLimit.backend === 'file' ? `file: ${rateLimit.file_store_path || '-'}` : (rateLimit.backend === 'redis' ? `redis configured=${rateLimit.redis_configured}` : 'in-memory / per process');
+                }
+
+                // Queue render helpers
+                function renderQueue(containerId, sectionId, items, renderer, emptyText) {
+                    const section = document.getElementById(sectionId);
+                    const container = document.getElementById(containerId);
+                    if (!items || items.length === 0) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    container.innerHTML = '';
+                    items.forEach(item => container.appendChild(renderer(item)));
+                }
+
+                renderHandoffFlow(handoffGraphData);
+
+                renderQueue('handoff-inbox-container', 'handoff-inbox-section', handoffInboxData.handoffs || [], (handoff) => {
+                    const div = document.createElement('div');
+                    div.className = 'card';
+                    div.style.marginBottom = '10px';
+                    div.style.background = '#161b22';
+                    const counts = handoff.metadata?.counts || {};
+                    const signatureOk = handoff.metadata?.signature?.ok ? 'yes' : 'no';
+                    div.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div>
+                                <strong style="color: var(--accent-orange);">[HANDOFF PENDING]</strong> <code>${handoff.pointer_id}</code><br>
+                                <span class="muted">Review: ${handoff.review_status} / Trust: ${handoff.trust_score}</span><br>
+                                <span class="muted">Counts: tasks=${counts.tasks || 0}, pointers=${counts.pointers || 0}, signature=${signatureOk}</span>
+                            </div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                <button class="btn btn-success" onclick="approveHandoff('${handoff.pointer_id}')">Approve</button>
+                                <button class="btn btn-danger" onclick="rejectHandoff('${handoff.pointer_id}')">Reject</button>
+                            </div>
+                        </div>
+                    `;
+                    return div;
+                });
+
+                renderQueue('handoff-executions-container', 'handoff-executions-section', handoffExecutionData.reviews || [], (review) => {
+                    const div = document.createElement('div');
+                    div.className = 'card';
+                    div.style.marginBottom = '10px';
+                    div.style.background = '#161b22';
+                    const payload = review.payload || {};
+                    div.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div>
+                                <strong style="color: var(--accent-orange);">[EXECUTION REVIEW]</strong> <code>${review.task_id}</code><br>
+                                <span class="muted">Type: ${payload.review_type || '-'}</span><br>
+                                <span class="muted">Source: ${payload.promotion_pointer_id || '-'}</span>
+                            </div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                <button class="btn btn-success" onclick="approveExecution('${review.task_id}')">Approve</button>
+                                <button class="btn btn-danger" onclick="rejectExecution('${review.task_id}')">Reject</button>
+                            </div>
+                        </div>
+                    `;
+                    return div;
+                });
+
+                renderQueue('resume-reviews-container', 'resume-reviews-section', resumeReviewsData.reviews || [], (review) => {
+                    const div = document.createElement('div');
+                    div.className = 'card';
+                    div.style.marginBottom = '10px';
+                    div.style.background = '#161b22';
+                    const payload = review.payload || {};
+                    const proposal = payload.proposal || {};
+                    const firstAction = (proposal.proposals || [])[0] || {};
+                    div.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div>
+                                <strong style="color: var(--accent-orange);">[RESUME REVIEW]</strong> <code>${review.task_id}</code><br>
+                                <span class="muted">Proposal: ${proposal.schema || '-'}</span><br>
+                                <span class="muted">Next: ${firstAction.title || '-'}</span>
+                            </div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                <button class="btn btn-success" onclick="approveResume('${review.task_id}', '${firstAction.action_id || ''}')">Approve</button>
+                                <button class="btn btn-danger" onclick="rejectResume('${review.task_id}')">Reject</button>
+                            </div>
+                        </div>
+                    `;
+                    return div;
+                });
+
+                function renderMcpReview(mcpData, mcpReviewsData, mcpExecutionData) {
+                    const section = document.getElementById('mcp-review-section');
+                    const summary = document.getElementById('mcp-review-summary');
+                    const container = document.getElementById('mcp-review-container');
+                    const pendingContainer = document.getElementById('mcp-pending-review-container');
+                    const executionContainer = document.getElementById('mcp-execution-review-container');
+                    const connectors = mcpData.connectors || [];
+                    const pendingReviews = (mcpReviewsData && mcpReviewsData.reviews) || [];
+                    const executionReviews = (mcpExecutionData && mcpExecutionData.reviews) || [];
+                    if (!connectors.length && !pendingReviews.length && !executionReviews.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    const active = connectors.filter(c => c.status === 'active').length;
+                    const approval = connectors.filter(c => c.requires_human_approval).length;
+                    summary.innerText = `connectors=${connectors.length}, active=${active}, approval_required=${approval}, connector_reviews=${pendingReviews.length}, execution_reviews=${executionReviews.length}`;
+                    pendingContainer.innerHTML = '';
+                    pendingReviews.forEach(review => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-orange)';
+                        const connector = review.connector || {};
+                        const findings = (review.findings || []).map(f => `<span class="pill">${f.severity}:${f.code}</span>`).join(' ') || '<span class="muted">none</span>';
+                        const tools = (connector.allowed_tools || []).map(t => `<span class="pill"><code>${t}</code></span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div>
+                                    <strong style="color: var(--accent-orange);">[MCP REVIEW PENDING]</strong> <code>${review.review_id}</code><br>
+                                    <span class="muted"><code>${review.connector_id}</code> / submitted_by=${review.actor || '-'}</span><br>
+                                    <span class="muted">definition passed static check; unsafe failed definitions are not stored</span>
+                                    <div style="margin-top: 8px;"><strong>Allowed tools</strong><br>${tools}</div>
+                                    <div style="margin-top: 8px;"><strong>Findings</strong><br>${findings}</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button class="btn btn-success" onclick="approveMcpReview('${review.review_id}')">Approve Register</button>
+                                    <button class="btn btn-danger" onclick="rejectMcpReview('${review.review_id}')">Reject</button>
+                                </div>
+                            </div>
+                        `;
+                        pendingContainer.appendChild(div);
+                    });
+                    executionContainer.innerHTML = '';
+                    executionReviews.forEach(review => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-orange)';
+                        const payload = review.payload || {};
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div>
+                                    <strong style="color: var(--accent-orange);">[MCP EXECUTION REVIEW]</strong> <code>${review.task_id}</code><br>
+                                    <span class="muted"><code>${payload.connector_id || '-'}</code> / tool=${payload.tool_name || '-'} / mode=${payload.execution_mode || '-'}</span><br>
+                                    <span class="muted">metadata-only: args_values_stored=${payload.args_values_stored} / tool_executed=${payload.tool_executed}</span><br>
+                                    <span class="muted">args_sha256=${payload.args_sha256 || '-'}</span>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button class="btn btn-success" onclick="approveMcpExecution('${review.task_id}')">Approve Dry-run</button>
+                                    <button class="btn btn-danger" onclick="rejectMcpExecution('${review.task_id}')">Reject</button>
+                                </div>
+                            </div>
+                        `;
+                        executionContainer.appendChild(div);
+                    });
+
+                    container.innerHTML = '';
+                    connectors.forEach(connector => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        const tools = (connector.allowed_tools || []).map(t => `<span class="pill"><code>${t}</code></span>`).join(' ') || '<span class="muted">none</span>';
+                        const blocked = (connector.blocked_tools || []).map(t => `<span class="pill">${t}</span>`).join(' ') || '<span class="muted">none</span>';
+                        const remote = connector.url ? `<br><span class="muted">URL: ${connector.url}</span>` : '';
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div>
+                                    <strong style="color: var(--accent-purple);">[MCP ${connector.status || '-'}]</strong> <code>${connector.connector_id}</code><br>
+                                    <span class="muted">${connector.name || '-'} / transport=${connector.transport || '-'} / sensitivity=${connector.sensitivity_level || '-'}</span>${remote}<br>
+                                    <span class="muted">approval_required=${connector.requires_human_approval ? 'yes' : 'no'} / secrets=file_refs_only</span>
+                                    <div style="margin-top: 8px;"><strong>Allowed tools</strong><br>${tools}</div>
+                                    <div style="margin-top: 8px;"><strong>Blocked tools</strong><br>${blocked}</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button class="btn" onclick="checkMcpTool('${connector.connector_id}')">Check tool</button>
+                                    <button class="btn btn-danger" onclick="disableMcpConnector('${connector.connector_id}')">Disable</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderHandoffFlow(graphData) {
+                    const section = document.getElementById('handoff-flow-section');
+                    const summary = document.getElementById('handoff-flow-summary');
+                    const container = document.getElementById('handoff-flow-container');
+                    const counts = graphData.counts || {};
+                    const hasData = (counts.handoffs || 0) + (counts.promotions || 0) + (counts.execution_reviews || 0) + (counts.resume_reviews || 0) + (counts.ready_events || 0) > 0;
+                    if (!hasData) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `handoffs=${counts.handoffs || 0}, promotions=${counts.promotions || 0}, executions=${counts.execution_reviews || 0}, resumes=${counts.resume_reviews || 0}, ready=${counts.ready_events || 0}`;
+                    container.innerHTML = '';
+                    (graphData.handoffs || []).slice(0, 8).forEach(handoff => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        const promotions = handoff.promotions || [];
+                        const promotionLines = promotions.length === 0 ? '<span class="muted">no promotion yet</span>' : promotions.map(p => `<code>${p.pointer_id}</code> <span class="muted">${p.retrieval_rule}</span>`).join('<br>');
+                        const relatedExecution = (graphData.execution_reviews || []).filter(e => promotions.some(p => p.pointer_id === e.promotion_pointer_id));
+                        const relatedExecutionLines = relatedExecution.length === 0 ? '<span class="muted">no execution review</span>' : relatedExecution.map(e => `<code>${e.task_id}</code> <span class="muted">${e.status}</span>`).join('<br>');
+                        const relatedResume = (graphData.resume_reviews || []).filter(r => relatedExecution.some(e => e.task_id === r.task_id));
+                        const relatedResumeLines = relatedResume.length === 0 ? '<span class="muted">no resume review</span>' : relatedResume.map(r => `<code>${r.task_id}</code> <span class="muted">${r.first_action_id || '-'}</span>`).join('<br>');
+                        div.innerHTML = `
+                            <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 12px; align-items: start;">
+                                <div><strong style="color: var(--accent-purple);">Handoff</strong><br><code>${handoff.pointer_id}</code><br><span class="muted">${handoff.review_status} / trust=${handoff.trust_score}</span></div>
+                                <div><strong>Promotion</strong><br>${promotionLines}</div>
+                                <div><strong>Execution</strong><br>${relatedExecutionLines}</div>
+                                <div><strong>Resume</strong><br>${relatedResumeLines}</div>
+                            </div>
+                            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button class="btn" onclick='showHandoffFlowDetail(${JSON.stringify(JSON.stringify({handoff, promotions, relatedExecution, relatedResume}))})'>Details</button>
+                                <button class="btn" onclick="document.getElementById('handoff-flow-source-filter').value='${handoff.pointer_id}'; updateDashboard();">Filter source</button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function showHandoffFlowDetail(rawJson) {
+                    const data = JSON.parse(rawJson);
+                    const detail = document.getElementById('handoff-flow-detail');
+                    const handoff = data.handoff || {};
+                    const promotions = data.promotions || [];
+                    const executions = data.relatedExecution || [];
+                    const resumes = data.relatedResume || [];
+                    const list = (items) => (items || []).map(x => `<li><code>${x}</code></li>`).join('') || '<li class="muted">none</li>';
+                    detail.style.display = 'block';
+                    detail.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; gap: 12px;">
+                            <h2 style="margin-top: 0; color: var(--accent-purple);">Handoff Detail Drill-down</h2>
+                            <button class="btn" onclick="document.getElementById('handoff-flow-detail').style.display='none'">Close</button>
+                        </div>
+                        <div class="muted">metadata-only / no raw handoff, checkpoint content, request body, or secrets</div>
+                        <h3>Handoff</h3>
+                        <p><code>${handoff.pointer_id || '-'}</code><br>${handoff.summary || ''}<br><span class="muted">status=${handoff.review_status || '-'} trust=${handoff.trust_score || '-'}</span></p>
+                        <h3>Promotion Plans</h3>
+                        ${(promotions || []).map(p => `<div style="margin-bottom: 8px;"><code>${p.pointer_id}</code><br><span class="muted">rule=${p.retrieval_rule} plan=${p.plan_sha256 || '-'}</span><br>Warnings:<ul>${list(p.warnings)}</ul>Blocked:<ul>${list(p.blocked_inputs)}</ul></div>`).join('') || '<p class="muted">none</p>'}
+                        <h3>Execution Reviews</h3>
+                        ${(executions || []).map(e => `<div style="margin-bottom: 8px;"><code>${e.task_id}</code><br><span class="muted">mode=${e.execution_mode || '-'} plan=${e.plan_sha256 || '-'}</span><br>Blocked:<ul>${list(e.blocked_inputs)}</ul></div>`).join('') || '<p class="muted">none</p>'}
+                        <h3>Resume Reviews</h3>
+                        ${(resumes || []).map(r => `<div style="margin-bottom: 8px;"><code>${r.task_id}</code><br><span class="muted">action=${r.first_action_id || '-'} / ${r.first_action_title || '-'}</span><br>execute_automatically=${r.execute_automatically}</div>`).join('') || '<p class="muted">none</p>'}
+                    `;
+                }
+
+                // Handle Fix Reviews
                 const reviewsSection = document.getElementById('reviews-section');
                 const reviewsContainer = document.getElementById('reviews-container');
                 if (reviewsData.count > 0) {
@@ -430,6 +840,94 @@
 
             } catch (err) {
                 console.error("Dashboard update failed:", err);
+            }
+        }
+
+        async function postJson(url, body) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body || {})
+            });
+            const data = await res.json();
+            if (!res.ok || data.ok === false) {
+                showNotification(`Error: ${data.error || res.statusText}`);
+                return data;
+            }
+            showNotification(data.status ? `OK: ${data.status}` : 'OK');
+            updateDashboard();
+            return data;
+        }
+
+        async function approveHandoff(pointerId) {
+            if (!confirm(`Approve handoff ${pointerId}?`)) return;
+            await postJson(`/handoff-inbox/${pointerId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectHandoff(pointerId) {
+            const reason = prompt('Reject handoff reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/handoff-inbox/${pointerId}/reject`, {reason: reason});
+        }
+
+        async function approveExecution(taskId) {
+            if (!confirm(`Approve execution review ${taskId}?`)) return;
+            await postJson(`/handoff-executions/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectExecution(taskId) {
+            const reason = prompt('Reject execution review reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/handoff-executions/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveResume(taskId, actionId) {
+            if (!confirm(`Approve resume review ${taskId}?`)) return;
+            const body = {confirm: true, reason: 'dashboard_approve'};
+            if (actionId) body.action_id = actionId;
+            await postJson(`/resume-reviews/${taskId}/approve`, body);
+        }
+
+        async function rejectResume(taskId) {
+            const reason = prompt('Reject resume review reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/resume-reviews/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveMcpExecution(taskId) {
+            if (!confirm(`Approve MCP execution dry-run ${taskId}? This still will not execute the tool.`)) return;
+            await postJson(`/mcp/executions/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectMcpExecution(taskId) {
+            const reason = prompt('Reject MCP execution reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/mcp/executions/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveMcpReview(reviewId) {
+            if (!confirm(`Approve and register MCP review ${reviewId}?`)) return;
+            await postJson(`/mcp/reviews/${reviewId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectMcpReview(reviewId) {
+            const reason = prompt('Reject MCP review reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/mcp/reviews/${reviewId}/reject`, {reason: reason});
+        }
+
+        async function disableMcpConnector(connectorId) {
+            const reason = prompt('Disable MCP connector reason:', 'dashboard_disable');
+            if (reason === null) return;
+            await postJson(`/mcp/connectors/${encodeURIComponent(connectorId)}/disable`, {reason: reason});
+        }
+
+        async function checkMcpTool(connectorId) {
+            const toolName = prompt('MCP tool name to check against allowlist:');
+            if (!toolName) return;
+            const result = await postJson(`/mcp/connectors/${encodeURIComponent(connectorId)}/check-tool`, {tool_name: toolName, purpose: 'dashboard_review'});
+            if (result && result.decision) {
+                showNotification(`MCP decision: ${result.decision}`);
             }
         }
 

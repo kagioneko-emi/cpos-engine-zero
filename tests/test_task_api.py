@@ -526,3 +526,316 @@ def test_hmac_key_registry_enforces_validity_window(tmp_path, monkeypatch):
     assert future.get_json()["error"] == "key_not_yet_valid"
     assert expired.status_code == 403
     assert expired.get_json()["error"] == "key_expired"
+
+
+def test_ip_allowlist_blocks_untrusted_forwarded_ip(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    client = server.app.test_client()
+    monkeypatch.setenv("CPOS_IP_ALLOWLIST", "203.0.113.0/24")
+    monkeypatch.setenv("CPOS_TRUST_PROXY_HEADERS", "true")
+
+    blocked = client.get("/tasks", headers={"X-Forwarded-For": "198.51.100.10"})
+    allowed = client.get("/tasks", headers={"X-Forwarded-For": "203.0.113.9"})
+
+    assert blocked.status_code == 403
+    assert blocked.get_json()["error"] == "ip_denied"
+    assert allowed.status_code == 200
+    raw = (tmp_path / "cpos" / "security_audit.jsonl").read_text(encoding="utf-8")
+    assert "ip_denied" in raw
+    assert "198.51.100.10" in raw
+
+
+def test_rate_limit_blocks_after_threshold_and_sets_headers(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    server.rate_limiter.clear()
+    client = server.app.test_client()
+    monkeypatch.setenv("CPOS_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setenv("CPOS_RATE_LIMIT_REQUESTS", "2")
+    monkeypatch.setenv("CPOS_RATE_LIMIT_WINDOW_SECONDS", "60")
+    monkeypatch.setenv("CPOS_TRUST_PROXY_HEADERS", "true")
+    headers = {"X-Forwarded-For": "203.0.113.20"}
+
+    first = client.get("/tasks", headers=headers)
+    second = client.get("/tasks", headers=headers)
+    limited = client.get("/tasks", headers=headers)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert limited.status_code == 429
+    assert limited.get_json()["error"] == "rate_limited"
+    assert limited.headers["Retry-After"]
+    assert first.headers["X-RateLimit-Limit"] == "2"
+    raw = (tmp_path / "cpos" / "security_audit.jsonl").read_text(encoding="utf-8")
+    assert "rate_limited" in raw
+
+
+def test_mutation_rate_limit_uses_stricter_bucket(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    server.rate_limiter.clear()
+    client = server.app.test_client()
+    monkeypatch.setenv("CPOS_RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setenv("CPOS_RATE_LIMIT_REQUESTS", "100")
+    monkeypatch.setenv("CPOS_MUTATION_RATE_LIMIT_REQUESTS", "1")
+    monkeypatch.setenv("CPOS_TRUST_PROXY_HEADERS", "true")
+    headers = {"X-Forwarded-For": "203.0.113.21"}
+
+    first = client.post("/tasks/rollback-latest", json={"confirm": True}, headers=headers)
+    limited = client.post("/tasks/rollback-latest", json={"confirm": True}, headers=headers)
+
+    assert first.status_code == 400
+    assert first.get_json()["error"] == "task_id_or_target_required"
+    assert limited.status_code == 429
+    assert limited.get_json()["error"] == "rate_limited"
+
+
+def test_client_cert_fingerprint_required_and_allowed(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    fingerprints = tmp_path / "client_fingerprints.txt"
+    good = "AA:BB:CC:DD"
+    fingerprints.write_text(good + "\n", encoding="utf-8")
+    client = server.app.test_client()
+    monkeypatch.setenv("CPOS_REQUIRE_CLIENT_CERT", "true")
+    monkeypatch.setenv("CPOS_CLIENT_CERT_FINGERPRINTS_FILE", str(fingerprints))
+
+    missing = client.get("/tasks")
+    denied = client.get("/tasks", headers={"X-SSL-Client-SHA256": "11:22:33:44"})
+    allowed = client.get("/tasks", headers={"X-SSL-Client-SHA256": good})
+
+    assert missing.status_code == 401
+    assert missing.get_json()["error"] == "client_cert_required"
+    assert denied.status_code == 403
+    assert denied.get_json()["error"] == "client_cert_denied"
+    assert allowed.status_code == 200
+    raw = (tmp_path / "cpos" / "security_audit.jsonl").read_text(encoding="utf-8")
+    assert "client_cert_required" in raw
+    assert "client_cert_denied" in raw
+    assert "client_cert_allowed" in raw
+    assert "aabbccdd" in raw
+
+
+def test_client_cert_missing_fingerprint_file_fails_closed(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    client = server.app.test_client()
+    monkeypatch.setenv("CPOS_REQUIRE_CLIENT_CERT", "true")
+    monkeypatch.setenv("CPOS_CLIENT_CERT_FINGERPRINTS_FILE", str(tmp_path / "missing.txt"))
+
+    response = client.get("/tasks")
+
+    assert response.status_code == 503
+    assert response.get_json()["error"] == "client_cert_fingerprints_not_configured"
+
+
+def test_client_cert_audit_mode_logs_but_does_not_block(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    fingerprints = tmp_path / "client_fingerprints.txt"
+    fingerprints.write_text("aabbccdd\n", encoding="utf-8")
+    client = server.app.test_client()
+    monkeypatch.setenv("CPOS_REQUIRE_CLIENT_CERT", "true")
+    monkeypatch.setenv("CPOS_CLIENT_CERT_FINGERPRINTS_FILE", str(fingerprints))
+    monkeypatch.setenv("CPOS_CLIENT_CERT_POLICY_MODE", "audit")
+
+    response = client.get("/tasks", headers={"X-SSL-Client-SHA256": "11223344"})
+
+    assert response.status_code == 200
+    raw = (tmp_path / "cpos" / "security_audit.jsonl").read_text(encoding="utf-8")
+    assert "client_cert_denied" in raw
+
+
+def test_security_profile_endpoint_reports_effective_profile(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    client = server.app.test_client()
+    monkeypatch.setenv("CPOS_SECURITY_PROFILE", "dev")
+    monkeypatch.setenv("CPOS_SANDBOX_MODE", "strict")
+
+    response = client.get("/security-profile")
+
+    assert response.status_code == 200
+    payload = response.get_json()["security_profile"]
+    assert payload["profile"] == "dev"
+    assert payload["values"]["CPOS_SANDBOX_MODE"] == "strict"
+
+
+def test_security_profile_endpoint_includes_secret_inventory_summary(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    from cpos.secret_inventory import add_artifact
+    inventory_path = tmp_path / "cpos" / "secret_inventory.jsonl"
+    add_artifact(inventory_path, artifact_path="certs/key.pem", artifact_type="tls_private_key", vault_path="secret/cpos/tls", field="private_key")
+    monkeypatch.setenv("CPOS_SECRET_INVENTORY_PATH", str(inventory_path))
+    client = server.app.test_client()
+
+    response = client.get("/security-profile")
+
+    assert response.status_code == 200
+    payload = response.get_json()["secret_inventory"]
+    assert payload["count"] == 1
+    assert payload["by_status"]["review"] == 1
+    assert payload["records"][0]["artifact_path"] == "certs/key.pem"
+
+
+def create_handoff_pointer_for_api(pointer_id="ptr://handoff/api"):
+    return server.agent.pointer_manager.create_pointer(
+        pointer_id=pointer_id,
+        context_type="handoff_summary",
+        summary="Imported CPOS handoff",
+        source="handoff:AgentA",
+        location="handoff://api",
+        priority=0.55,
+        trust_score=0.35,
+        retrieval_rule="handoff_review_required",
+        metadata={"bundle_sha256": "api", "counts": {"tasks": 1}, "signature": {"ok": True}},
+    )
+
+
+def test_handoff_inbox_api_lists_approves_and_rejects(tmp_path):
+    configure_task_test_agent(tmp_path)
+    pointer = create_handoff_pointer_for_api()
+    client = server.app.test_client()
+
+    listed = client.get('/handoff-inbox')
+    assert listed.status_code == 200
+    assert listed.get_json()['count'] == 1
+    assert listed.get_json()['handoffs'][0]['review_status'] == 'pending'
+
+    no_confirm = client.post(f'/handoff-inbox/{pointer.pointer_id}/approve', json={})
+    assert no_confirm.status_code == 400
+    assert no_confirm.get_json()['error'] == 'confirm_required'
+
+    approved = client.post(f'/handoff-inbox/{pointer.pointer_id}/approve', json={'confirm': True, 'reason': 'ok'})
+    assert approved.status_code == 200
+    assert approved.get_json()['pointer']['retrieval_rule'] == 'handoff_approved'
+    assert client.get('/handoff-inbox').get_json()['count'] == 0
+    assert client.get('/handoff-inbox?status=approved').get_json()['count'] == 1
+
+    rejected_pointer = create_handoff_pointer_for_api('ptr://handoff/api2')
+    rejected = client.post(f'/handoff-inbox/{rejected_pointer.pointer_id}/reject', json={'reason': 'stale'})
+    assert rejected.status_code == 200
+    assert rejected.get_json()['pointer']['retrieval_rule'] == 'handoff_rejected'
+    assert client.get('/handoff-inbox?status=rejected').get_json()['count'] == 1
+
+
+def test_handoff_inbox_auth_scope(tmp_path, monkeypatch):
+    configure_task_test_agent(tmp_path)
+    create_handoff_pointer_for_api()
+    token_file = tmp_path / 'token'
+    scopes_file = tmp_path / 'scopes'
+    token_file.write_text('review-token\n', encoding='utf-8')
+    scopes_file.write_text('read:reviews\n', encoding='utf-8')
+    monkeypatch.setenv('CPOS_REQUIRE_API_AUTH', 'true')
+    monkeypatch.setenv('CPOS_API_BEARER_TOKEN_FILE', str(token_file))
+    monkeypatch.setenv('CPOS_API_BEARER_TOKEN_SCOPES_FILE', str(scopes_file))
+    client = server.app.test_client()
+    headers = {'Authorization': 'Bearer review-token'}
+
+    allowed = client.get('/handoff-inbox', headers=headers)
+    denied = client.post('/handoff-inbox/ptr://handoff/api/approve', json={'confirm': True}, headers=headers)
+
+    assert allowed.status_code == 200
+    assert denied.status_code == 403
+    assert denied.get_json()['required_scope'] == 'write:reviews'
+
+
+def test_handoff_promotion_api_requires_approved_and_promotes(tmp_path):
+    configure_task_test_agent(tmp_path)
+    pointer = create_handoff_pointer_for_api()
+    client = server.app.test_client()
+
+    not_approved = client.get(f'/handoff-inbox/{pointer.pointer_id}/promotion-plan')
+    assert not_approved.status_code == 400
+    assert not_approved.get_json()['error'] == 'handoff_not_approved'
+
+    client.post(f'/handoff-inbox/{pointer.pointer_id}/approve', json={'confirm': True})
+    plan = client.get(f'/handoff-inbox/{pointer.pointer_id}/promotion-plan')
+    assert plan.status_code == 200
+    assert plan.get_json()['plan']['source_pointer_id'] == pointer.pointer_id
+
+    no_confirm = client.post(f'/handoff-inbox/{pointer.pointer_id}/promote', json={})
+    assert no_confirm.status_code == 400
+    assert no_confirm.get_json()['error'] == 'confirm_required'
+
+    promoted = client.post(f'/handoff-inbox/{pointer.pointer_id}/promote', json={'confirm': True, 'reason': 'continue'})
+    assert promoted.status_code == 200
+    payload = promoted.get_json()
+    assert payload['pointer']['context_type'] == 'handoff_promotion_plan'
+    assert payload['pointer']['retrieval_rule'] == 'handoff_promotion_review_required'
+    assert payload['pointer']['dependencies'] == [pointer.pointer_id]
+
+
+def test_promotion_executor_api_creates_and_approves_review(tmp_path):
+    configure_task_test_agent(tmp_path)
+    handoff = create_handoff_pointer_for_api()
+    client = server.app.test_client()
+    client.post(f'/handoff-inbox/{handoff.pointer_id}/approve', json={'confirm': True})
+    promoted = client.post(f'/handoff-inbox/{handoff.pointer_id}/promote', json={'confirm': True})
+    promotion_id = promoted.get_json()['pointer']['pointer_id']
+
+    no_confirm = client.post(f'/handoff-inbox/{promotion_id}/execute-plan', json={})
+    assert no_confirm.status_code == 400
+    assert no_confirm.get_json()['error'] == 'confirm_required'
+
+    created = client.post(f'/handoff-inbox/{promotion_id}/execute-plan', json={'confirm': True, 'reason': 'resume'})
+    assert created.status_code == 200
+    task_id = created.get_json()['task_id']
+    assert created.get_json()['review']['payload']['review_type'] == 'handoff_promotion_execution'
+
+    # Fix review endpoint stays clean; handoff execution has its own queue.
+    assert client.get('/tasks/reviews').get_json()['count'] == 0
+    executions = client.get('/handoff-executions')
+    assert executions.status_code == 200
+    assert executions.get_json()['count'] == 1
+    assert executions.get_json()['reviews'][0]['task_id'] == task_id
+
+    approve_missing_confirm = client.post(f'/handoff-executions/{task_id}/approve', json={})
+    assert approve_missing_confirm.status_code == 400
+    approved = client.post(f'/handoff-executions/{task_id}/approve', json={'confirm': True})
+    assert approved.status_code == 200
+    assert approved.get_json()['status'] == 'approved'
+    assert client.get('/handoff-executions').get_json()['count'] == 0
+
+
+def test_resume_planner_api_creates_and_approves_resume_review(tmp_path):
+    configure_task_test_agent(tmp_path)
+    handoff = create_handoff_pointer_for_api()
+    client = server.app.test_client()
+    client.post(f'/handoff-inbox/{handoff.pointer_id}/approve', json={'confirm': True})
+    promoted = client.post(f'/handoff-inbox/{handoff.pointer_id}/promote', json={'confirm': True})
+    promotion_id = promoted.get_json()['pointer']['pointer_id']
+    created = client.post(f'/handoff-inbox/{promotion_id}/execute-plan', json={'confirm': True})
+    task_id = created.get_json()['task_id']
+    client.post(f'/handoff-executions/{task_id}/approve', json={'confirm': True})
+
+    plan = client.get(f'/handoff-executions/{task_id}/resume-plan')
+    assert plan.status_code == 200
+    assert plan.get_json()['proposal']['execute_automatically'] is False
+
+    no_confirm = client.post(f'/handoff-executions/{task_id}/create-resume-review', json={})
+    assert no_confirm.status_code == 400
+    created_review = client.post(f'/handoff-executions/{task_id}/create-resume-review', json={'confirm': True})
+    assert created_review.status_code == 200
+    assert client.get('/resume-reviews').get_json()['count'] == 1
+    approved = client.post(f'/resume-reviews/{task_id}/approve', json={'confirm': True, 'action_id': 'inspect_promotion_plan'})
+    assert approved.status_code == 200
+    assert approved.get_json()['approved_action_id'] == 'inspect_promotion_plan'
+
+
+def test_handoff_graph_api_links_flow(tmp_path):
+    configure_task_test_agent(tmp_path)
+    handoff = create_handoff_pointer_for_api()
+    client = server.app.test_client()
+    client.post(f'/handoff-inbox/{handoff.pointer_id}/approve', json={'confirm': True})
+    promoted = client.post(f'/handoff-inbox/{handoff.pointer_id}/promote', json={'confirm': True})
+    promotion_id = promoted.get_json()['pointer']['pointer_id']
+    execution = client.post(f'/handoff-inbox/{promotion_id}/execute-plan', json={'confirm': True})
+    task_id = execution.get_json()['task_id']
+    client.post(f'/handoff-executions/{task_id}/approve', json={'confirm': True})
+    client.post(f'/handoff-executions/{task_id}/create-resume-review', json={'confirm': True})
+
+    graph = client.get('/handoff-graph')
+    assert graph.status_code == 200
+    payload = graph.get_json()
+    assert payload['counts']['handoffs'] == 1
+    assert payload['counts']['promotions'] == 1
+    assert payload['counts']['execution_reviews'] == 1
+    assert payload['counts']['resume_reviews'] == 1
+    assert payload['handoffs'][0]['pointer_id'] == handoff.pointer_id
+    assert payload['execution_reviews'][0]['promotion_pointer_id'] == promotion_id
+    assert payload['resume_reviews'][0]['task_id'] == task_id

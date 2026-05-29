@@ -145,6 +145,8 @@ class MainAgent:
         for review in self.task_tape.pending_reviews():
             safe_review = dict(review)
             payload = dict(safe_review.get("payload", {}))
+            if payload.get("review_type") not in {None, "fix"}:
+                continue
             payload.pop("proposed_code", None)
             safe_review["payload"] = payload
             reviews.append(safe_review)

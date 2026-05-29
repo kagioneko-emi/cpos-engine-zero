@@ -1,0 +1,20 @@
+{
+  "secret_dir": "/run/secrets",
+  "secrets": [
+    {
+      "filename": "cpos_hmac_2026_05",
+      "vault_path": "secret/cpos/hmac/2026-05",
+      "field": "active"
+    },
+    {
+      "filename": "cpos_client_fingerprints.txt",
+      "vault_path": "secret/cpos/client-certs",
+      "field": "fingerprints"
+    },
+    {
+      "filename": "cpos_storage.key",
+      "vault_path": "secret/cpos/storage",
+      "field": "fernet_key"
+    }
+  ]
+}
