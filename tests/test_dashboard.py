@@ -105,3 +105,18 @@ def test_dashboard_contains_github_pr_dry_run_ui():
     assert 'rejectGithubPrDryRun' in html
     assert 'GITHUB PR DRY-RUN' in html
     assert 'no branch creation, no commits, no push' in html
+
+
+def test_dashboard_contains_sandbox_patch_plan_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-patch-section' in html
+    assert 'sandbox-patch-count' in html
+    assert '/sandbox/patch-plans' in html
+    assert 'renderSandboxPatchPlans' in html
+    assert 'approveSandboxPatchPlan' in html
+    assert 'rejectSandboxPatchPlan' in html
+    assert 'Sandbox Patch Plans' in html
+    assert 'no live repo writes' in html

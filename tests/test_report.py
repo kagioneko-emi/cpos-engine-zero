@@ -650,3 +650,42 @@ def test_generate_report_renders_github_pr_dry_run_summary(tmp_path):
     assert "README.md" in html
     assert "RAW_SUMMARY_SHOULD_NOT_APPEAR" not in html
     assert "PR Created" in html
+
+
+def test_generate_report_renders_sandbox_patch_plan_summary(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.github_diff_review import approve_github_diff_review, create_github_diff_review
+    from cpos.github_pr_flow import approve_github_pr_dry_run, create_github_pr_dry_run
+    from cpos.sandbox_patch_plan import create_sandbox_patch_plan
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    pr = create_github_pr_dry_run(store, repo="kagioneko/cpos-engine-zero", title="Fix sandbox", files=["README.md"], summary="ctx")
+    approve_github_pr_dry_run(store, pr["task_id"], confirm=True)
+    diff = create_github_diff_review(store, source_task_id=pr["task_id"], diff_text="+hello\n-old\n", changed_files=["README.md"], validation_commands=["pytest -q tests/test_report.py"])
+    approve_github_diff_review(store, diff["task_id"], confirm=True)
+    plan = create_sandbox_patch_plan(store, diff_task_id=diff["task_id"])
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Sandbox Patch Plan" in html
+    assert "Ephemeral Workspace Validation Gate" in html
+    assert plan["task_id"] in html
+    assert "patch_applied" in html
+    assert "commands_executed" in html

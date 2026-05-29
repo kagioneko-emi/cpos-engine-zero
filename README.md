@@ -1,5 +1,4 @@
-# CPOS Engine-Zero (DevOps x AI Agent Hackathon 2026 Edition)
-
+# CPOS Engine-Zero
 
 ## OSS Positioning
 
@@ -14,46 +13,14 @@ execution is not enabled by default.
 
 See `SECURITY.md` and `OSS_RELEASE_CHECKLIST.md` before publishing or deploying.
 
-## Overview
-CPOS Engine-Zero は、DevOps サイクルにおける「Run (まわす)」を自動化する、自律型安定性確保エージェントです。
-Google Cloud (Gemini) と CPOS (Context Pointer OS) の設計思想を融合し、脆弱性やバグの検出から、AI による修正案の生成、そして Sandbox での検証までを完全自動で行います。
-
-## Key Features
-- **Autonomous Self-Healing**: Gemini CLI を活用し、検出された問題に対して最適な修正コードを自律的に生成・適用します。
-- **Interactive Command Center (Dashboard 2.0)**: HTTPS 化されたダッシュボードで、リアルタイムの実行状況や「Memory Graph」による思考プロセスの可視化、修正の承認・却下、ロールバックが可能です。
-- **Defensive Backend**:
-    - **Encrypted Context Memory**: AES-128 (Fernet) によるポインタと監査ログの暗号化。
-    - **Tamper-evident Hash Chain**: 全ての操作ログをハッシュチェーンで連結し、改ざんを即座に検知。
-    - **HSTS / CSP Enforcement**: 強固なセキュリティヘッダーによる要塞化された運用環境。
-- **Context Pointers (#ctx)**: ファイル間の依存関係や過去の失敗パターンをポインタとして管理し、LLM に最適な文脈を提供します。
-- **Audit & Sandbox**: すべての修正は Docker Sandbox 内で検証され、安定性が確認されたコードのみが最終的なアウトプットとなります。
-
-## Deployment & Security
-### Running the Secure Server
-1. 依存関係のインストール:
-   ```bash
-   cd cpos_defensive_agent
-   .venv/bin/pip install -r requirements.txt
-   ```
-
-2. サーバーの起動 (HTTPS 必須):
-   ```bash
-   export CPOS_ENFORCE_HTTPS=true
-   export CPOS_REQUIRE_FIX_APPROVAL=true
-   .venv/bin/python server.py
-   ```
-   ダッシュボードには `https://<IP>:8080/dashboard` でアクセスできます（自己署名証明書のため警告が出ますが、通信は暗号化されています）。
-
-3. デモのトリガー:
-   ```bash
-   .venv/bin/python trigger_demo.py
-   ```
-
-## Detailed Pitch & Strategy
-詳細はプロジェクトルートの [PITCH.md](../PITCH.md) を参照してください。
-
----
-** Kagioneko (2026) | DevOps x AI Agent Hackathon **
+## Core Capabilities
+- Context Pointer OS for lightweight memory references and retrieval governance
+- Append-only Task Tape with checkpoints and rollback support
+- Approval-gated remediation for sensitive or irreversible actions
+- Tamper-evident hash-chained audit logs
+- Defensive MCP connector registry, review queue, dry-run execution, and capability probes
+- HMAC, bearer-token, HTTPS, mTLS fingerprint, IP allowlist, and rate-limit controls
+- Sandbox policy modes and security profile validation
 
 ## HMAC API Client Helpers
 
@@ -351,7 +318,6 @@ export CPOS_SECRET_INVENTORY_PATH=/path/to/secret_inventory.jsonl
 ```
 
 The inventory stores metadata only and remains hash-chained for tamper evidence.
-
 
 ## Multi-Agent Handoff Export
 
@@ -697,7 +663,6 @@ branch name, proposed commit message, and PR title. Raw summary text and secrets
 not stored. Approval currently marks the dry-run plan as approved only; automation
 still remains disabled until a later explicit execution adapter is added.
 
-
 ## GitHub Diff Review: Metadata-only
 
 Approved PR dry-run plans can advance to a diff-review stage. This stage records
@@ -714,3 +679,20 @@ curl -X POST https://<host>/github/diff-reviews/<task_id>/reject -d '{"reason":"
 Raw diff text is not stored. The Task Tape keeps hash, byte size, changed file
 paths, validation command strings, and line counters only. Approval does not apply
 the patch; it only marks the diff plan ready for a future sandbox patch runner.
+
+## Sandbox Patch Plan: Ephemeral Workspace Gate
+
+Approved diff reviews can be promoted into a sandbox patch plan. This plan is still
+metadata-only: it prepares an isolated validation step but does not apply patches or
+run commands yet.
+
+```bash
+curl -X POST https://<host>/github/diff-reviews/<diff_task_id>/create-sandbox-plan -d '{}'
+curl 'https://<host>/sandbox/patch-plans'
+curl -X POST https://<host>/sandbox/patch-plans/<task_id>/approve -d '{"confirm":true}'
+curl -X POST https://<host>/sandbox/patch-plans/<task_id>/reject -d '{"reason":"manual_reject"}'
+```
+
+The Task Tape stores only plan hashes, file names, validation command hashes, and
+status flags. It does not store live patch application results, command output, or
+live repository writes.

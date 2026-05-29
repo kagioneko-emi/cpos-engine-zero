@@ -348,6 +348,11 @@
                 <div class="metric" id="github-pr-count">--</div>
                 <div class="muted" id="github-pr-detail">Review-gated PR planning</div>
             </div>
+            <div class="card" id="sandbox-patch-card" style="border-color: var(--accent-purple);">
+                <h2>Sandbox Patch Plan</h2>
+                <div class="metric" id="sandbox-patch-count">--</div>
+                <div class="muted" id="sandbox-patch-detail">Ephemeral workspace validation gate</div>
+            </div>
             <div class="card" id="handoff-inbox-card" style="border-color: var(--accent-orange);">
                 <h2>Handoff Inbox</h2>
                 <div class="metric" id="handoff-inbox-count">--</div>
@@ -407,6 +412,12 @@
             <p class="muted">Planning only: no branch creation, no commits, no push, and no pull request creation. Approval only unlocks the next diff-review step.</p>
             <div id="github-pr-summary" class="muted" style="margin-bottom: 12px;">Loading GitHub PR dry-runs...</div>
             <div id="github-pr-container"></div>
+        </div>
+        <div id="sandbox-patch-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
+            <h2>Sandbox Patch Plans</h2>
+            <p class="muted">Metadata-only planning: no live repo writes, no patch apply, and no command execution. Approval only unlocks the isolated runner step.</p>
+            <div id="sandbox-patch-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox patch plans...</div>
+            <div id="sandbox-patch-container"></div>
         </div>
 
         <div id="handoff-flow-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
@@ -512,6 +523,11 @@
                 document.getElementById('github-pr-count').innerText = githubPrData.count || 0;
                 document.getElementById('github-pr-detail').innerText = (githubPrData.reviews || []).length === 0 ? 'No pending PR dry-runs' : `${githubPrData.count} pending dry-run review(s)`;
                 renderGithubPrDryRuns(githubPrData);
+                const sandboxPatchRes = await fetch('/sandbox/patch-plans');
+                const sandboxPatchData = sandboxPatchRes.ok ? await sandboxPatchRes.json() : {ok: false, count: 0, reviews: []};
+                document.getElementById('sandbox-patch-count').innerText = sandboxPatchData.count || 0;
+                document.getElementById('sandbox-patch-detail').innerText = (sandboxPatchData.reviews || []).length === 0 ? 'No pending sandbox plans' : `${sandboxPatchData.count} pending sandbox plan(s)`;
+                renderSandboxPatchPlans(sandboxPatchData);
 
                 const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
                 const handoffSource = document.getElementById('handoff-flow-source-filter')?.value || '';
@@ -962,6 +978,17 @@
             const reason = prompt('Reject GitHub PR dry-run reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/github/pr-dry-runs/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveSandboxPatchPlan(taskId) {
+            if (!confirm(`Approve sandbox patch plan ${taskId}? This will not apply any patch yet.`)) return;
+            await postJson(`/sandbox/patch-plans/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectSandboxPatchPlan(taskId) {
+            const reason = prompt('Reject sandbox patch plan reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/sandbox/patch-plans/${taskId}/reject`, {reason: reason});
         }
 
         async function approveMcpExecution(taskId) {

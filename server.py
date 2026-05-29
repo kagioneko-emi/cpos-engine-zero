@@ -39,6 +39,7 @@ from cpos.mcp_execution import request_mcp_execution, pending_mcp_execution_revi
 from cpos.mcp_probe import request_mcp_capability_probe, pending_mcp_probe_reviews, approve_mcp_probe_review, reject_mcp_probe_review
 from cpos.github_pr_flow import create_github_pr_dry_run, pending_github_pr_reviews, approve_github_pr_dry_run, reject_github_pr_dry_run
 from cpos.github_diff_review import create_github_diff_review, pending_github_diff_reviews, approve_github_diff_review, reject_github_diff_review
+from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_patch_plans, approve_sandbox_patch_plan, reject_sandbox_patch_plan
 
 apply_security_profile_defaults()
 
@@ -179,7 +180,7 @@ def load_api_scopes():
 
 
 def protected_request_path():
-    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
+    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
 
 
 def client_ip():
@@ -461,7 +462,7 @@ def request_needs_api_auth():
     # Health stays unauthenticated for load balancers / Cloud Run probes.
     if request.path == '/health':
         return False
-    return request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/footprint', '/webhook', '/integrity', '/security-profile'))
+    return request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/footprint', '/webhook', '/integrity', '/security-profile'))
 
 
 def required_scope_for_request():
@@ -475,6 +476,8 @@ def required_scope_for_request():
         return 'read:mcp' if request.method == 'GET' else 'write:mcp'
     if request.path.startswith('/github'):
         return 'read:github' if request.method == 'GET' else 'write:github'
+    if request.path.startswith('/sandbox'):
+        return 'read:sandbox' if request.method == 'GET' else 'write:sandbox'
     if request.path.startswith('/handoff-inbox') or request.path.startswith('/handoff-graph') or request.path.startswith('/handoff-executions') or request.path.startswith('/resume-reviews'):
         return 'read:reviews' if request.method == 'GET' else 'write:reviews'
     if request.path.startswith('/tasks'):
@@ -810,6 +813,44 @@ def github_diff_review_reject(task_id):
     result = reject_github_diff_review(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
     status = 200 if result.get('ok') else 404
     audit_security_event('security_mutation', 'github_diff_review_rejected' if result.get('ok') else result.get('error', 'github_diff_review_reject_denied'), status, required_scope_for_request(), {'task_id': task_id, 'reason': data.get('reason')})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/patch-plans', methods=['GET'])
+def sandbox_patch_plan_reviews():
+    reviews = pending_sandbox_patch_plans(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews}), 200
+
+
+@app.route('/github/diff-reviews/<diff_task_id>/create-sandbox-plan', methods=['POST'])
+def sandbox_patch_plan_create(diff_task_id):
+    data = request.get_json(silent=True) or {}
+    result = create_sandbox_patch_plan(
+        agent.task_tape,
+        diff_task_id=diff_task_id,
+        actor=request_actor(),
+        dry_run=data.get('dry_run', True) is not False,
+    )
+    status = 200 if result.get('ok') else 400
+    audit_security_event('security_mutation', 'sandbox_patch_plan_created' if result.get('ok') else result.get('error', 'sandbox_patch_plan_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'diff_task_id': diff_task_id})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/patch-plans/<task_id>/approve', methods=['POST'])
+def sandbox_patch_plan_approve(task_id):
+    data = request.get_json(silent=True) or {}
+    result = approve_sandbox_patch_plan(agent.task_tape, task_id, approver=request_actor(), reason=data.get('reason'), confirm=data.get('confirm') is True)
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'pending_sandbox_patch_plan_not_found' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_plan_approved' if result.get('ok') else result.get('error', 'sandbox_patch_plan_approve_denied'), status, required_scope_for_request(), {'task_id': task_id})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/patch-plans/<task_id>/reject', methods=['POST'])
+def sandbox_patch_plan_reject(task_id):
+    data = request.get_json(silent=True) or {}
+    result = reject_sandbox_patch_plan(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
+    status = 200 if result.get('ok') else 404
+    audit_security_event('security_mutation', 'sandbox_patch_plan_rejected' if result.get('ok') else result.get('error', 'sandbox_patch_plan_reject_denied'), status, required_scope_for_request(), {'task_id': task_id, 'reason': data.get('reason')})
     return jsonify(result), status
 
 

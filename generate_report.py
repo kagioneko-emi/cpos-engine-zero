@@ -14,6 +14,7 @@ from cpos.mcp_registry import MCPRegistry
 from cpos.mcp_execution import pending_mcp_execution_reviews
 from cpos.github_pr_flow import pending_github_pr_reviews
 from cpos.github_diff_review import pending_github_diff_reviews
+from cpos.sandbox_patch_plan import pending_sandbox_patch_plans
 
 
 def load_jsonl(path):
@@ -652,6 +653,42 @@ def render_github_diff_review_summary(task_tape_path, task_checkpoint_path):
     html += '</tbody></table></div>'
     return html
 
+
+
+def render_sandbox_patch_plan_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    reviews = pending_sandbox_patch_plans(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Sandbox Patch Plan</div>
+            <h2>Ephemeral Workspace Validation Gate</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(reviews)}</strong><span>Pending Reviews</span></div>
+                <div class="metric"><strong>no</strong><span>Patch Applied</span></div>
+                <div class="metric"><strong>no</strong><span>Commands Executed</span></div>
+                <div class="metric"><strong>ephemeral</strong><span>Workspace</span></div>
+            </div>
+            <p class="muted">Plans only metadata for an isolated patch/test runner. No live repo writes, no network, and no raw validation command values are stored.</p>
+    """
+    if not reviews:
+        html += '<p class="muted">No pending sandbox patch plans.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Task</th><th>Source Diff</th><th>Repo</th><th>Validation</th><th>Files</th></tr></thead><tbody>'
+    for review in reviews[:10]:
+        plan = (review.get('payload') or {}).get('plan') or {}
+        files = ''.join(f'<span class="pill"><code>{escape(str(path))}</code></span>' for path in plan.get('changed_files', [])) or '<span class="muted">none</span>'
+        html += f"""
+            <tr>
+                <td><code>{escape(str(review.get('task_id')))}</code></td>
+                <td><code>{escape(str(plan.get('diff_task_id') or '-'))}</code></td>
+                <td><code>{escape(str(plan.get('repo') or '-'))}</code></td>
+                <td><code>{escape(str(plan.get('sandbox_plan_sha256') or '-'))}</code><br><span class="muted">commands_executed={escape(str(plan.get('commands_executed')))} / validation_commands={escape(str(plan.get('validation_command_count', 0)))} / patch_applied={escape(str(plan.get('patch_applied')))}</span></td>
+                <td>{files}</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
 def render_rate_limit_backend_summary(environ=None):
     environ = os.environ if environ is None else environ
     enabled = str(environ.get('CPOS_RATE_LIMIT_ENABLED', 'false')).lower() in {'1', 'true', 'yes'}
@@ -844,6 +881,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_mcp_execution_summary(task_tape_path, task_checkpoint_path)
     html += render_github_pr_dry_run_summary(task_tape_path, task_checkpoint_path)
     html += render_github_diff_review_summary(task_tape_path, task_checkpoint_path)
+    html += render_sandbox_patch_plan_summary(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
     html += render_security_profile_validation()
     html += render_secret_inventory_summary(secret_inventory_path)
