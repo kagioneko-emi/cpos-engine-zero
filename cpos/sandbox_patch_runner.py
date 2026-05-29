@@ -17,6 +17,7 @@ from .task_tape import TaskTapeStore
 REVIEW_TYPE = "sandbox_patch_execution"
 RETRY_REVIEW_TYPE = "sandbox_patch_execution_retry"
 REPLAN_REVIEW_TYPE = "sandbox_patch_replan_template"
+DIFF_INTAKE_REVIEW_TYPE = "sandbox_replan_diff_intake"
 TERMINAL_EVENTS = {"sandbox_patch_execution_approved", "sandbox_patch_execution_rejected"}
 RETRY_TERMINAL_EVENTS = {"sandbox_patch_execution_retry_approved", "sandbox_patch_execution_retry_rejected"}
 DANGEROUS_COMMAND_CHARS = set(";&|`$<>\n\r")
@@ -415,6 +416,85 @@ def create_sandbox_patch_replan_template(
         payload={"review_type": REPLAN_REVIEW_TYPE, "template": template, "actor": actor},
     )
     return {"ok": True, "task_id": task_id, "status": "template_created", "event": event.to_dict(), "template": template, "execute_automatically": False}
+
+
+def _replan_template_for_task(store: TaskTapeStore, task_id: str) -> dict[str, Any] | None:
+    events = store.events_for_task(task_id)
+    created = next((event for event in events if event.event == "sandbox_patch_replan_template_created" and event.payload.get("review_type") == REPLAN_REVIEW_TYPE), None)
+    if created is None:
+        return None
+    return (created.payload or {}).get("template") or {}
+
+
+def sandbox_replan_diff_intakes(store: TaskTapeStore) -> list[dict[str, Any]]:
+    return [event.to_dict() for event in store.events() if event.event == "sandbox_replan_diff_intake_created"]
+
+
+def create_sandbox_replan_diff_intake(
+    store: TaskTapeStore,
+    *,
+    replan_task_id: str,
+    actor: str = "SandboxReplanDiffIntake",
+    reason: str | None = None,
+) -> dict[str, Any]:
+    template = _replan_template_for_task(store, replan_task_id)
+    if template is None:
+        return {"ok": False, "error": "replan_template_required", "replan_task_id": replan_task_id, "execute_automatically": False}
+
+    intake = {
+        "schema": "cpos.sandbox_replan_diff_intake.v1",
+        "replan_task_id": replan_task_id,
+        "retry_task_id": template.get("retry_task_id"),
+        "source_execution_task_id": template.get("source_execution_task_id"),
+        "failure_kind": template.get("failure_kind"),
+        "suggested_focus": template.get("suggested_focus") or [],
+        "next_review_chain": template.get("next_review_chain") or [],
+        "required_human_inputs": [
+            "diff_text",
+            "changed_files",
+            "validation_commands",
+            "repo",
+            "base_branch",
+            "proposed_branch",
+        ],
+        "target_api": "POST /github/pr-dry-runs/<source_task_id>/create-diff-review",
+        "raw_diff_stored": False,
+        "raw_outputs_stored": False,
+        "diff_text_included": False,
+        "execute_automatically": False,
+        "commit_created": False,
+        "pushed": False,
+        "pr_created": False,
+        "requires_human_approval": True,
+        "reason": reason,
+        "guardrails": [
+            "this intake is a checklist only; it never stores diff_text",
+            "human must supply raw diff through normal diff review API",
+            "all downstream sandbox gates still apply",
+            "no commit/push/PR from intake",
+        ],
+    }
+    intake["diff_intake_sha256"] = _digest(intake)
+    target = f"sandbox://diff-intake/{replan_task_id}"
+    task_id = store.create_task(
+        target=target,
+        action="sandbox_replan_diff_intake_request",
+        payload={
+            "review_type": DIFF_INTAKE_REVIEW_TYPE,
+            "replan_task_id": replan_task_id,
+            "source_execution_task_id": template.get("source_execution_task_id"),
+            "diff_intake_sha256": intake["diff_intake_sha256"],
+            "actor": actor,
+        },
+    )
+    event = store.append_event(
+        task_id=task_id,
+        event="sandbox_replan_diff_intake_created",
+        target=target,
+        status="intake_created",
+        payload={"review_type": DIFF_INTAKE_REVIEW_TYPE, "intake": intake, "actor": actor},
+    )
+    return {"ok": True, "task_id": task_id, "status": "intake_created", "event": event.to_dict(), "intake": intake, "execute_automatically": False}
 
 def create_sandbox_patch_execution(
     store: TaskTapeStore,

@@ -258,6 +258,20 @@ def test_sandbox_patch_execution_retry_review_flow(tmp_path, monkeypatch):
     assert templates.status_code == 200
     assert templates.get_json()["count"] == 1
 
+    intake = client.post(f"/sandbox/replan-templates/{template_payload['task_id']}/create-diff-intake", json={"reason": "next_diff"})
+    assert intake.status_code == 200
+    intake_payload = intake.get_json()
+    assert intake_payload["status"] == "intake_created"
+    assert intake_payload["intake"]["diff_text_included"] is False
+    assert intake_payload["intake"]["raw_diff_stored"] is False
+    assert intake_payload["intake"]["execute_automatically"] is False
+    assert "diff_text" in intake_payload["intake"]["required_human_inputs"]
+    assert intake_payload["intake"]["target_api"].startswith("POST /github/pr-dry-runs")
+
+    intakes = client.get("/sandbox/diff-intakes")
+    assert intakes.status_code == 200
+    assert intakes.get_json()["count"] == 1
+
 
 def test_sandbox_patch_execution_retry_requires_failed_completed_run(tmp_path):
     configure(tmp_path)
@@ -321,3 +335,11 @@ def test_sandbox_patch_execution_retry_classifies_patch_apply(tmp_path, monkeypa
     created = client.post(f"/sandbox/executions/{exec_task_id}/create-retry-review", json={})
     assert created.status_code == 200
     assert created.get_json()["plan"]["failure_kind"] == "patch_apply"
+
+
+def test_sandbox_replan_diff_intake_requires_template(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    missing = client.post("/sandbox/replan-templates/task_missing/create-diff-intake", json={})
+    assert missing.status_code == 404
+    assert missing.get_json()["error"] == "replan_template_required"

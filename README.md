@@ -761,3 +761,8 @@ text, raw outputs, raw patch text, commits, pushes, or PR creation.
 Failure metadata is classified into `patch_apply`, `validation_command`,
 `sandbox_unavailable`, or `policy_rejected` so retry/replan flows can separate
 code/test failures from environment and governance failures.
+
+Replan templates can also emit a metadata-only diff intake checklist via
+`POST /sandbox/replan-templates/<task_id>/create-diff-intake`. The intake records
+required human inputs and the target diff-review API, but never stores raw diff
+text and never executes automatically.
