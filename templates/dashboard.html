@@ -449,6 +449,12 @@
             <div id="sandbox-replan-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox replan templates...</div>
             <div id="sandbox-replan-container"></div>
         </div>
+        <div id="sandbox-diff-intake-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
+            <h2>Sandbox Replan Diff Intakes</h2>
+            <p class="muted">Metadata-only checklist for the next diff review. It lists required_human_inputs and target_api; raw diff text is never stored.</p>
+            <div id="sandbox-diff-intake-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox diff intakes...</div>
+            <div id="sandbox-diff-intake-container"></div>
+        </div>
 
         <div id="handoff-flow-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
             <h2>Handoff Flow Graph</h2>
@@ -566,17 +572,21 @@
                 const sandboxRetryData = sandboxRetryRes.ok ? await sandboxRetryRes.json() : {ok: false, count: 0, reviews: []};
                 const sandboxReplanRes = await fetch('/sandbox/replan-templates');
                 const sandboxReplanData = sandboxReplanRes.ok ? await sandboxReplanRes.json() : {ok: false, count: 0, templates: []};
+                const sandboxDiffIntakeRes = await fetch('/sandbox/diff-intakes');
+                const sandboxDiffIntakeData = sandboxDiffIntakeRes.ok ? await sandboxDiffIntakeRes.json() : {ok: false, count: 0, intakes: []};
                 const pendingSandboxExecutions = sandboxExecutionData.count || 0;
                 const completedSandboxExecutions = sandboxExecutionResultData.count || 0;
                 const pendingSandboxRetries = sandboxRetryData.count || 0;
                 const sandboxReplanTemplates = sandboxReplanData.count || 0;
-                const sandboxExecutionTotal = pendingSandboxExecutions + completedSandboxExecutions + pendingSandboxRetries + sandboxReplanTemplates;
-                document.getElementById('sandbox-execution-count').innerText = sandboxReplanTemplates ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}+${sandboxReplanTemplates}` : (pendingSandboxRetries ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}` : (completedSandboxExecutions ? `${pendingSandboxExecutions}+${completedSandboxExecutions}` : pendingSandboxExecutions));
-                document.getElementById('sandbox-execution-detail').innerText = sandboxExecutionTotal ? `pending=${pendingSandboxExecutions}, completed=${completedSandboxExecutions}, retry=${pendingSandboxRetries}, replan=${sandboxReplanTemplates}` : 'No sandbox executions yet';
+                const sandboxDiffIntakes = sandboxDiffIntakeData.count || 0;
+                const sandboxExecutionTotal = pendingSandboxExecutions + completedSandboxExecutions + pendingSandboxRetries + sandboxReplanTemplates + sandboxDiffIntakes;
+                document.getElementById('sandbox-execution-count').innerText = sandboxDiffIntakes ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}+${sandboxReplanTemplates}+${sandboxDiffIntakes}` : (sandboxReplanTemplates ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}+${sandboxReplanTemplates}` : (pendingSandboxRetries ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}` : (completedSandboxExecutions ? `${pendingSandboxExecutions}+${completedSandboxExecutions}` : pendingSandboxExecutions)));
+                document.getElementById('sandbox-execution-detail').innerText = sandboxExecutionTotal ? `pending=${pendingSandboxExecutions}, completed=${completedSandboxExecutions}, retry=${pendingSandboxRetries}, replan=${sandboxReplanTemplates}, intake=${sandboxDiffIntakes}` : 'No sandbox executions yet';
                 renderSandboxPatchExecutions(sandboxExecutionData);
                 renderSandboxPatchExecutionResults(sandboxExecutionResultData);
                 renderSandboxPatchExecutionRetries(sandboxRetryData);
                 renderSandboxPatchReplanTemplates(sandboxReplanData);
+                renderSandboxReplanDiffIntakes(sandboxDiffIntakeData);
 
                 const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
                 const handoffSource = document.getElementById('handoff-flow-source-filter')?.value || '';
@@ -901,6 +911,44 @@
                                 <span class="muted">diff_text_included=${template.diff_text_included} / raw_outputs_stored=${template.raw_outputs_stored} / workspace_reused=${template.workspace_reused}</span>
                                 <div style="margin-top: 8px;"><strong>Suggested focus</strong><br>${focus}</div>
                                 <div style="margin-top: 8px;"><strong>Next review chain</strong><br>${chain}</div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderSandboxReplanDiffIntakes(sandboxDiffIntakeData) {
+                    const section = document.getElementById('sandbox-diff-intake-section');
+                    const summary = document.getElementById('sandbox-diff-intake-summary');
+                    const container = document.getElementById('sandbox-diff-intake-container');
+                    const intakes = (sandboxDiffIntakeData && sandboxDiffIntakeData.intakes) || [];
+                    if (!intakes.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `intakes=${intakes.length}, raw_diff_stored=false, diff_text_included=false, execute_automatically=false`;
+
+                    container.innerHTML = '';
+                    intakes.slice(-5).reverse().forEach(row => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-purple)';
+                        const payload = row.payload || {};
+                        const intake = payload.intake || {};
+                        const inputs = (intake.required_human_inputs || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        const focus = (intake.suggested_focus || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div>
+                                <strong style="color: var(--accent-purple);">[SANDBOX DIFF INTAKE]</strong> <code>${row.task_id}</code><br>
+                                <span class="muted">replan=${intake.replan_task_id || '-'} / retry=${intake.retry_task_id || '-'} / failure=${intake.failure_kind || '-'}</span><br>
+                                <span class="muted">target_api=${intake.target_api || '-'}</span><br>
+                                <span class="muted">intake_sha256=${intake.diff_intake_sha256 || '-'}</span><br>
+                                <span class="muted">raw_diff_stored=${intake.raw_diff_stored} / diff_text_included=${intake.diff_text_included} / execute_automatically=${intake.execute_automatically}</span>
+                                <div style="margin-top: 8px;"><strong>Required human inputs</strong><br>${inputs}</div>
+                                <div style="margin-top: 8px;"><strong>Suggested focus</strong><br>${focus}</div>
                             </div>
                         `;
                         container.appendChild(div);

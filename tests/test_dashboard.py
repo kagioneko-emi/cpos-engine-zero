@@ -179,3 +179,18 @@ def test_dashboard_contains_sandbox_patch_replan_templates_ui():
     assert 'suggested_focus' in html
     assert 'next_review_chain' in html
     assert 'without diff text' in html
+
+
+def test_dashboard_contains_sandbox_replan_diff_intake_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-diff-intake-section' in html
+    assert 'sandbox-diff-intake-container' in html
+    assert '/sandbox/diff-intakes' in html
+    assert 'renderSandboxReplanDiffIntakes' in html
+    assert 'SANDBOX DIFF INTAKE' in html
+    assert 'required_human_inputs' in html
+    assert 'target_api' in html
+    assert 'raw diff text is never stored' in html
