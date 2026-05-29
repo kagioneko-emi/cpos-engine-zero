@@ -164,6 +164,8 @@ def test_sandbox_patch_execution_rejects_shell_metacharacters(tmp_path):
     assert res.status_code == 400
     payload = res.get_json()
     assert payload["error"] == "validation_command_disallowed_shell_syntax"
+    assert payload["failure_kind"] == "policy_rejected"
+    assert payload["policy_rejected"] is True
     assert payload["execute_automatically"] is False
 
 
@@ -181,6 +183,7 @@ def test_sandbox_patch_execution_rejects_local_dev_without_opt_in(tmp_path, monk
     assert res.status_code == 400
     payload = res.get_json()
     assert payload["error"] == "local_dev_runner_mode_requires_explicit_opt_in"
+    assert payload["failure_kind"] == "policy_rejected"
     assert payload["runner_mode"] == "local-dev"
 
 
@@ -211,6 +214,7 @@ def test_sandbox_patch_execution_retry_review_flow(tmp_path, monkeypatch):
     assert run_res.status_code == 200
     assert run_res.get_json()["ok"] is False
     assert run_res.get_json()["status"] == "completed_with_failures"
+    assert run_res.get_json()["failure_kind"] == "validation_command"
 
     created = client.post(f"/sandbox/executions/{exec_task_id}/create-retry-review", json={"reason": "test_retry"})
     assert created.status_code == 200
@@ -261,3 +265,59 @@ def test_sandbox_patch_execution_retry_requires_failed_completed_run(tmp_path):
     missing = client.post("/sandbox/executions/task_missing/create-retry-review", json={})
     assert missing.status_code == 404
     assert missing.get_json()["error"] == "completed_sandbox_execution_required"
+
+
+def test_sandbox_patch_execution_retry_classifies_sandbox_unavailable(tmp_path, monkeypatch):
+    configure(tmp_path)
+    client = server.app.test_client()
+    exec_task_id = create_approved_execution(client, validation_commands=["pytest -q tests/test_report.py"])
+
+    src_root = tmp_path / "src-sandbox-missing"
+    src_root.mkdir()
+    (src_root / "README.md").write_text("old\n", encoding="utf-8")
+    monkeypatch.setattr("cpos.sandbox_patch_runner._project_root", lambda: src_root)
+    monkeypatch.setattr("cpos.sandbox_patch_runner._apply_patch", lambda workspace, diff_text: {"ok": True, "stage": "apply", "exit_code": 0, "stdout_sha256": "ok", "stderr_sha256": ""})
+
+    class MissingSandboxRunner:
+        def __init__(self, *args, **kwargs):
+            self.mode = kwargs.get("mode")
+        def run_command(self, target_dir, command):
+            return {"stdout": "", "stderr": "docker missing", "exit_code": 125, "sandbox": {"backend": "none", "mode": self.mode, "isolated": False, "fallback_used": False}}
+
+    monkeypatch.setattr("cpos.sandbox_patch_runner.SandboxRunner", MissingSandboxRunner)
+
+    run_res = client.post(f"/sandbox/executions/{exec_task_id}/run", json={
+        "diff_text": "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n",
+        "validation_commands": ["pytest -q tests/test_report.py"],
+        "runner_mode": "strict",
+    })
+    assert run_res.status_code == 200
+    assert run_res.get_json()["failure_kind"] == "sandbox_unavailable"
+
+    created = client.post(f"/sandbox/executions/{exec_task_id}/create-retry-review", json={})
+    assert created.status_code == 200
+    assert created.get_json()["plan"]["failure_kind"] == "sandbox_unavailable"
+
+
+def test_sandbox_patch_execution_retry_classifies_patch_apply(tmp_path, monkeypatch):
+    configure(tmp_path)
+    client = server.app.test_client()
+    exec_task_id = create_approved_execution(client, validation_commands=["pytest -q tests/test_report.py"])
+
+    src_root = tmp_path / "src-patch-fail"
+    src_root.mkdir()
+    (src_root / "README.md").write_text("old\n", encoding="utf-8")
+    monkeypatch.setattr("cpos.sandbox_patch_runner._project_root", lambda: src_root)
+    monkeypatch.setattr("cpos.sandbox_patch_runner._apply_patch", lambda workspace, diff_text: {"ok": False, "stage": "check", "exit_code": 1, "stdout_sha256": "", "stderr_sha256": "bad"})
+
+    run_res = client.post(f"/sandbox/executions/{exec_task_id}/run", json={
+        "diff_text": "bad diff",
+        "validation_commands": ["pytest -q tests/test_report.py"],
+        "runner_mode": "strict",
+    })
+    assert run_res.status_code == 200
+    assert run_res.get_json()["failure_kind"] == "patch_apply"
+
+    created = client.post(f"/sandbox/executions/{exec_task_id}/create-retry-review", json={})
+    assert created.status_code == 200
+    assert created.get_json()["plan"]["failure_kind"] == "patch_apply"

@@ -184,6 +184,26 @@ def _first_failed_command(command_results: list[dict[str, Any]]) -> dict[str, An
     return None
 
 
+def classify_sandbox_execution_failure(payload: dict[str, Any], status: str | None = None) -> str:
+    if payload.get("policy_rejected"):
+        return "policy_rejected"
+    if not payload.get("patch_applied"):
+        return "patch_apply"
+    command_results = payload.get("command_results") or []
+    for result in command_results:
+        sandbox_backend = result.get("sandbox_backend")
+        exit_code = result.get("exit_code")
+        if sandbox_backend in {"none", None} and exit_code == 125:
+            return "sandbox_unavailable"
+        if result.get("isolated") is False and result.get("fallback_used") is False and exit_code == 125:
+            return "sandbox_unavailable"
+    if any(result.get("exit_code") != 0 for result in command_results):
+        return "validation_command"
+    if status and status not in {"completed_success", "template_created"}:
+        return "sandbox_unavailable"
+    return "unknown"
+
+
 def pending_sandbox_patch_execution_retries(store: TaskTapeStore) -> list[dict[str, Any]]:
     terminal_task_ids = {event.task_id for event in store.events() if event.event in RETRY_TERMINAL_EVENTS and event.payload.get("review_type") == RETRY_REVIEW_TYPE}
     return [
@@ -214,7 +234,7 @@ def create_sandbox_patch_execution_retry_review(
         "source_execution_task_id": source_task_id,
         "source_execution_status": completed.get("status"),
         "source_event_id": completed.get("id"),
-        "failure_kind": "patch_apply" if not payload.get("patch_applied") else "validation_command",
+        "failure_kind": classify_sandbox_execution_failure(payload, completed.get("status")),
         "patch_applied": payload.get("patch_applied"),
         "commands_executed": payload.get("commands_executed"),
         "tests_run": payload.get("tests_run"),
@@ -336,6 +356,8 @@ def create_sandbox_patch_replan_template(
     suggested_focus = {
         "patch_apply": ["regenerate_diff_against_current_base", "verify_changed_file_paths", "rerun_git_apply_check_in_sandbox"],
         "validation_command": ["inspect_failed_test_metadata", "create_new_diff_review", "preserve_or_reduce_validation_command_scope"],
+        "sandbox_unavailable": ["verify_sandbox_backend", "check_docker_or_runner_health", "rerun_after_environment_fix"],
+        "policy_rejected": ["review_policy_rejection_metadata", "adjust_validation_command_or_runner_mode", "resubmit_through_review_chain"],
     }.get(str(failure_kind), ["review_failure_metadata", "create_new_diff_review"] )
     template = {
         "schema": "cpos.sandbox_patch_replan_template.v1",
@@ -495,11 +517,11 @@ def execute_sandbox_patch_run(
 
     command_validation = validate_validation_commands(validation_commands)
     if not command_validation.get("ok"):
-        return {**command_validation, "ok": False, "task_id": task_id, "execute_automatically": False}
+        return {**command_validation, "ok": False, "failure_kind": "policy_rejected", "policy_rejected": True, "task_id": task_id, "execute_automatically": False}
 
     runner_mode_result = resolve_runner_mode(runner_mode)
     if not runner_mode_result.get("ok"):
-        return {**runner_mode_result, "ok": False, "task_id": task_id, "execute_automatically": False}
+        return {**runner_mode_result, "ok": False, "failure_kind": "policy_rejected", "policy_rejected": True, "task_id": task_id, "execute_automatically": False}
     effective_runner_mode = runner_mode_result["runner_mode"]
 
     workspace_tmp, workspace = _prepare_workspace()
@@ -516,6 +538,7 @@ def execute_sandbox_patch_run(
                 payload={
                     "review_type": REVIEW_TYPE,
                     "actor": actor,
+                    "failure_kind": "patch_apply",
                     "patch_applied": False,
                     "commands_executed": False,
                     "tests_run": False,
@@ -530,7 +553,7 @@ def execute_sandbox_patch_run(
                     "execute_automatically": False,
                 },
             )
-            return {"ok": False, "task_id": task_id, "status": "failed_patch_apply", "event": event.to_dict(), "workspace_copied": True, "patch_applied": False, "commands_executed": False, "execute_automatically": False}
+            return {"ok": False, "task_id": task_id, "status": "failed_patch_apply", "failure_kind": "patch_apply", "event": event.to_dict(), "workspace_copied": True, "patch_applied": False, "commands_executed": False, "execute_automatically": False}
 
         runner = SandboxRunner(str(_project_root() / "sandbox" / "Dockerfile.python"), mode=effective_runner_mode)
         for command in validation_commands:
@@ -555,6 +578,7 @@ def execute_sandbox_patch_run(
 
         success = patch_result.get("ok") and all(item.get("exit_code") == 0 for item in command_results)
         status = "completed_success" if success else "completed_with_failures"
+        failure_kind = None if success else classify_sandbox_execution_failure({"patch_applied": patch_result.get("ok"), "command_results": command_results}, status)
         event = store.append_event(
             task_id=task_id,
             event="sandbox_patch_execution_completed",
@@ -563,6 +587,7 @@ def execute_sandbox_patch_run(
             payload={
                 "review_type": REVIEW_TYPE,
                 "actor": actor,
+                "failure_kind": failure_kind,
                 "patch_applied": patch_result.get("ok"),
                 "commands_executed": True,
                 "tests_run": bool(command_results),
@@ -583,6 +608,7 @@ def execute_sandbox_patch_run(
             "ok": success,
             "task_id": task_id,
             "status": status,
+            "failure_kind": failure_kind,
             "event": event.to_dict(),
             "workspace_copied": True,
             "patch_applied": bool(patch_result.get("ok")),

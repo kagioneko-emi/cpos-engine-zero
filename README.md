@@ -757,3 +757,7 @@ curl https://<host>/sandbox/replan-templates
 Approved retry reviews can create a replan template. The template contains only
 failure metadata and a suggested next review chain; it does not include diff
 text, raw outputs, raw patch text, commits, pushes, or PR creation.
+
+Failure metadata is classified into `patch_apply`, `validation_command`,
+`sandbox_unavailable`, or `policy_rejected` so retry/replan flows can separate
+code/test failures from environment and governance failures.
