@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -15,6 +16,15 @@ from .task_tape import TaskTapeStore
 
 REVIEW_TYPE = "sandbox_patch_execution"
 TERMINAL_EVENTS = {"sandbox_patch_execution_approved", "sandbox_patch_execution_rejected"}
+DANGEROUS_COMMAND_CHARS = set(";&|`$<>\n\r")
+VALID_RUNNER_MODES = {"strict", "permissive", "local-dev"}
+ALLOWED_VALIDATION_COMMAND_PREFIXES = (
+    ("pytest",),
+    ("python", "-m", "pytest"),
+    ("python3", "-m", "pytest"),
+    (".venv/bin/pytest",),
+    (".venv/bin/python", "-m", "pytest"),
+)
 
 
 def _hash_text(value: str) -> dict[str, Any]:
@@ -42,6 +52,50 @@ def _approved_execution_plan(store: TaskTapeStore, task_id: str) -> dict[str, An
 
 def _hash_commands(values: list[str]) -> list[dict[str, Any]]:
     return [_hash_text(value) for value in values]
+
+
+def _command_prefix_allowed(parts: list[str]) -> bool:
+    return any(tuple(parts[: len(prefix)]) == prefix for prefix in ALLOWED_VALIDATION_COMMAND_PREFIXES)
+
+
+def validate_validation_commands(commands: list[str]) -> dict[str, Any]:
+    for index, command in enumerate(commands):
+        if not isinstance(command, str) or not command.strip():
+            return {"ok": False, "error": "validation_command_empty", "command_index": index}
+        if any(char in command for char in DANGEROUS_COMMAND_CHARS):
+            return {
+                "ok": False,
+                "error": "validation_command_disallowed_shell_syntax",
+                "command_index": index,
+                "command_sha256": _hash_text(command)["sha256"],
+            }
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            return {
+                "ok": False,
+                "error": "validation_command_parse_failed",
+                "command_index": index,
+                "command_sha256": _hash_text(command)["sha256"],
+            }
+        if not _command_prefix_allowed(parts):
+            return {
+                "ok": False,
+                "error": "validation_command_prefix_not_allowed",
+                "command_index": index,
+                "command_sha256": _hash_text(command)["sha256"],
+                "allowed_prefixes": [" ".join(prefix) for prefix in ALLOWED_VALIDATION_COMMAND_PREFIXES],
+            }
+    return {"ok": True}
+
+
+def resolve_runner_mode(requested_mode: str | None) -> dict[str, Any]:
+    mode = (requested_mode or os.environ.get("CPOS_SANDBOX_MODE", "strict") or "strict").lower()
+    if mode not in VALID_RUNNER_MODES:
+        mode = "strict"
+    if mode == "local-dev" and os.environ.get("CPOS_ALLOW_LOCAL_DEV_RUN", "").lower() not in {"1", "true", "yes"}:
+        return {"ok": False, "error": "local_dev_runner_mode_requires_explicit_opt_in", "runner_mode": mode}
+    return {"ok": True, "runner_mode": mode}
 
 
 def _project_root() -> Path:
@@ -201,6 +255,15 @@ def execute_sandbox_patch_run(
     if len(expected_hashes) != len(provided_hashes) or [item["sha256"] for item in expected_hashes] != [item["sha256"] for item in provided_hashes]:
         return {"ok": False, "error": "validation_commands_mismatch", "task_id": task_id, "execute_automatically": False}
 
+    command_validation = validate_validation_commands(validation_commands)
+    if not command_validation.get("ok"):
+        return {**command_validation, "ok": False, "task_id": task_id, "execute_automatically": False}
+
+    runner_mode_result = resolve_runner_mode(runner_mode)
+    if not runner_mode_result.get("ok"):
+        return {**runner_mode_result, "ok": False, "task_id": task_id, "execute_automatically": False}
+    effective_runner_mode = runner_mode_result["runner_mode"]
+
     workspace_tmp, workspace = _prepare_workspace()
     patch_result = {"ok": False, "stage": "unknown", "exit_code": 0, "stdout_sha256": None, "stderr_sha256": None}
     command_results: list[dict[str, Any]] = []
@@ -231,7 +294,7 @@ def execute_sandbox_patch_run(
             )
             return {"ok": False, "task_id": task_id, "status": "failed_patch_apply", "event": event.to_dict(), "workspace_copied": True, "patch_applied": False, "commands_executed": False, "execute_automatically": False}
 
-        runner = SandboxRunner(str(_project_root() / "sandbox" / "Dockerfile.python"), mode=runner_mode or os.environ.get("CPOS_SANDBOX_MODE", "strict"))
+        runner = SandboxRunner(str(_project_root() / "sandbox" / "Dockerfile.python"), mode=effective_runner_mode)
         for command in validation_commands:
             command_result = runner.run_command(str(workspace), command)
             stdout_hash = _hash_text(command_result.get("stdout", ""))

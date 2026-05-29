@@ -730,3 +730,6 @@ curl https://<host>/sandbox/executions/completed
 
 Completed run results are exposed as metadata-only records for dashboards and
 reports: no raw patch text, no raw stdout/stderr, no commit, no push, and no PR.
+Validation commands are constrained before execution: only pytest-style prefixes are
+accepted by default, shell metacharacters are rejected, and `local-dev` runner mode
+requires explicit `CPOS_ALLOW_LOCAL_DEV_RUN=true` opt-in.

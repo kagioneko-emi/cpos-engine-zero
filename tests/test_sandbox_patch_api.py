@@ -17,7 +17,8 @@ def configure(tmp_path):
     server.agent = agent
 
 
-def create_approved_diff(client):
+def create_approved_diff(client, validation_commands=None):
+    commands = validation_commands or ["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"]
     pr = client.post("/github/pr-dry-runs", json={"repo": "kagioneko/cpos-engine-zero", "title": "Fix sandbox", "files": ["README.md"], "summary": "ctx"})
     pr_task_id = pr.get_json()["task_id"]
     approved_pr = client.post(f"/github/pr-dry-runs/{pr_task_id}/approve", json={"confirm": True})
@@ -26,7 +27,7 @@ def create_approved_diff(client):
     diff = client.post(f"/github/pr-dry-runs/{pr_task_id}/create-diff-review", json={
         "diff_text": "+hello\n-old\n",
         "changed_files": ["README.md"],
-        "validation_commands": ["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"],
+        "validation_commands": commands,
     })
     diff_task_id = diff.get_json()["task_id"]
     approved_diff = client.post(f"/github/diff-reviews/{diff_task_id}/approve", json={"confirm": True})
@@ -132,3 +133,52 @@ def test_sandbox_patch_execution_run_requires_approved_plan(tmp_path):
     res = client.post("/sandbox/executions/task_missing/run", json={"diff_text": "x", "validation_commands": []})
     assert res.status_code == 404
     assert res.get_json()["error"] == "approved_sandbox_patch_execution_required"
+
+
+def create_approved_execution(client, validation_commands=None):
+    diff_task_id = create_approved_diff(client, validation_commands=validation_commands)
+    created_plan = client.post(f"/github/diff-reviews/{diff_task_id}/create-sandbox-plan", json={})
+    assert created_plan.status_code == 200
+    patch_task_id = created_plan.get_json()["task_id"]
+    approved_plan = client.post(f"/sandbox/patch-plans/{patch_task_id}/approve", json={"confirm": True})
+    assert approved_plan.status_code == 200
+    created_exec = client.post(f"/sandbox/patch-plans/{patch_task_id}/create-execution-review", json={})
+    assert created_exec.status_code == 200
+    exec_task_id = created_exec.get_json()["task_id"]
+    approved_exec = client.post(f"/sandbox/executions/{exec_task_id}/approve", json={"confirm": True})
+    assert approved_exec.status_code == 200
+    return exec_task_id
+
+
+def test_sandbox_patch_execution_rejects_shell_metacharacters(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    command = "pytest -q tests/test_report.py; cat /etc/passwd"
+    exec_task_id = create_approved_execution(client, validation_commands=[command])
+
+    res = client.post(f"/sandbox/executions/{exec_task_id}/run", json={
+        "diff_text": "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n",
+        "validation_commands": [command],
+        "runner_mode": "strict",
+    })
+    assert res.status_code == 400
+    payload = res.get_json()
+    assert payload["error"] == "validation_command_disallowed_shell_syntax"
+    assert payload["execute_automatically"] is False
+
+
+def test_sandbox_patch_execution_rejects_local_dev_without_opt_in(tmp_path, monkeypatch):
+    configure(tmp_path)
+    client = server.app.test_client()
+    monkeypatch.delenv("CPOS_ALLOW_LOCAL_DEV_RUN", raising=False)
+    exec_task_id = create_approved_execution(client, validation_commands=["pytest -q tests/test_report.py"])
+
+    res = client.post(f"/sandbox/executions/{exec_task_id}/run", json={
+        "diff_text": "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n",
+        "validation_commands": ["pytest -q tests/test_report.py"],
+        "runner_mode": "local-dev",
+    })
+    assert res.status_code == 400
+    payload = res.get_json()
+    assert payload["error"] == "local_dev_runner_mode_requires_explicit_opt_in"
+    assert payload["runner_mode"] == "local-dev"
