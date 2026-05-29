@@ -19,3 +19,14 @@ def test_security_policy_documents_never_persist_data():
     assert 'Request bodies' in security
     assert '.venv/' in security
     assert 'root/runtime `*.jsonl`' in security
+
+
+def test_oss_release_checklist_contains_artifact_and_secret_checks():
+    checklist = open('OSS_RELEASE_CHECKLIST.md', encoding='utf-8').read()
+    assert 'tracked bad-artifact check' in checklist
+    assert 'git remote -v' in checklist
+    assert 'cpos.secret_scan' in checklist
+    assert 'No raw stdout/stderr' in checklist
+    assert 'Never stage / never publish' in checklist
+    assert '.venv/' in checklist
+    assert 'runtime `*.jsonl`' in checklist
