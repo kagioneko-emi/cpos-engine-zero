@@ -22,6 +22,59 @@ See `SECURITY.md` and `OSS_RELEASE_CHECKLIST.md` before publishing or deploying.
 - HMAC, bearer-token, HTTPS, mTLS fingerprint, IP allowlist, and rate-limit controls
 - Sandbox policy modes and security profile validation
 
+## Safe Autonomy Demo Flow
+
+CPOS Engine-Zero is designed around a conservative autonomy loop: every risky
+step is review-gated, raw secrets and raw command outputs stay out of persistent
+logs, and failed runs turn into metadata-only retry/replan artifacts instead of
+blind automatic reruns.
+
+```text
+GitHub PR dry-run
+  -> GitHub diff review
+  -> Sandbox patch plan
+  -> Sandbox execution review
+  -> Isolated sandbox run
+  -> Completed result metadata
+  -> Retry review
+  -> Replan template
+  -> Diff intake checklist
+  -> Back to human-supplied diff review
+```
+
+Key safety properties:
+
+- No branch, commit, push, or PR is created by these planning/review stages.
+- Raw diff text is accepted for review/run input but is not persisted in Task Tape.
+- Raw stdout/stderr are never persisted; only hashes, sizes, exit codes, and status flags are stored.
+- Validation commands are allowlisted and shell metacharacters are rejected.
+- `local-dev` runner mode requires explicit `CPOS_ALLOW_LOCAL_DEV_RUN=true`.
+- Failure routing uses `patch_apply`, `validation_command`, `sandbox_unavailable`, and `policy_rejected`.
+- Runtime state, caches, virtualenvs, and secret files are ignored and must not be committed.
+
+Minimal metadata-only loop:
+
+```bash
+curl -X POST https://<host>/github/pr-dry-runs \
+  -d '{"repo":"kagioneko/cpos-engine-zero","title":"Fix behavior","summary":"metadata only","files":["README.md"]}'
+curl -X POST https://<host>/github/pr-dry-runs/<pr_task_id>/create-diff-review \
+  -d '{"diff_text":"...","changed_files":["README.md"],"validation_commands":["pytest -q tests/test_report.py"]}'
+curl -X POST https://<host>/github/diff-reviews/<diff_task_id>/create-sandbox-plan -d '{}'
+curl -X POST https://<host>/sandbox/patch-plans/<patch_task_id>/create-execution-review -d '{}'
+curl -X POST https://<host>/sandbox/executions/<exec_task_id>/run \
+  -d '{"diff_text":"...","validation_commands":["pytest -q tests/test_report.py"],"runner_mode":"strict"}'
+curl -X POST https://<host>/sandbox/executions/<exec_task_id>/create-retry-review \
+  -d '{"reason":"validation_failed"}'
+curl -X POST https://<host>/sandbox/execution-retries/<retry_task_id>/create-replan-template \
+  -d '{"reason":"make_new_plan"}'
+curl -X POST https://<host>/sandbox/replan-templates/<replan_task_id>/create-diff-intake \
+  -d '{"reason":"next_diff"}'
+```
+
+The dashboard surfaces each queue/result: PR dry-run, diff review, sandbox plan,
+execution review, completed execution result, retry review, replan template, and
+diff intake.
+
 ## HMAC API Client Helpers
 
 CPOS API calls can use HMAC-signed requests with key rotation. Secrets must come from Vault/secret volumes; do not hardcode them in code, `.env`, crontab, or docs.
