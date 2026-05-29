@@ -431,6 +431,12 @@
             <div id="sandbox-execution-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox patch executions...</div>
             <div id="sandbox-execution-container"></div>
         </div>
+        <div id="sandbox-execution-result-section" class="card" style="display: none; border-color: var(--accent-green); margin-bottom: 30px;">
+            <h2>Sandbox Patch Execution Results</h2>
+            <p class="muted">Completed isolated-copy runs. Metadata-only: hashes, sizes, statuses, and exit codes; no raw patch text or command output.</p>
+            <div id="sandbox-execution-result-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox patch execution results...</div>
+            <div id="sandbox-execution-result-container"></div>
+        </div>
 
         <div id="handoff-flow-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
             <h2>Handoff Flow Graph</h2>
@@ -542,9 +548,14 @@
                 renderSandboxPatchPlans(sandboxPatchData);
                 const sandboxExecutionRes = await fetch('/sandbox/executions');
                 const sandboxExecutionData = sandboxExecutionRes.ok ? await sandboxExecutionRes.json() : {ok: false, count: 0, reviews: []};
-                document.getElementById('sandbox-execution-count').innerText = sandboxExecutionData.count || 0;
-                document.getElementById('sandbox-execution-detail').innerText = (sandboxExecutionData.reviews || []).length === 0 ? 'No pending sandbox executions' : `${sandboxExecutionData.count} pending sandbox execution(s)`;
+                const sandboxExecutionResultRes = await fetch('/sandbox/executions/completed');
+                const sandboxExecutionResultData = sandboxExecutionResultRes.ok ? await sandboxExecutionResultRes.json() : {ok: false, count: 0, results: []};
+                const pendingSandboxExecutions = sandboxExecutionData.count || 0;
+                const completedSandboxExecutions = sandboxExecutionResultData.count || 0;
+                document.getElementById('sandbox-execution-count').innerText = completedSandboxExecutions ? `${pendingSandboxExecutions}+${completedSandboxExecutions}` : pendingSandboxExecutions;
+                document.getElementById('sandbox-execution-detail').innerText = pendingSandboxExecutions || completedSandboxExecutions ? `pending=${pendingSandboxExecutions}, completed=${completedSandboxExecutions}` : 'No sandbox executions yet';
                 renderSandboxPatchExecutions(sandboxExecutionData);
+                renderSandboxPatchExecutionResults(sandboxExecutionResultData);
 
                 const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
                 const handoffSource = document.getElementById('handoff-flow-source-filter')?.value || '';
@@ -753,6 +764,43 @@
                                     <button class="btn btn-success" onclick="approveSandboxPatchExecution('${review.task_id}')">Approve Execution Plan</button>
                                     <button class="btn btn-danger" onclick="rejectSandboxPatchExecution('${review.task_id}')">Reject</button>
                                 </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderSandboxPatchExecutionResults(sandboxExecutionResultData) {
+                    const section = document.getElementById('sandbox-execution-result-section');
+                    const summary = document.getElementById('sandbox-execution-result-summary');
+                    const container = document.getElementById('sandbox-execution-result-container');
+                    const results = (sandboxExecutionResultData && sandboxExecutionResultData.results) || [];
+                    if (!results.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    const successCount = results.filter(result => (result.payload || {}).success === true).length;
+                    summary.innerText = `completed=${results.length}, success=${successCount}, raw_outputs_stored=false, commit_created=false, pushed=false, pr_created=false`;
+
+                    container.innerHTML = '';
+                    results.slice(-5).reverse().forEach(result => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = (result.payload || {}).success ? 'var(--accent-green)' : 'var(--accent-red)';
+                        const payload = result.payload || {};
+                        const commands = payload.command_results || [];
+                        const commandSummary = commands.map(item => `<span class="pill">cmd=${(item.command_sha256 || '').slice(0, 12)} exit=${item.exit_code}</span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div>
+                                <strong style="color: ${(payload.success ? 'var(--accent-green)' : 'var(--accent-orange)')};">[SANDBOX EXECUTION RESULT]</strong> <code>${result.task_id}</code><br>
+                                <span class="muted">status=${result.status || '-'} / workspace_copied=${payload.workspace_copied} / patch_applied=${payload.patch_applied}</span><br>
+                                <span class="muted">commands_executed=${payload.commands_executed} / tests_run=${payload.tests_run} / validation_count=${payload.validation_command_count || 0}</span><br>
+                                <span class="muted">patch_apply=${payload.patch_apply_stage || '-'} exit=${payload.patch_apply_exit_code}</span><br>
+                                <span class="muted">stdout_sha256=${payload.patch_apply_stdout_sha256 || '-'} / stderr_sha256=${payload.patch_apply_stderr_sha256 || '-'}</span>
+                                <div style="margin-top: 8px;"><strong>Command metadata</strong><br>${commandSummary}</div>
                             </div>
                         `;
                         container.appendChild(div);

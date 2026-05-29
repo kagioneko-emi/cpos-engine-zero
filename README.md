@@ -725,4 +725,8 @@ flags are recorded.
 ```bash
 curl -X POST https://<host>/sandbox/executions/<task_id>/run \
   -d '{"diff_text":"...","validation_commands":["pytest -q tests/test_report.py"],"runner_mode":"strict"}'
+curl https://<host>/sandbox/executions/completed
 ```
+
+Completed run results are exposed as metadata-only records for dashboards and
+reports: no raw patch text, no raw stdout/stderr, no commit, no push, and no PR.

@@ -135,3 +135,16 @@ def test_dashboard_contains_sandbox_patch_execution_ui():
     assert 'rejectSandboxPatchExecution' in html
     assert 'SANDBOX PATCH EXECUTION' in html
     assert 'Isolated Runner Readiness' in html
+
+
+def test_dashboard_contains_sandbox_patch_execution_results_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-execution-result-section' in html
+    assert 'sandbox-execution-result-container' in html
+    assert '/sandbox/executions/completed' in html
+    assert 'renderSandboxPatchExecutionResults' in html
+    assert 'Sandbox Patch Execution Results' in html
+    assert 'raw patch text or command output' in html

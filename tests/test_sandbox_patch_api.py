@@ -118,6 +118,13 @@ def test_sandbox_patch_execution_api_flow(tmp_path, monkeypatch):
     assert payload["commands_executed"] is True
     assert payload["command_results"][0]["sandbox_backend"] == "fake"
 
+    completed = client.get("/sandbox/executions/completed")
+    assert completed.status_code == 200
+    completed_payload = completed.get_json()
+    assert completed_payload["count"] == 1
+    assert completed_payload["results"][0]["event"] == "sandbox_patch_execution_completed"
+    assert completed_payload["results"][0]["payload"]["command_results"][0]["stdout_sha256"]
+
 
 def test_sandbox_patch_execution_run_requires_approved_plan(tmp_path):
     configure(tmp_path)

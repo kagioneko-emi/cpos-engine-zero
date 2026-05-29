@@ -861,6 +861,12 @@ def sandbox_patch_execution_reviews():
     return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews}), 200
 
 
+@app.route('/sandbox/executions/completed', methods=['GET'])
+def sandbox_patch_execution_completed_results():
+    results = completed_sandbox_patch_executions(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(results), 'results': results}), 200
+
+
 @app.route('/sandbox/patch-plans/<patch_task_id>/create-execution-review', methods=['POST'])
 def sandbox_patch_execution_create(patch_task_id):
     data = request.get_json(silent=True) or {}
