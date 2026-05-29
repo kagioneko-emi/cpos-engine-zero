@@ -671,7 +671,7 @@ def test_generate_report_renders_sandbox_patch_plan_summary(tmp_path):
     store = TaskTapeStore(tape_path, checkpoint_path)
     pr = create_github_pr_dry_run(store, repo="kagioneko/cpos-engine-zero", title="Fix sandbox", files=["README.md"], summary="ctx")
     approve_github_pr_dry_run(store, pr["task_id"], confirm=True)
-    diff = create_github_diff_review(store, source_task_id=pr["task_id"], diff_text="+hello\n-old\n", changed_files=["README.md"], validation_commands=["pytest -q tests/test_report.py"])
+    diff = create_github_diff_review(store, source_task_id=pr["task_id"], diff_text="+hello\n-old\n", changed_files=["README.md"], validation_commands=["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"])
     approve_github_diff_review(store, diff["task_id"], confirm=True)
     plan = create_sandbox_patch_plan(store, diff_task_id=diff["task_id"])
 
@@ -711,7 +711,7 @@ def test_generate_report_renders_sandbox_patch_execution_summary(tmp_path):
     store = TaskTapeStore(tape_path, checkpoint_path)
     pr = create_github_pr_dry_run(store, repo="kagioneko/cpos-engine-zero", title="Fix sandbox", files=["README.md"], summary="ctx")
     approve_github_pr_dry_run(store, pr["task_id"], confirm=True)
-    diff = create_github_diff_review(store, source_task_id=pr["task_id"], diff_text="+hello\n-old\n", changed_files=["README.md"], validation_commands=["pytest -q tests/test_report.py"])
+    diff = create_github_diff_review(store, source_task_id=pr["task_id"], diff_text="+hello\n-old\n", changed_files=["README.md"], validation_commands=["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"])
     approve_github_diff_review(store, diff["task_id"], confirm=True)
     patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff["task_id"])
     approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
@@ -731,3 +731,58 @@ def test_generate_report_renders_sandbox_patch_execution_summary(tmp_path):
     assert execution["task_id"] in html
     assert "workspace_copied" in html
     assert "commands_executed" in html
+
+
+def test_generate_report_renders_sandbox_patch_execution_results(tmp_path, monkeypatch):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.github_diff_review import approve_github_diff_review, create_github_diff_review
+    from cpos.github_pr_flow import approve_github_pr_dry_run, create_github_pr_dry_run
+    from cpos.sandbox_patch_plan import approve_sandbox_patch_plan, create_sandbox_patch_plan
+    from cpos.sandbox_patch_runner import approve_sandbox_patch_execution, create_sandbox_patch_execution, execute_sandbox_patch_run
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    pr = create_github_pr_dry_run(store, repo="kagioneko/cpos-engine-zero", title="Fix sandbox", files=["README.md"], summary="ctx")
+    approve_github_pr_dry_run(store, pr["task_id"], confirm=True)
+    diff = create_github_diff_review(store, source_task_id=pr["task_id"], diff_text="+hello\n-old\n", changed_files=["README.md"], validation_commands=["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"])
+    approve_github_diff_review(store, diff["task_id"], confirm=True)
+    patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff["task_id"])
+    approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
+    execution = create_sandbox_patch_execution(store, patch_task_id=patch_plan["task_id"])
+    approve_sandbox_patch_execution(store, execution["task_id"], confirm=True)
+
+    src_root = tmp_path / "src"
+    src_root.mkdir()
+    (src_root / "README.md").write_text("old\n", encoding="utf-8")
+    monkeypatch.setattr("cpos.sandbox_patch_runner._project_root", lambda: src_root)
+    monkeypatch.setattr("cpos.sandbox_patch_runner.subprocess.run", lambda *args, **kwargs: type('R', (), {'returncode': 0, 'stdout': 'ok\n', 'stderr': ''})())
+    class FakeSandboxRunner:
+        def __init__(self, *args, **kwargs):
+            self.mode = kwargs.get("mode")
+        def run_command(self, target_dir, command):
+            return {"stdout": "validated\n", "stderr": "", "exit_code": 0, "sandbox": {"backend": "fake", "mode": self.mode, "isolated": True, "fallback_used": False}}
+    monkeypatch.setattr("cpos.sandbox_patch_runner.SandboxRunner", FakeSandboxRunner)
+    execute_sandbox_patch_run(store, task_id=execution["task_id"], diff_text="diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n", validation_commands=["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"], runner_mode="strict")
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Sandbox Patch Execution Results" in html
+    assert "Completed Runs" in html
+    assert "No raw outputs stored" in html or "Raw Outputs Stored" in html
+    assert "command_results" not in html

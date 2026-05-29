@@ -15,7 +15,7 @@ from cpos.mcp_execution import pending_mcp_execution_reviews
 from cpos.github_pr_flow import pending_github_pr_reviews
 from cpos.github_diff_review import pending_github_diff_reviews
 from cpos.sandbox_patch_plan import pending_sandbox_patch_plans
-from cpos.sandbox_patch_runner import pending_sandbox_patch_executions
+from cpos.sandbox_patch_runner import pending_sandbox_patch_executions, completed_sandbox_patch_executions
 
 
 def load_jsonl(path):
@@ -725,6 +725,43 @@ def render_sandbox_patch_execution_summary(task_tape_path, task_checkpoint_path)
     html += '</tbody></table></div>'
     return html
 
+
+
+def render_sandbox_patch_execution_results(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    events = completed_sandbox_patch_executions(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Sandbox Patch Execution Results</div>
+            <h2>Completed Runs</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(events)}</strong><span>Completed</span></div>
+                <div class="metric"><strong>no</strong><span>Raw Outputs Stored</span></div>
+                <div class="metric"><strong>hashes</strong><span>Result Storage</span></div>
+                <div class="metric"><strong>yes</strong><span>Audit Trail</span></div>
+            </div>
+            <p class="muted">Completed runs store metadata only: hashes, sizes, exit codes, and status flags. Raw command output stays out of Task Tape.</p>
+    """
+    if not events:
+        html += '<p class="muted">No completed sandbox patch executions yet.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Task</th><th>Status</th><th>Patch</th><th>Commands</th><th>Workspace</th></tr></thead><tbody>'
+    for event in events[:10]:
+        payload = event.get('payload') or {}
+        command_count = len(payload.get('command_results') or [])
+        html += f"""
+            <tr>
+                <td><code>{escape(str(event.get('task_id')))}</code></td>
+                <td>{escape(str(event.get('status') or '-'))}</td>
+                <td><code>{escape(str(payload.get('patch_apply_stage') or '-'))}</code><br><span class="muted">applied={escape(str(payload.get('patch_applied')))}</span></td>
+                <td><span class="muted">count={command_count} success={escape(str(payload.get('success')))}</span></td>
+                <td><span class="muted">copied={escape(str(payload.get('workspace_copied')))} / type={escape(str(payload.get('workspace_type') or '-'))}</span></td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+
 def render_rate_limit_backend_summary(environ=None):
     environ = os.environ if environ is None else environ
     enabled = str(environ.get('CPOS_RATE_LIMIT_ENABLED', 'false')).lower() in {'1', 'true', 'yes'}
@@ -919,6 +956,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_github_diff_review_summary(task_tape_path, task_checkpoint_path)
     html += render_sandbox_patch_plan_summary(task_tape_path, task_checkpoint_path)
     html += render_sandbox_patch_execution_summary(task_tape_path, task_checkpoint_path)
+    html += render_sandbox_patch_execution_results(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
     html += render_security_profile_validation()
     html += render_secret_inventory_summary(secret_inventory_path)

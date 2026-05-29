@@ -9,10 +9,18 @@ from cpos.sandbox_patch_plan import (
 from cpos.sandbox_patch_runner import (
     approve_sandbox_patch_execution,
     create_sandbox_patch_execution,
+    execute_sandbox_patch_run,
     pending_sandbox_patch_executions,
     reject_sandbox_patch_execution,
 )
 from cpos.task_tape import TaskTapeStore
+
+
+class _FakeRunResult:
+    def __init__(self, returncode=0, stdout="", stderr=""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
 
 
 def approved_diff_task(store):
@@ -27,7 +35,7 @@ def approved_diff_task(store):
     diff = create_github_diff_review(
         store,
         source_task_id=pr["task_id"],
-        diff_text="diff --git a/README.md b/README.md\n+hello\n-old\n",
+        diff_text="diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n",
         changed_files=["README.md"],
         validation_commands=["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"],
     )
@@ -152,3 +160,68 @@ def test_sandbox_patch_execution_real_execution_disabled(tmp_path):
     result = create_sandbox_patch_execution(store, patch_task_id="missing", dry_run=False)
     assert result["ok"] is False
     assert result["error"] == "real_sandbox_patch_execution_disabled"
+
+
+def test_sandbox_patch_execution_run_applies_patch_in_ephemeral_workspace(tmp_path, monkeypatch):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    diff_task_id = approved_diff_task(store)
+    patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff_task_id)
+    approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
+    execution = create_sandbox_patch_execution(store, patch_task_id=patch_plan["task_id"])
+    approve_sandbox_patch_execution(store, execution["task_id"], confirm=True)
+
+    src_root = tmp_path / "src"
+    src_root.mkdir()
+    (src_root / "README.md").write_text("old\n", encoding="utf-8")
+    monkeypatch.setattr("cpos.sandbox_patch_runner._project_root", lambda: src_root)
+    monkeypatch.setattr("cpos.sandbox_patch_runner._apply_patch", lambda workspace, diff_text: {"ok": True, "stage": "apply", "exit_code": 0, "stdout_sha256": "ok", "stderr_sha256": ""})
+    monkeypatch.setattr("cpos.sandbox_patch_runner.subprocess.run", lambda *args, **kwargs: _FakeRunResult(returncode=0, stdout="ok\n", stderr=""))
+
+    class FakeSandboxRunner:
+        def __init__(self, *args, **kwargs):
+            self.mode = kwargs.get("mode")
+        def run_command(self, target_dir, command):
+            return {
+                "stdout": "validated\n",
+                "stderr": "",
+                "exit_code": 0,
+                "sandbox": {"backend": "fake", "mode": self.mode, "isolated": True, "fallback_used": False},
+            }
+
+    monkeypatch.setattr("cpos.sandbox_patch_runner.SandboxRunner", FakeSandboxRunner)
+
+    result = execute_sandbox_patch_run(
+        store,
+        task_id=execution["task_id"],
+        diff_text="diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n",
+        validation_commands=["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"],
+        runner_mode="strict",
+    )
+
+    assert result["ok"] is True
+    assert result["patch_applied"] is True
+    assert result["commands_executed"] is True
+    assert result["tests_run"] is True
+    assert len(result["command_results"]) == 2
+    assert result["command_results"][0]["exit_code"] == 0
+    assert result["command_results"][0]["sandbox_backend"] == "fake"
+
+
+def test_sandbox_patch_execution_run_rejects_validation_mismatch(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    diff_task_id = approved_diff_task(store)
+    patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff_task_id)
+    approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
+    execution = create_sandbox_patch_execution(store, patch_task_id=patch_plan["task_id"])
+    approve_sandbox_patch_execution(store, execution["task_id"], confirm=True)
+
+    result = execute_sandbox_patch_run(
+        store,
+        task_id=execution["task_id"],
+        diff_text="diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n",
+        validation_commands=["pytest -q tests/test_task_tape.py"],
+        runner_mode="strict",
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "validation_commands_mismatch"

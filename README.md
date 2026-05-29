@@ -713,3 +713,16 @@ curl -X POST https://<host>/sandbox/executions/<task_id>/reject -d '{"reason":"m
 
 The Task Tape stores hashes and status flags only. Workspace copy, patch apply,
 command execution, and test outputs remain deferred to a later isolated executor.
+
+
+## Sandbox Patch Execution Run: Isolated Copy Apply
+
+Approved execution plans can now be run in an ephemeral workspace copy. The runner
+applies the patch in the temp workspace and executes validation commands, while
+keeping raw outputs out of Task Tape. Only hashes, sizes, exit codes, and status
+flags are recorded.
+
+```bash
+curl -X POST https://<host>/sandbox/executions/<task_id>/run \
+  -d '{"diff_text":"...","validation_commands":["pytest -q tests/test_report.py"],"runner_mode":"strict"}'
+```
