@@ -19,6 +19,7 @@ from cpos.sandbox_patch_plan import pending_sandbox_patch_plans
 from cpos.sandbox_patch_runner import pending_sandbox_patch_executions, completed_sandbox_patch_executions
 from cpos.execution_driver import build_execution_scoreboard
 from cpos.auto_fix_candidate import pending_auto_fix_candidates
+from cpos.diff_review_draft import pending_diff_review_drafts
 
 
 def load_jsonl(path):
@@ -893,6 +894,41 @@ def render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path):
     return html
 
 
+def render_diff_review_draft_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    drafts = pending_diff_review_drafts(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Diff Review Drafts</div>
+            <h2>Next Diff Review Payload Shape</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(drafts)}</strong><span>Drafts</span></div>
+                <div class="metric"><strong>no</strong><span>Raw Diff</span></div>
+                <div class="metric"><strong>no</strong><span>Execution</span></div>
+                <div class="metric"><strong>yes</strong><span>Human Inputs</span></div>
+            </div>
+            <p class="muted">Drafts describe the next diff-review payload shape and validation hints only. They do not store diff text, outputs, commits, pushes, or PRs.</p>
+    """
+    if not drafts:
+        html += '<p class="muted">No diff review drafts yet.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Task</th><th>Candidate</th><th>Failure</th><th>Target API</th><th>Inputs</th></tr></thead><tbody>'
+    for row in drafts[-10:]:
+        draft = (row.get('payload') or {}).get('draft') or {}
+        inputs = ''.join(f'<span class="pill">{escape(str(item))}</span>' for item in draft.get('required_human_inputs', [])) or '<span class="muted">none</span>'
+        html += f"""
+            <tr>
+                <td><code>{escape(str(row.get('task_id') or '-'))}</code></td>
+                <td><code>{escape(str(draft.get('candidate_task_id') or '-'))}</code></td>
+                <td>{escape(str(draft.get('failure_kind') or '-'))}</td>
+                <td>{escape(str(draft.get('target_api') or '-'))}</td>
+                <td>{inputs}</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+
 def render_rate_limit_backend_summary(environ=None):
     environ = os.environ if environ is None else environ
     enabled = str(environ.get('CPOS_RATE_LIMIT_ENABLED', 'false')).lower() in {'1', 'true', 'yes'}
@@ -1091,6 +1127,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_sandbox_patch_execution_results(task_tape_path, task_checkpoint_path)
     html += render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path)
     html += render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path)
+    html += render_diff_review_draft_summary(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
     html += render_security_profile_validation()
     html += render_secret_inventory_summary(secret_inventory_path)

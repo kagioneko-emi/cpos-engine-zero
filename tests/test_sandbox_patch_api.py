@@ -497,3 +497,49 @@ def test_sandbox_auto_fix_candidate_scope_mapping():
         assert server.required_scope_for_request() == "read:sandbox"
     with server.app.test_request_context("/sandbox/replan-templates/task/create-fix-candidate", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
+
+
+def test_sandbox_diff_review_draft_api(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    candidate_task_id = "task_candidate_api"
+    server.agent.task_tape.append_event(
+        task_id=candidate_task_id,
+        event="sandbox_auto_fix_candidate_created",
+        target="sandbox://auto-fix-candidate/task_replan",
+        status="candidate_created",
+        payload={
+            "review_type": "sandbox_auto_fix_candidate",
+            "candidate": {
+                "replan_task_id": "task_replan",
+                "retry_task_id": "task_retry",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "policy_rejected",
+                "candidate_strategy": "adjust_policy_inputs_not_code",
+                "confidence": 0.64,
+                "suggested_focus": ["review_policy_rejection_metadata"],
+                "candidate_steps": ["replace disallowed validation command"],
+                "execute_automatically": False,
+            },
+        },
+    )
+
+    created = client.post(f"/sandbox/fix-candidates/{candidate_task_id}/create-diff-draft", json={"reason": "api"})
+    assert created.status_code == 200
+    payload = created.get_json()
+    assert payload["ok"] is True
+    assert payload["draft"]["failure_kind"] == "policy_rejected"
+    assert payload["draft"]["raw_diff_stored"] is False
+    assert payload["draft"]["diff_text_included"] is False
+    assert payload["draft"]["execute_automatically"] is False
+
+    listed = client.get("/sandbox/diff-drafts")
+    assert listed.status_code == 200
+    assert listed.get_json()["count"] == 1
+
+
+def test_sandbox_diff_review_draft_scope_mapping():
+    with server.app.test_request_context("/sandbox/diff-drafts", method="GET"):
+        assert server.required_scope_for_request() == "read:sandbox"
+    with server.app.test_request_context("/sandbox/fix-candidates/task/create-diff-draft", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"

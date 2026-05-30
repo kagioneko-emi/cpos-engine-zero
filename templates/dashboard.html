@@ -473,6 +473,12 @@
             <div id="sandbox-fix-candidate-summary" class="muted" style="margin-bottom: 12px;">Loading auto fix candidates...</div>
             <div id="sandbox-fix-candidate-container"></div>
         </div>
+        <div id="sandbox-diff-draft-section" class="card" style="display: none; border-color: var(--accent-blue); margin-bottom: 30px;">
+            <h2>Diff Review Drafts</h2>
+            <p class="muted">Metadata-only draft payload shape for the next diff review. It never stores raw diff text or executes automatically.</p>
+            <div id="sandbox-diff-draft-summary" class="muted" style="margin-bottom: 12px;">Loading diff review drafts...</div>
+            <div id="sandbox-diff-draft-container"></div>
+        </div>
         <div id="sandbox-diff-intake-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
             <h2>Sandbox Replan Diff Intakes</h2>
             <p class="muted">Metadata-only checklist for the next diff review. It lists required_human_inputs and target_api; raw diff text is never stored.</p>
@@ -608,6 +614,8 @@
                 const sandboxDiffIntakeData = sandboxDiffIntakeRes.ok ? await sandboxDiffIntakeRes.json() : {ok: false, count: 0, intakes: []};
                 const sandboxFixCandidateRes = await fetch('/sandbox/fix-candidates');
                 const sandboxFixCandidateData = sandboxFixCandidateRes.ok ? await sandboxFixCandidateRes.json() : {ok: false, count: 0, candidates: []};
+                const sandboxDiffDraftRes = await fetch('/sandbox/diff-drafts');
+                const sandboxDiffDraftData = sandboxDiffDraftRes.ok ? await sandboxDiffDraftRes.json() : {ok: false, count: 0, drafts: []};
                 const pendingSandboxExecutions = sandboxExecutionData.count || 0;
                 const completedSandboxExecutions = sandboxExecutionResultData.count || 0;
                 const pendingSandboxRetries = sandboxRetryData.count || 0;
@@ -623,6 +631,7 @@
                 renderSandboxPatchExecutionRetries(sandboxRetryData);
                 renderSandboxPatchReplanTemplates(sandboxReplanData);
                 renderSandboxAutoFixCandidates(sandboxFixCandidateData);
+                renderSandboxDiffReviewDrafts(sandboxDiffDraftData);
                 renderSandboxReplanDiffIntakes(sandboxDiffIntakeData);
 
                 const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
@@ -1099,6 +1108,44 @@
                                 <span class="muted">raw_diff_stored=${candidate.raw_diff_stored} / raw_outputs_stored=${candidate.raw_outputs_stored} / execute_automatically=${candidate.execute_automatically}</span>
                                 <div style="margin-top: 8px;"><strong>Candidate steps</strong><br>${steps}</div>
                                 <div style="margin-top: 8px;"><strong>Required human inputs</strong><br>${inputs}</div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;"><button class="btn btn-primary" onclick="createDiffReviewDraft('${row.task_id}')">Create Diff Review Draft</button></div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderSandboxDiffReviewDrafts(sandboxDiffDraftData) {
+                    const section = document.getElementById('sandbox-diff-draft-section');
+                    const summary = document.getElementById('sandbox-diff-draft-summary');
+                    const container = document.getElementById('sandbox-diff-draft-container');
+                    const drafts = (sandboxDiffDraftData && sandboxDiffDraftData.drafts) || [];
+                    if (!drafts.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `drafts=${drafts.length}, raw_diff_stored=false, diff_text_included=false, execute_automatically=false`;
+
+                    container.innerHTML = '';
+                    drafts.slice(-5).reverse().forEach(row => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-blue)';
+                        const payload = row.payload || {};
+                        const draft = payload.draft || {};
+                        const hints = (draft.validation_hints || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        const inputs = (draft.required_human_inputs || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div>
+                                <strong style="color: var(--accent-blue);">[DIFF REVIEW DRAFT]</strong> <code>${row.task_id}</code><br>
+                                <span class="muted">candidate=${draft.candidate_task_id || '-'} / failure=${draft.failure_kind || '-'} / strategy=${draft.candidate_strategy || '-'}</span><br>
+                                <span class="muted">target_api=${draft.target_api || '-'} / draft_sha256=${draft.draft_sha256 || '-'}</span><br>
+                                <span class="muted">raw_diff_stored=${draft.raw_diff_stored} / diff_text_included=${draft.diff_text_included} / execute_automatically=${draft.execute_automatically}</span>
+                                <div style="margin-top: 8px;"><strong>Validation hints</strong><br>${hints}</div>
+                                <div style="margin-top: 8px;"><strong>Required human inputs</strong><br>${inputs}</div>
                             </div>
                         `;
                         container.appendChild(div);
@@ -1482,6 +1529,11 @@
         async function createAutoFixCandidate(taskId) {
             if (!confirm(`Create metadata-only auto fix candidate for replan template ${taskId}? This will not create a diff, patch, commit, push, or PR.`)) return;
             await postJson(`/sandbox/replan-templates/${taskId}/create-fix-candidate`, {reason: 'dashboard_auto_fix_candidate'});
+        }
+
+        async function createDiffReviewDraft(taskId) {
+            if (!confirm(`Create metadata-only diff review draft from auto fix candidate ${taskId}? This will not store diff text, execute commands, commit, push, or create a PR.`)) return;
+            await postJson(`/sandbox/fix-candidates/${taskId}/create-diff-draft`, {reason: 'dashboard_diff_review_draft'});
         }
 
         async function approveMcpExecution(taskId) {

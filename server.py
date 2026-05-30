@@ -44,6 +44,7 @@ from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_p
 from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry, create_sandbox_patch_replan_template, sandbox_patch_replan_templates, create_sandbox_replan_diff_intake, sandbox_replan_diff_intakes
 from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed_sandbox_replan, build_execution_scoreboard
 from cpos.auto_fix_candidate import create_auto_fix_candidate, pending_auto_fix_candidates
+from cpos.diff_review_draft import create_diff_review_draft, pending_diff_review_drafts
 
 apply_security_profile_defaults()
 
@@ -1063,6 +1064,26 @@ def sandbox_replan_diff_intakes_list():
 def sandbox_auto_fix_candidates_list():
     candidates = pending_auto_fix_candidates(agent.task_tape)
     return jsonify({'ok': True, 'count': len(candidates), 'candidates': candidates, 'metadata_only': True}), 200
+
+
+@app.route('/sandbox/diff-drafts', methods=['GET'])
+def sandbox_diff_review_drafts_list():
+    drafts = pending_diff_review_drafts(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(drafts), 'drafts': drafts, 'metadata_only': True}), 200
+
+
+@app.route('/sandbox/fix-candidates/<task_id>/create-diff-draft', methods=['POST'])
+def sandbox_diff_review_draft_create(task_id):
+    data = request.get_json(silent=True) or {}
+    result = create_diff_review_draft(
+        agent.task_tape,
+        candidate_task_id=task_id,
+        actor=request_actor(),
+        reason=data.get('reason'),
+    )
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'auto_fix_candidate_required' else 400)
+    audit_security_event('security_mutation', 'sandbox_diff_review_draft_created' if result.get('ok') else result.get('error', 'sandbox_diff_review_draft_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'candidate_task_id': task_id})
+    return jsonify(result), status
 
 
 @app.route('/sandbox/replan-templates/<task_id>/create-fix-candidate', methods=['POST'])

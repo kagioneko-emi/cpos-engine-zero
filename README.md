@@ -925,6 +925,16 @@ curl -X POST https://<host>/sandbox/replan-templates/<task_id>/create-fix-candid
 curl https://<host>/sandbox/fix-candidates
 ```
 
+Diff Review Drafts can then turn an Auto Fix Candidate into the payload shape for
+the next GitHub diff-review request. Drafts intentionally leave `diff_text` as a
+required human/agent input and never persist raw diff text.
+
+```bash
+curl -X POST https://<host>/sandbox/fix-candidates/<task_id>/create-diff-draft \
+  -d '{"reason":"prepare_next_diff_review"}'
+curl https://<host>/sandbox/diff-drafts
+```
+
 
 ## Sandbox Patch Execution Retry Review
 

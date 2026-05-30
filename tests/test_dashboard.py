@@ -236,3 +236,18 @@ def test_dashboard_contains_auto_fix_candidate_ui():
     assert 'AUTO FIX CANDIDATE' in html
     assert 'Create Auto Fix Candidate' in html
     assert 'no raw diff text' in html
+
+
+def test_dashboard_contains_diff_review_draft_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-diff-draft-section' in html
+    assert 'sandbox-diff-draft-container' in html
+    assert '/sandbox/diff-drafts' in html
+    assert 'renderSandboxDiffReviewDrafts' in html
+    assert 'createDiffReviewDraft' in html
+    assert 'DIFF REVIEW DRAFT' in html
+    assert 'Create Diff Review Draft' in html
+    assert 'never stores raw diff text' in html

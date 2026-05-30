@@ -916,3 +916,54 @@ def test_generate_report_renders_auto_fix_candidates(tmp_path):
     assert 'Metadata-only Repair Strategy' in html
     assert 'target_failed_validation_metadata' in html
     assert 'Raw Diff' in html
+
+
+def test_generate_report_renders_diff_review_drafts(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.task_tape import TaskTapeStore
+    from cpos.diff_review_draft import create_diff_review_draft
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    candidate_task_id = "task_candidate_report"
+    store.append_event(
+        task_id=candidate_task_id,
+        event="sandbox_auto_fix_candidate_created",
+        target="sandbox://auto-fix-candidate/task_replan",
+        status="candidate_created",
+        payload={
+            "review_type": "sandbox_auto_fix_candidate",
+            "candidate": {
+                "replan_task_id": "task_replan",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "validation_command",
+                "candidate_strategy": "target_failed_validation_metadata",
+                "confidence": 0.68,
+                "candidate_steps": ["modify smallest code path"],
+                "execute_automatically": False,
+            },
+        },
+    )
+    create_diff_review_draft(store, candidate_task_id=candidate_task_id)
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert 'Diff Review Drafts' in html
+    assert 'Next Diff Review Payload Shape' in html
+    assert 'POST /github/pr-dry-runs' in html
+    assert 'Raw Diff' in html
