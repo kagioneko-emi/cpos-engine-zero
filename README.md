@@ -9,6 +9,11 @@ tamper-evident audits, hardened API controls, governance-first MCP integration,
 and a sandbox retry/replan loop that learns from failures without persisting raw
 secrets, raw diffs, or raw command output.
 
+CPOS also supports assisted autonomy: low-risk work can proceed autonomously, while
+secret-touching, destructive, production, network, GitHub publishing, or low-confidence
+work is routed through a human escalation protocol. See
+`docs/HUMAN_ESCALATION_PROTOCOL.md`.
+
 Current MCP support is intentionally conservative: connector definitions are
 statically checked, reviewed, and registered; execution requests are dry-run /
 metadata-only; capability probes create approval-gated plans. Real MCP tool

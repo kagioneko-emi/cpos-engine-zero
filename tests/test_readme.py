@@ -108,3 +108,13 @@ def test_publish_safety_user_guide_is_documented_and_friendly():
     assert 'Do not push' in guide
     assert 'does not stage, commit, push, delete' in guide
     assert 'Move real secrets to Vault' in guide
+
+
+def test_readme_documents_human_escalation_protocol():
+    readme = open('README.md', encoding='utf-8').read()
+    protocol = open('docs/HUMAN_ESCALATION_PROTOCOL.md', encoding='utf-8').read()
+    assert 'assisted autonomy' in readme
+    assert 'docs/HUMAN_ESCALATION_PROTOCOL.md' in readme
+    assert 'Human escalation is not a weakness' in protocol
+    assert 'cpos.human_escalation' in protocol
+    assert 'does not stage, commit, push, delete, open ports, or read' in protocol
