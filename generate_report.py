@@ -17,6 +17,7 @@ from cpos.github_pr_flow import pending_github_pr_reviews
 from cpos.github_diff_review import pending_github_diff_reviews
 from cpos.sandbox_patch_plan import pending_sandbox_patch_plans
 from cpos.sandbox_patch_runner import pending_sandbox_patch_executions, completed_sandbox_patch_executions
+from cpos.execution_driver import build_execution_scoreboard
 
 
 def load_jsonl(path):
@@ -805,6 +806,57 @@ def render_sandbox_patch_execution_results(task_tape_path, task_checkpoint_path)
     return html
 
 
+def render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    scoreboard = build_execution_scoreboard(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Execution Scoreboard</div>
+            <h2>Safety & Throughput Snapshot</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{scoreboard['completed_runs']}</strong><span>Completed</span></div>
+                <div class="metric"><strong>{scoreboard['success_runs']}</strong><span>Success</span></div>
+                <div class="metric"><strong>{scoreboard['failure_runs']}</strong><span>Failure</span></div>
+                <div class="metric"><strong>{scoreboard['success_rate']:.1f}%</strong><span>Success Rate</span></div>
+            </div>
+            <p class="muted">Metadata-only scoreboard: completion counts, failure kinds, retry/replan/intake load, and recent failure summaries only.</p>
+            <div class="step-label">Failure Kinds</div>
+            <p>
+    """
+    failure_kinds = scoreboard.get('failure_kind_counts') or {}
+    if failure_kinds:
+        html += ''.join(f'<span class="pill">{escape(kind)}: {count}</span>' for kind, count in failure_kinds.items())
+    else:
+        html += '<span class="muted">No failure kinds yet</span>'
+    html += """
+            </p>
+            <div class="step-label">Replay & Replan Load</div>
+            <p>
+                <span class="pill">retry={}</span>
+                <span class="pill">replan={}</span>
+                <span class="pill">intake={}</span>
+            </p>
+    """.format(scoreboard.get('pending_retry_reviews', 0), scoreboard.get('replan_templates', 0), scoreboard.get('diff_intakes', 0))
+    recent_failures = scoreboard.get('recent_failures') or []
+    if recent_failures:
+        html += '<div class="step-label">Recent Failures</div><table><thead><tr><th>Task</th><th>Failure Kind</th><th>Status</th><th>Patch</th><th>Workspace</th></tr></thead><tbody>'
+        for item in recent_failures:
+            html += f"""
+                <tr>
+                    <td><code>{escape(str(item.get('task_id') or '-'))}</code></td>
+                    <td>{escape(str(item.get('failure_kind') or '-'))}</td>
+                    <td>{escape(str(item.get('status') or '-'))}</td>
+                    <td>{escape(str(item.get('patch_apply_stage') or '-'))}</td>
+                    <td>{escape(str(item.get('workspace_copied')))}</td>
+                </tr>
+            """
+        html += '</tbody></table>'
+    else:
+        html += '<p class="muted">No completed failures yet.</p>'
+    html += '</div>'
+    return html
+
+
 def render_rate_limit_backend_summary(environ=None):
     environ = os.environ if environ is None else environ
     enabled = str(environ.get('CPOS_RATE_LIMIT_ENABLED', 'false')).lower() in {'1', 'true', 'yes'}
@@ -1001,6 +1053,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_sandbox_patch_plan_summary(task_tape_path, task_checkpoint_path)
     html += render_sandbox_patch_execution_summary(task_tape_path, task_checkpoint_path)
     html += render_sandbox_patch_execution_results(task_tape_path, task_checkpoint_path)
+    html += render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
     html += render_security_profile_validation()
     html += render_secret_inventory_summary(secret_inventory_path)

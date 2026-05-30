@@ -207,3 +207,17 @@ def test_dashboard_contains_sandbox_execution_driver_actions():
     assert '/sandbox/execution-driver/replan-failure' in html
     assert 'Create Retry → Replan → Diff Intake' in html
     assert 'This will not rerun, patch, commit, push, or store raw outputs' in html
+
+
+def test_dashboard_contains_execution_scoreboard_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-scoreboard-section' in html
+    assert 'sandbox-scoreboard-summary' in html
+    assert 'sandbox-scoreboard-container' in html
+    assert 'renderSandboxExecutionScoreboard' in html
+    assert 'Execution Scoreboard' in html
+    assert 'Metadata-only throughput snapshot' in html
+

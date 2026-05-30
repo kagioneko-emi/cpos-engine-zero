@@ -42,7 +42,7 @@ from cpos.github_diff_review import create_github_diff_review, pending_github_di
 from cpos.human_escalation import pending_human_escalations
 from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_patch_plans, approve_sandbox_patch_plan, reject_sandbox_patch_plan
 from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry, create_sandbox_patch_replan_template, sandbox_patch_replan_templates, create_sandbox_replan_diff_intake, sandbox_replan_diff_intakes
-from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed_sandbox_replan
+from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed_sandbox_replan, build_execution_scoreboard
 
 apply_security_profile_defaults()
 
@@ -907,6 +907,12 @@ def sandbox_patch_execution_reviews():
 def sandbox_patch_execution_completed_results():
     results = completed_sandbox_patch_executions(agent.task_tape)
     return jsonify({'ok': True, 'count': len(results), 'results': results}), 200
+
+
+@app.route('/sandbox/scoreboard', methods=['GET'])
+def sandbox_execution_scoreboard():
+    scoreboard = build_execution_scoreboard(agent.task_tape)
+    return jsonify(scoreboard), 200
 
 
 @app.route('/sandbox/patch-plans/<patch_task_id>/create-execution-review', methods=['POST'])

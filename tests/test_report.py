@@ -821,3 +821,48 @@ def test_generate_report_renders_human_escalation_summary(tmp_path):
     assert "/github/pr-dry-runs/" in html
     assert "Secret Values Stored" in html
     assert "ctx" not in html
+
+
+def test_generate_report_renders_execution_scoreboard(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    store.append_event(
+        task_id="task_score_ok",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_score_ok",
+        status="completed_success",
+        payload={"review_type": "sandbox_patch_execution", "success": True, "patch_applied": True, "workspace_copied": True, "commands_executed": True, "tests_run": True, "failure_kind": None, "execute_automatically": False},
+    )
+    store.append_event(
+        task_id="task_score_fail",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_score_fail",
+        status="completed_with_failures",
+        payload={"review_type": "sandbox_patch_execution", "success": False, "patch_applied": True, "workspace_copied": True, "commands_executed": True, "tests_run": True, "failure_kind": "validation_command", "execute_automatically": False},
+    )
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert 'Execution Scoreboard' in html
+    assert 'Safety & Throughput Snapshot' in html
+    assert 'Completed' in html
+    assert 'Success Rate' in html
+    assert 'validation_command: 1' in html

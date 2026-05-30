@@ -1,4 +1,5 @@
-from cpos.execution_driver import advance_sandbox_patch_pipeline
+import json
+from cpos.execution_driver import advance_sandbox_patch_pipeline, build_execution_scoreboard
 from cpos.sandbox_patch_plan import pending_sandbox_patch_plans
 from cpos.sandbox_patch_runner import pending_sandbox_patch_executions
 from cpos.task_tape import TaskTapeStore
@@ -171,3 +172,39 @@ def test_execution_driver_replan_failure_advances_to_diff_intake(tmp_path):
     assert result["execute_automatically"] is False
     assert len(sandbox_patch_replan_templates(store)) == 1
     assert len(sandbox_replan_diff_intakes(store)) == 1
+
+
+def test_execution_driver_scoreboard_counts_and_failure_kinds(tmp_path, monkeypatch):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    diff_task_id = approved_diff_task(store)
+
+    # Mock the sandbox execution to avoid real git apply/docker issues in this unit test
+    monkeypatch.setattr("cpos.sandbox_patch_runner._apply_patch", lambda workspace, diff_text: {"ok": True, "stage": "apply", "exit_code": 0, "stdout_sha256": "ok", "stderr_sha256": ""})
+    class FakeSandboxRunner:
+        def __init__(self, *args, **kwargs): pass
+        def run_command(self, target_dir, command):
+            return {"stdout": "ok", "stderr": "", "exit_code": 0, "sandbox": {"backend": "fake", "mode": "strict", "isolated": True}}
+    monkeypatch.setattr("cpos.sandbox_patch_runner.SandboxRunner", FakeSandboxRunner)
+
+    result = advance_sandbox_patch_pipeline(
+        store,
+        diff_task_id=diff_task_id,
+        diff_text="diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new\n",
+        validation_commands=["pytest -q tests/test_report.py", "pytest -q tests/test_task_tape.py"],
+        approve_plan=True,
+        approve_execution=True,
+        run=True,
+        runner_mode="strict",
+    )
+    assert result["ok"] is True
+
+    scoreboard = build_execution_scoreboard(store)
+    assert scoreboard["ok"] is True
+    assert scoreboard["completed_runs"] == 1
+    assert scoreboard["success_runs"] == 1
+    assert scoreboard["failure_runs"] == 0
+    assert scoreboard["success_rate"] == 100.0
+    assert scoreboard["pending_retry_reviews"] == 0
+    assert scoreboard["replan_templates"] == 0
+    assert scoreboard["diff_intakes"] == 0
+

@@ -417,3 +417,37 @@ def test_sandbox_execution_driver_replan_failure_api(tmp_path):
 def test_sandbox_execution_driver_replan_failure_scope_mapping():
     with server.app.test_request_context("/sandbox/execution-driver/replan-failure", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
+
+
+def test_sandbox_execution_scoreboard_api(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    server.agent.task_tape.append_event(
+        task_id="task_score_ok",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_score_ok",
+        status="completed_success",
+        payload={"review_type": "sandbox_patch_execution", "success": True, "patch_applied": True, "workspace_copied": True, "commands_executed": True, "tests_run": True, "failure_kind": None, "execute_automatically": False},
+    )
+    server.agent.task_tape.append_event(
+        task_id="task_score_fail",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_score_fail",
+        status="completed_with_failures",
+        payload={"review_type": "sandbox_patch_execution", "success": False, "patch_applied": True, "workspace_copied": True, "commands_executed": True, "tests_run": True, "failure_kind": "validation_command", "execute_automatically": False},
+    )
+
+    res = client.get("/sandbox/scoreboard")
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["completed_runs"] == 2
+    assert payload["success_runs"] == 1
+    assert payload["failure_runs"] == 1
+    assert payload["success_rate"] == 50.0
+    assert payload["failure_kind_counts"]["validation_command"] == 1
+
+
+def test_sandbox_scoreboard_scope_mapping():
+    with server.app.test_request_context("/sandbox/scoreboard", method="GET"):
+        assert server.required_scope_for_request() == "read:sandbox"
+

@@ -449,6 +449,12 @@
             <div id="sandbox-execution-result-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox patch execution results...</div>
             <div id="sandbox-execution-result-container"></div>
         </div>
+        <div id="sandbox-scoreboard-section" class="card" style="display: none; border-color: var(--accent-green); margin-bottom: 30px;">
+            <h2>Execution Scoreboard</h2>
+            <p class="muted">Metadata-only throughput snapshot: completed runs, success rate, failure kinds, and replay load.</p>
+            <div id="sandbox-scoreboard-summary" class="muted" style="margin-bottom: 12px;">Loading execution scoreboard...</div>
+            <div id="sandbox-scoreboard-container"></div>
+        </div>
         <div id="sandbox-retry-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
             <h2>Sandbox Patch Execution Retry Reviews</h2>
             <p class="muted">Failure-metadata review only: no raw stdout/stderr, no raw patch text, no workspace reuse, and no automatic rerun.</p>
@@ -588,6 +594,8 @@
                 const sandboxExecutionResultData = sandboxExecutionResultRes.ok ? await sandboxExecutionResultRes.json() : {ok: false, count: 0, results: []};
                 const sandboxRetryRes = await fetch('/sandbox/execution-retries');
                 const sandboxRetryData = sandboxRetryRes.ok ? await sandboxRetryRes.json() : {ok: false, count: 0, reviews: []};
+                const sandboxScoreboardRes = await fetch('/sandbox/scoreboard');
+                const sandboxScoreboardData = sandboxScoreboardRes.ok ? await sandboxScoreboardRes.json() : {ok: false, completed_runs: 0, success_runs: 0, failure_runs: 0, success_rate: 0, failure_kind_counts: {}, pending_retry_reviews: 0, replan_templates: 0, diff_intakes: 0, recent_failures: []};
                 const sandboxReplanRes = await fetch('/sandbox/replan-templates');
                 const sandboxReplanData = sandboxReplanRes.ok ? await sandboxReplanRes.json() : {ok: false, count: 0, templates: []};
                 const sandboxDiffIntakeRes = await fetch('/sandbox/diff-intakes');
@@ -599,9 +607,11 @@
                 const sandboxDiffIntakes = sandboxDiffIntakeData.count || 0;
                 const sandboxExecutionTotal = pendingSandboxExecutions + completedSandboxExecutions + pendingSandboxRetries + sandboxReplanTemplates + sandboxDiffIntakes;
                 document.getElementById('sandbox-execution-count').innerText = sandboxDiffIntakes ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}+${sandboxReplanTemplates}+${sandboxDiffIntakes}` : (sandboxReplanTemplates ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}+${sandboxReplanTemplates}` : (pendingSandboxRetries ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}` : (completedSandboxExecutions ? `${pendingSandboxExecutions}+${completedSandboxExecutions}` : pendingSandboxExecutions)));
-                document.getElementById('sandbox-execution-detail').innerText = sandboxExecutionTotal ? `pending=${pendingSandboxExecutions}, completed=${completedSandboxExecutions}, retry=${pendingSandboxRetries}, replan=${sandboxReplanTemplates}, intake=${sandboxDiffIntakes}` : 'No sandbox executions yet';
+                const scoreboardSummary = sandboxScoreboardData && sandboxScoreboardData.ok ? `completed=${sandboxScoreboardData.completed_runs || 0}, success_rate=${sandboxScoreboardData.success_rate || 0}%, pending_retry=${sandboxScoreboardData.pending_retry_reviews || 0}, replan=${sandboxScoreboardData.replan_templates || 0}, intake=${sandboxScoreboardData.diff_intakes || 0}` : `pending=${pendingSandboxExecutions}, completed=${completedSandboxExecutions}, retry=${pendingSandboxRetries}, replan=${sandboxReplanTemplates}, intake=${sandboxDiffIntakes}`;
+                document.getElementById('sandbox-execution-detail').innerText = sandboxExecutionTotal ? scoreboardSummary : 'No sandbox executions yet';
                 renderSandboxPatchExecutions(sandboxExecutionData);
                 renderSandboxPatchExecutionResults(sandboxExecutionResultData);
+                renderSandboxExecutionScoreboard(sandboxScoreboardData);
                 renderSandboxPatchExecutionRetries(sandboxRetryData);
                 renderSandboxPatchReplanTemplates(sandboxReplanData);
                 renderSandboxReplanDiffIntakes(sandboxDiffIntakeData);
@@ -938,6 +948,35 @@
                         `;
                         container.appendChild(div);
                     });
+                }
+
+                function renderSandboxExecutionScoreboard(scoreboardData) {
+                    const section = document.getElementById('sandbox-scoreboard-section');
+                    const summary = document.getElementById('sandbox-scoreboard-summary');
+                    const container = document.getElementById('sandbox-scoreboard-container');
+                    if (!scoreboardData || scoreboardData.ok === false) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    const failures = scoreboardData.failure_runs || 0;
+                    summary.innerText = `completed=${scoreboardData.completed_runs || 0}, success=${scoreboardData.success_runs || 0}, failure=${failures}, success_rate=${scoreboardData.success_rate || 0}%, pending_retry=${scoreboardData.pending_retry_reviews || 0}`;
+                    const failureKinds = Object.entries(scoreboardData.failure_kind_counts || {}).map(([kind, count]) => `<span class="pill">${kind}: ${count}</span>`).join(' ') || '<span class="muted">none</span>';
+                    const recentFailures = (scoreboardData.recent_failures || []).map(item => `<li><code>${item.task_id || '-'}</code> — ${item.failure_kind || '-'} / ${item.status || '-'}</li>`).join('') || '<li class="muted">No recent failures</li>';
+                    container.innerHTML = `
+                        <div class="metrics">
+                            <div class="metric"><strong>${scoreboardData.completed_runs || 0}</strong><span>Completed</span></div>
+                            <div class="metric"><strong>${scoreboardData.success_runs || 0}</strong><span>Success</span></div>
+                            <div class="metric"><strong>${scoreboardData.failure_runs || 0}</strong><span>Failure</span></div>
+                            <div class="metric"><strong>${scoreboardData.success_rate || 0}%</strong><span>Success Rate</span></div>
+                        </div>
+                        <div class="step-label">Failure Kinds</div>
+                        <p>${failureKinds}</p>
+                        <div class="step-label">Pending & Replay Metadata</div>
+                        <p><span class="pill">retry=${scoreboardData.pending_retry_reviews || 0}</span> <span class="pill">replan=${scoreboardData.replan_templates || 0}</span> <span class="pill">intake=${scoreboardData.diff_intakes || 0}</span></p>
+                        <div class="step-label">Recent Failures</div>
+                        <ul>${recentFailures}</ul>
+                    `;
                 }
 
                 function renderSandboxPatchExecutionRetries(sandboxRetryData) {

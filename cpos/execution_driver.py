@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 from .sandbox_patch_plan import create_sandbox_patch_plan, approve_sandbox_patch_plan
@@ -11,6 +12,10 @@ from .sandbox_patch_runner import (
     approve_sandbox_patch_execution_retry,
     create_sandbox_patch_replan_template,
     create_sandbox_replan_diff_intake,
+    completed_sandbox_patch_executions,
+    pending_sandbox_patch_execution_retries,
+    sandbox_patch_replan_templates,
+    sandbox_replan_diff_intakes,
 )
 from .task_tape import TaskTapeStore
 
@@ -256,4 +261,38 @@ def _result(ok: bool, status: str, steps: list[dict[str, Any]], **extra: Any) ->
         "pr_created": False,
         "execute_automatically": False,
         **extra,
+    }
+
+
+def build_execution_scoreboard(store: TaskTapeStore) -> dict[str, Any]:
+    completed = completed_sandbox_patch_executions(store)
+    successes = [event for event in completed if (event.get("payload") or {}).get("success") is True]
+    failures = [event for event in completed if (event.get("payload") or {}).get("success") is not True]
+    failure_kind_counts = Counter(str((event.get("payload") or {}).get("failure_kind") or "unknown") for event in failures)
+    recent_failures = [
+        {
+            "task_id": event.get("task_id"),
+            "status": event.get("status"),
+            "failure_kind": (event.get("payload") or {}).get("failure_kind"),
+            "patch_apply_stage": (event.get("payload") or {}).get("patch_apply_stage"),
+            "patch_applied": (event.get("payload") or {}).get("patch_applied"),
+            "workspace_copied": (event.get("payload") or {}).get("workspace_copied"),
+        }
+        for event in reversed(failures[-5:])
+    ]
+    return {
+        "ok": True,
+        "metadata_only": True,
+        "completed_runs": len(completed),
+        "success_runs": len(successes),
+        "failure_runs": len(failures),
+        "success_rate": round((len(successes) / len(completed)) * 100, 1) if completed else 0.0,
+        "failure_kind_counts": dict(sorted(failure_kind_counts.items())),
+        "pending_retry_reviews": len(pending_sandbox_patch_execution_retries(store)),
+        "replan_templates": len(sandbox_patch_replan_templates(store)),
+        "diff_intakes": len(sandbox_replan_diff_intakes(store)),
+        "recent_failures": recent_failures,
+        "latest_completed_status": completed[-1].get("status") if completed else None,
+        "latest_completed_task_id": completed[-1].get("task_id") if completed else None,
+        "latest_failure_kind": (failures[-1].get("payload") or {}).get("failure_kind") if failures else None,
     }
