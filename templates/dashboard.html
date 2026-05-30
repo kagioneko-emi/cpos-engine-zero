@@ -819,6 +819,48 @@
                     });
                 }
 
+                function renderSandboxPatchPlans(sandboxPatchData) {
+                    const section = document.getElementById('sandbox-patch-section');
+                    const summary = document.getElementById('sandbox-patch-summary');
+                    const container = document.getElementById('sandbox-patch-container');
+                    const reviews = (sandboxPatchData && sandboxPatchData.reviews) || [];
+                    if (!reviews.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `pending_reviews=${reviews.length}, workspace_type=ephemeral_copy, no live repo writes, metadata_only=true`;
+
+                    container.innerHTML = '';
+                    reviews.forEach(review => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-purple)';
+                        const payload = review.payload || {};
+                        const plan = payload.plan || {};
+                        const files = (plan.changed_files || []).map(f => `<span class="pill"><code>${f}</code></span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div>
+                                    <strong style="color: var(--accent-purple);">[SANDBOX PATCH PLAN]</strong> <code>${review.task_id}</code><br>
+                                    <span class="muted"><code>${plan.repo || '-'}</code> / diff=${plan.diff_task_id || '-'}</span><br>
+                                    <span class="muted">workspace_type=${plan.workspace_type || '-'} / project_write_allowed=${plan.project_write_allowed}</span><br>
+                                    <span class="muted">patch_applied=${plan.patch_applied} / commands_executed=${plan.commands_executed} / tests_run=${plan.tests_run}</span><br>
+                                    <span class="muted">sandbox_plan_sha256=${plan.sandbox_plan_sha256 || '-'}</span>
+                                    <div style="margin-top: 8px;"><strong>Changed files</strong><br>${files}</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button class="btn btn-success" onclick="approveSandboxPatchPlan('${review.task_id}')">Approve Plan</button>
+                                    <button class="btn btn-danger" onclick="rejectSandboxPatchPlan('${review.task_id}')">Reject</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
                 function renderSandboxPatchExecutions(sandboxExecutionData) {
                     const section = document.getElementById('sandbox-execution-section');
                     const summary = document.getElementById('sandbox-execution-summary');
@@ -891,6 +933,7 @@
                                 <span class="muted">patch_apply=${payload.patch_apply_stage || '-'} exit=${payload.patch_apply_exit_code}</span><br>
                                 <span class="muted">stdout_sha256=${payload.patch_apply_stdout_sha256 || '-'} / stderr_sha256=${payload.patch_apply_stderr_sha256 || '-'}</span>
                                 <div style="margin-top: 8px;"><strong>Command metadata</strong><br>${commandSummary}</div>
+                                ${payload.success === false ? `<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;"><button class="btn btn-warning" onclick="createFailureReplanIntake('${result.task_id}')">Create Retry → Replan → Diff Intake</button></div>` : ''}
                             </div>
                         `;
                         container.appendChild(div);
@@ -1337,6 +1380,17 @@
             const reason = prompt('Reject sandbox retry review reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/sandbox/execution-retries/${taskId}/reject`, {reason: reason});
+        }
+
+        async function createFailureReplanIntake(taskId) {
+            if (!confirm(`Create retry review, approve retry, create replan template, and create diff intake for failed sandbox execution ${taskId}? This will not rerun, patch, commit, push, or store raw outputs.`)) return;
+            await postJson('/sandbox/execution-driver/replan-failure', {
+                source_execution_task_id: taskId,
+                approve_retry: true,
+                create_replan_template: true,
+                create_diff_intake: true,
+                reason: 'dashboard_safe_replan_intake'
+            });
         }
 
         async function approveMcpExecution(taskId) {

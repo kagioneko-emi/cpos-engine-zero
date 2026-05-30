@@ -194,3 +194,16 @@ def test_dashboard_contains_sandbox_replan_diff_intake_ui():
     assert 'required_human_inputs' in html
     assert 'target_api' in html
     assert 'raw diff text is never stored' in html
+
+
+def test_dashboard_contains_sandbox_execution_driver_actions():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'renderSandboxPatchPlans' in html
+    assert 'SANDBOX PATCH PLAN' in html
+    assert 'createFailureReplanIntake' in html
+    assert '/sandbox/execution-driver/replan-failure' in html
+    assert 'Create Retry → Replan → Diff Intake' in html
+    assert 'This will not rerun, patch, commit, push, or store raw outputs' in html
