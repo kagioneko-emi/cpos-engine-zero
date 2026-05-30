@@ -873,6 +873,33 @@ accepted by default, shell metacharacters are rejected, and `local-dev` runner m
 requires explicit `CPOS_ALLOW_LOCAL_DEV_RUN=true` opt-in.
 
 
+## Sandbox Execution Driver: Review-Gated Advance
+
+For stronger execution power without weakening safety, CPOS includes a sandbox
+execution driver that can advance an approved diff through the sandbox chain in
+one call: create patch plan, optionally approve it, create execution review,
+optionally approve it, and optionally run the approved execution in an ephemeral
+workspace. Each approval still requires an explicit boolean flag; no commit, push,
+PR, raw diff persistence, or raw output persistence is introduced.
+
+```bash
+curl -X POST https://<host>/sandbox/execution-driver/advance \
+  -d '{
+    "diff_task_id":"<approved_diff_task_id>",
+    "approve_plan":true,
+    "approve_execution":true,
+    "run":true,
+    "diff_text":"...",
+    "validation_commands":["pytest -q tests/test_report.py"],
+    "runner_mode":"strict"
+  }'
+```
+
+The driver is intentionally a coordinator, not a bypass: it records the same
+Task Tape review/approval/run events as the manual route, stores metadata only,
+and runs only after the execution plan is approved.
+
+
 ## Sandbox Patch Execution Retry Review
 
 Failed sandbox executions can create a retry review from failure metadata only.

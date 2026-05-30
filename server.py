@@ -42,6 +42,7 @@ from cpos.github_diff_review import create_github_diff_review, pending_github_di
 from cpos.human_escalation import pending_human_escalations
 from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_patch_plans, approve_sandbox_patch_plan, reject_sandbox_patch_plan
 from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry, create_sandbox_patch_replan_template, sandbox_patch_replan_templates, create_sandbox_replan_diff_intake, sandbox_replan_diff_intakes
+from cpos.execution_driver import advance_sandbox_patch_pipeline
 
 apply_security_profile_defaults()
 
@@ -829,6 +830,39 @@ def github_diff_review_reject(task_id):
 def sandbox_patch_plan_reviews():
     reviews = pending_sandbox_patch_plans(agent.task_tape)
     return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews}), 200
+
+
+@app.route('/sandbox/execution-driver/advance', methods=['POST'])
+def sandbox_execution_driver_advance():
+    data = request.get_json(silent=True) or {}
+    validation_commands = data.get('validation_commands') if isinstance(data.get('validation_commands'), list) else None
+    result = advance_sandbox_patch_pipeline(
+        agent.task_tape,
+        diff_task_id=data.get('diff_task_id') or '',
+        diff_text=data.get('diff_text') if isinstance(data.get('diff_text'), str) else None,
+        validation_commands=validation_commands,
+        actor=request_actor(),
+        approve_plan=data.get('approve_plan') is True,
+        approve_execution=data.get('approve_execution') is True,
+        run=data.get('run') is True,
+        runner_mode=data.get('runner_mode'),
+        reason=data.get('reason'),
+    )
+    status = 200 if result.get('ok') or result.get('status') in {'completed_with_failures', 'failed_patch_apply'} else 400
+    audit_security_event(
+        'security_mutation',
+        'sandbox_execution_driver_advanced' if result.get('ok') else result.get('status') or 'sandbox_execution_driver_denied',
+        status,
+        required_scope_for_request(),
+        {
+            'diff_task_id': data.get('diff_task_id'),
+            'patch_task_id': result.get('patch_task_id'),
+            'execution_task_id': result.get('execution_task_id'),
+            'run_status': result.get('run_status'),
+            'step_count': result.get('step_count'),
+        },
+    )
+    return jsonify(result), status
 
 
 @app.route('/github/diff-reviews/<diff_task_id>/create-sandbox-plan', methods=['POST'])

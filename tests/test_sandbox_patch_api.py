@@ -343,3 +343,33 @@ def test_sandbox_replan_diff_intake_requires_template(tmp_path):
     missing = client.post("/sandbox/replan-templates/task_missing/create-diff-intake", json={})
     assert missing.status_code == 404
     assert missing.get_json()["error"] == "replan_template_required"
+
+
+def test_sandbox_execution_driver_api_advances_to_ready(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    diff_task_id = create_approved_diff(client)
+
+    res = client.post("/sandbox/execution-driver/advance", json={
+        "diff_task_id": diff_task_id,
+        "approve_plan": True,
+        "approve_execution": True,
+        "reason": "api_test",
+    })
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["ok"] is True
+    assert payload["status"] == "approved_sandbox_execution_ready"
+    assert payload["metadata_only"] is True
+    assert payload["raw_diff_stored"] is False
+    assert payload["raw_outputs_stored"] is False
+    assert payload["commit_created"] is False
+    assert payload["pushed"] is False
+    assert payload["pr_created"] is False
+    assert payload["step_count"] == 4
+
+
+def test_sandbox_execution_driver_api_scope_mapping():
+    with server.app.test_request_context("/sandbox/execution-driver/advance", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"

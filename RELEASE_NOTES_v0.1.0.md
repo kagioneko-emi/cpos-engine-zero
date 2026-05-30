@@ -34,6 +34,7 @@ Core idea:
 - Sandbox patch plan gate: metadata-only ephemeral workspace plan with no patch apply or command execution
 - Sandbox patch execution review: metadata-only isolated runner readiness plan with no workspace copy or command execution
 - Sandbox patch execution run: ephemeral workspace copy, patch apply, and validation with hash/metadata-only result storage
+- Sandbox execution driver: one-call review-gated advance from approved diff to optional ephemeral run, with explicit confirmation flags and metadata-only storage
 - Completed sandbox execution results dashboard: statuses, hashes, sizes, and exit codes only
 - Sandbox execution retry reviews: failed runs become review-gated metadata-only retry plans
 - Sandbox replan templates: approved retries produce suggested focus and next review chain
