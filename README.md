@@ -22,6 +22,47 @@ See `SECURITY.md` and `OSS_RELEASE_CHECKLIST.md` before publishing or deploying.
 - HMAC, bearer-token, HTTPS, mTLS fingerprint, IP allowlist, and rate-limit controls
 - Sandbox policy modes and security profile validation
 
+## Architecture at a Glance
+
+```text
+User / Agent Input
+        |
+        v
++---------------------+
+| Context Router      |  classify: relationship / task / hybrid / dangerous
++---------------------+
+        |
+        +-------------------+-------------------+--------------------+
+        |                   |                   |                    |
+        v                   v                   v                    v
++----------------+  +----------------+  +----------------+  +----------------+
+| Context Pointer|  | Task Tape      |  | State / Runtime|  | Security Gates |
+| OS             |  | append-only    |  | short-lived    |  | auth/policy    |
+| relation refs  |  | rollback/audit |  | no persistence |  | review first   |
++----------------+  +----------------+  +----------------+  +----------------+
+        |                   |                   |                    |
+        +-------------------+-------------------+--------------------+
+                            |
+                            v
++-----------------------------------------------------------------------+
+| Review-Gated Execution Pipeline                                      |
+| PR dry-run -> diff review -> sandbox plan -> execution review -> run |
+| -> result metadata -> retry review -> replan template -> diff intake |
++-----------------------------------------------------------------------+
+                            |
+                            v
++-----------------------------------------------------------------------+
+| Persistence Boundary                                                  |
+| Store: hashes, sizes, statuses, pointers, audit metadata              |
+| Never store: secrets, raw stdout/stderr, raw diff, request bodies     |
++-----------------------------------------------------------------------+
+```
+
+CPOS keeps relationship/context memory, task execution history, and short-lived
+runtime state separate. Cross-layer context is injected only through governed
+pointers and review-gated Task Tape events, which keeps long-term memory from
+being polluted by failed commands or transient execution state.
+
 ## Safe Autonomy Demo Flow
 
 CPOS Engine-Zero is designed around a conservative autonomy loop: every risky

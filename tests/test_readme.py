@@ -36,3 +36,14 @@ def test_release_check_cli_documented_in_oss_checklist():
     checklist = open('OSS_RELEASE_CHECKLIST.md', encoding='utf-8').read()
     assert 'cpos.release_check' in checklist
     assert 'release-readiness CLI' in checklist
+
+
+def test_readme_contains_architecture_at_a_glance():
+    readme = open('README.md', encoding='utf-8').read()
+    assert 'Architecture at a Glance' in readme
+    assert 'Context Router' in readme
+    assert 'Context Pointer' in readme
+    assert 'Task Tape' in readme
+    assert 'Review-Gated Execution Pipeline' in readme
+    assert 'Persistence Boundary' in readme
+    assert 'Never store: secrets, raw stdout/stderr, raw diff, request bodies' in readme
