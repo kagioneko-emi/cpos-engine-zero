@@ -40,6 +40,7 @@ Core idea:
 - Sandbox execution retry reviews: failed runs become review-gated metadata-only retry plans
 - Sandbox replan templates: approved retries produce suggested focus and next review chain
 - Sandbox diff intakes: metadata-only checklist for the next human-supplied diff review
+- Auto Fix Candidates: metadata-only repair strategies from replan templates with confidence, required inputs, and no raw diff/output storage
 - Failure classification: `patch_apply`, `validation_command`, `sandbox_unavailable`, and `policy_rejected`
 - Release readiness CLI: non-destructive checks for remote, clean tree, tracked bad artifacts, and required files
 - README architecture overview and safe autonomy demo flow

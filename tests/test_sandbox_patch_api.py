@@ -451,3 +451,49 @@ def test_sandbox_scoreboard_scope_mapping():
     with server.app.test_request_context("/sandbox/scoreboard", method="GET"):
         assert server.required_scope_for_request() == "read:sandbox"
 
+
+
+def test_sandbox_auto_fix_candidate_api(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    replan_task_id = "task_replan_api"
+    server.agent.task_tape.append_event(
+        task_id=replan_task_id,
+        event="sandbox_patch_replan_template_created",
+        target="sandbox://replan-template/task_retry",
+        status="template_created",
+        payload={
+            "review_type": "sandbox_patch_replan_template",
+            "template": {
+                "retry_task_id": "task_retry",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "patch_apply",
+                "source_execution_status": "failed_patch_apply",
+                "patch_apply_stage": "check",
+                "patch_apply_exit_code": 1,
+                "failed_command": {},
+                "suggested_focus": ["regenerate_diff_against_current_base"],
+                "execute_automatically": False,
+            },
+        },
+    )
+
+    created = client.post(f"/sandbox/replan-templates/{replan_task_id}/create-fix-candidate", json={"reason": "api"})
+    assert created.status_code == 200
+    payload = created.get_json()
+    assert payload["ok"] is True
+    assert payload["candidate"]["failure_kind"] == "patch_apply"
+    assert payload["candidate"]["raw_diff_stored"] is False
+    assert payload["candidate"]["raw_outputs_stored"] is False
+    assert payload["candidate"]["execute_automatically"] is False
+
+    listed = client.get("/sandbox/fix-candidates")
+    assert listed.status_code == 200
+    assert listed.get_json()["count"] == 1
+
+
+def test_sandbox_auto_fix_candidate_scope_mapping():
+    with server.app.test_request_context("/sandbox/fix-candidates", method="GET"):
+        assert server.required_scope_for_request() == "read:sandbox"
+    with server.app.test_request_context("/sandbox/replan-templates/task/create-fix-candidate", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"

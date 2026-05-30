@@ -866,3 +866,53 @@ def test_generate_report_renders_execution_scoreboard(tmp_path):
     assert 'Completed' in html
     assert 'Success Rate' in html
     assert 'validation_command: 1' in html
+
+
+def test_generate_report_renders_auto_fix_candidates(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.task_tape import TaskTapeStore
+    from cpos.auto_fix_candidate import create_auto_fix_candidate
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    replan_task_id = "task_replan_report"
+    store.append_event(
+        task_id=replan_task_id,
+        event="sandbox_patch_replan_template_created",
+        target="sandbox://replan-template/task_retry",
+        status="template_created",
+        payload={
+            "review_type": "sandbox_patch_replan_template",
+            "template": {
+                "retry_task_id": "task_retry",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "validation_command",
+                "failed_command": {"command_sha256": "cmd", "exit_code": 1},
+                "suggested_focus": ["inspect_failed_test_metadata"],
+                "execute_automatically": False,
+            },
+        },
+    )
+    create_auto_fix_candidate(store, replan_task_id=replan_task_id)
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert 'Auto Fix Candidates' in html
+    assert 'Metadata-only Repair Strategy' in html
+    assert 'target_failed_validation_metadata' in html
+    assert 'Raw Diff' in html

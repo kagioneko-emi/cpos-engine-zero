@@ -221,3 +221,18 @@ def test_dashboard_contains_execution_scoreboard_ui():
     assert 'Execution Scoreboard' in html
     assert 'Metadata-only throughput snapshot' in html
 
+
+
+def test_dashboard_contains_auto_fix_candidate_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-fix-candidate-section' in html
+    assert 'sandbox-fix-candidate-container' in html
+    assert '/sandbox/fix-candidates' in html
+    assert 'renderSandboxAutoFixCandidates' in html
+    assert 'createAutoFixCandidate' in html
+    assert 'AUTO FIX CANDIDATE' in html
+    assert 'Create Auto Fix Candidate' in html
+    assert 'no raw diff text' in html

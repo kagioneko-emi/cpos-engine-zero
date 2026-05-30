@@ -467,6 +467,12 @@
             <div id="sandbox-replan-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox replan templates...</div>
             <div id="sandbox-replan-container"></div>
         </div>
+        <div id="sandbox-fix-candidate-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Auto Fix Candidates</h2>
+            <p class="muted">Metadata-only repair strategy: no raw diff text, no raw stdout/stderr, no patch apply, no commit, no push, and no PR.</p>
+            <div id="sandbox-fix-candidate-summary" class="muted" style="margin-bottom: 12px;">Loading auto fix candidates...</div>
+            <div id="sandbox-fix-candidate-container"></div>
+        </div>
         <div id="sandbox-diff-intake-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
             <h2>Sandbox Replan Diff Intakes</h2>
             <p class="muted">Metadata-only checklist for the next diff review. It lists required_human_inputs and target_api; raw diff text is never stored.</p>
@@ -600,6 +606,8 @@
                 const sandboxReplanData = sandboxReplanRes.ok ? await sandboxReplanRes.json() : {ok: false, count: 0, templates: []};
                 const sandboxDiffIntakeRes = await fetch('/sandbox/diff-intakes');
                 const sandboxDiffIntakeData = sandboxDiffIntakeRes.ok ? await sandboxDiffIntakeRes.json() : {ok: false, count: 0, intakes: []};
+                const sandboxFixCandidateRes = await fetch('/sandbox/fix-candidates');
+                const sandboxFixCandidateData = sandboxFixCandidateRes.ok ? await sandboxFixCandidateRes.json() : {ok: false, count: 0, candidates: []};
                 const pendingSandboxExecutions = sandboxExecutionData.count || 0;
                 const completedSandboxExecutions = sandboxExecutionResultData.count || 0;
                 const pendingSandboxRetries = sandboxRetryData.count || 0;
@@ -614,6 +622,7 @@
                 renderSandboxExecutionScoreboard(sandboxScoreboardData);
                 renderSandboxPatchExecutionRetries(sandboxRetryData);
                 renderSandboxPatchReplanTemplates(sandboxReplanData);
+                renderSandboxAutoFixCandidates(sandboxFixCandidateData);
                 renderSandboxReplanDiffIntakes(sandboxDiffIntakeData);
 
                 const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
@@ -1052,6 +1061,44 @@
                                 <span class="muted">diff_text_included=${template.diff_text_included} / raw_outputs_stored=${template.raw_outputs_stored} / workspace_reused=${template.workspace_reused}</span>
                                 <div style="margin-top: 8px;"><strong>Suggested focus</strong><br>${focus}</div>
                                 <div style="margin-top: 8px;"><strong>Next review chain</strong><br>${chain}</div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;"><button class="btn btn-warning" onclick="createAutoFixCandidate('${row.task_id}')">Create Auto Fix Candidate</button></div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderSandboxAutoFixCandidates(sandboxFixCandidateData) {
+                    const section = document.getElementById('sandbox-fix-candidate-section');
+                    const summary = document.getElementById('sandbox-fix-candidate-summary');
+                    const container = document.getElementById('sandbox-fix-candidate-container');
+                    const candidates = (sandboxFixCandidateData && sandboxFixCandidateData.candidates) || [];
+                    if (!candidates.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `candidates=${candidates.length}, raw_diff_stored=false, raw_outputs_stored=false, execute_automatically=false`;
+
+                    container.innerHTML = '';
+                    candidates.slice(-5).reverse().forEach(row => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-orange)';
+                        const payload = row.payload || {};
+                        const candidate = payload.candidate || {};
+                        const steps = (candidate.candidate_steps || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        const inputs = (candidate.required_human_inputs || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div>
+                                <strong style="color: var(--accent-orange);">[AUTO FIX CANDIDATE]</strong> <code>${row.task_id}</code><br>
+                                <span class="muted">replan=${candidate.replan_task_id || '-'} / failure=${candidate.failure_kind || '-'} / strategy=${candidate.candidate_strategy || '-'}</span><br>
+                                <span class="muted">confidence=${candidate.confidence ?? '-'} / candidate_sha256=${candidate.candidate_sha256 || '-'}</span><br>
+                                <span class="muted">raw_diff_stored=${candidate.raw_diff_stored} / raw_outputs_stored=${candidate.raw_outputs_stored} / execute_automatically=${candidate.execute_automatically}</span>
+                                <div style="margin-top: 8px;"><strong>Candidate steps</strong><br>${steps}</div>
+                                <div style="margin-top: 8px;"><strong>Required human inputs</strong><br>${inputs}</div>
                             </div>
                         `;
                         container.appendChild(div);
@@ -1430,6 +1477,11 @@
                 create_diff_intake: true,
                 reason: 'dashboard_safe_replan_intake'
             });
+        }
+
+        async function createAutoFixCandidate(taskId) {
+            if (!confirm(`Create metadata-only auto fix candidate for replan template ${taskId}? This will not create a diff, patch, commit, push, or PR.`)) return;
+            await postJson(`/sandbox/replan-templates/${taskId}/create-fix-candidate`, {reason: 'dashboard_auto_fix_candidate'});
         }
 
         async function approveMcpExecution(taskId) {

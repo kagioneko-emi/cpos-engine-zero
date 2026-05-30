@@ -915,6 +915,16 @@ curl -X POST https://<host>/sandbox/execution-driver/replan-failure \
   }'
 ```
 
+Auto Fix Candidates can be generated from a replan template to propose the next
+repair strategy without storing patch text or command output. Candidates contain
+failure kind, strategy, confidence, required human inputs, and hashes only.
+
+```bash
+curl -X POST https://<host>/sandbox/replan-templates/<task_id>/create-fix-candidate \
+  -d '{"reason":"metadata_only_repair_strategy"}'
+curl https://<host>/sandbox/fix-candidates
+```
+
 
 ## Sandbox Patch Execution Retry Review
 

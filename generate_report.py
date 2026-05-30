@@ -18,6 +18,7 @@ from cpos.github_diff_review import pending_github_diff_reviews
 from cpos.sandbox_patch_plan import pending_sandbox_patch_plans
 from cpos.sandbox_patch_runner import pending_sandbox_patch_executions, completed_sandbox_patch_executions
 from cpos.execution_driver import build_execution_scoreboard
+from cpos.auto_fix_candidate import pending_auto_fix_candidates
 
 
 def load_jsonl(path):
@@ -857,6 +858,41 @@ def render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path):
     return html
 
 
+def render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    candidates = pending_auto_fix_candidates(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Auto Fix Candidates</div>
+            <h2>Metadata-only Repair Strategy</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(candidates)}</strong><span>Candidates</span></div>
+                <div class="metric"><strong>no</strong><span>Raw Diff</span></div>
+                <div class="metric"><strong>no</strong><span>Raw Outputs</span></div>
+                <div class="metric"><strong>no</strong><span>Auto Execute</span></div>
+            </div>
+            <p class="muted">Candidates contain strategy, confidence, required inputs, and hashes only. They do not contain patch text, stdout/stderr, commits, pushes, or PR creation.</p>
+    """
+    if not candidates:
+        html += '<p class="muted">No auto fix candidates yet.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Task</th><th>Failure</th><th>Strategy</th><th>Confidence</th><th>Inputs</th></tr></thead><tbody>'
+    for row in candidates[-10:]:
+        candidate = (row.get('payload') or {}).get('candidate') or {}
+        inputs = ''.join(f'<span class="pill">{escape(str(item))}</span>' for item in candidate.get('required_human_inputs', [])) or '<span class="muted">none</span>'
+        html += f"""
+            <tr>
+                <td><code>{escape(str(row.get('task_id') or '-'))}</code><br><span class="muted">replan={escape(str(candidate.get('replan_task_id') or '-'))}</span></td>
+                <td>{escape(str(candidate.get('failure_kind') or '-'))}</td>
+                <td>{escape(str(candidate.get('candidate_strategy') or '-'))}</td>
+                <td>{escape(str(candidate.get('confidence') or '-'))}</td>
+                <td>{inputs}</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+
 def render_rate_limit_backend_summary(environ=None):
     environ = os.environ if environ is None else environ
     enabled = str(environ.get('CPOS_RATE_LIMIT_ENABLED', 'false')).lower() in {'1', 'true', 'yes'}
@@ -1054,6 +1090,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_sandbox_patch_execution_summary(task_tape_path, task_checkpoint_path)
     html += render_sandbox_patch_execution_results(task_tape_path, task_checkpoint_path)
     html += render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path)
+    html += render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
     html += render_security_profile_validation()
     html += render_secret_inventory_summary(secret_inventory_path)
