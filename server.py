@@ -42,7 +42,7 @@ from cpos.github_diff_review import create_github_diff_review, pending_github_di
 from cpos.human_escalation import pending_human_escalations
 from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_patch_plans, approve_sandbox_patch_plan, reject_sandbox_patch_plan
 from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry, create_sandbox_patch_replan_template, sandbox_patch_replan_templates, create_sandbox_replan_diff_intake, sandbox_replan_diff_intakes
-from cpos.execution_driver import advance_sandbox_patch_pipeline
+from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed_sandbox_replan
 
 apply_security_profile_defaults()
 
@@ -963,6 +963,35 @@ def sandbox_patch_execution_run(task_id):
 def sandbox_patch_execution_retry_reviews():
     reviews = pending_sandbox_patch_execution_retries(agent.task_tape)
     return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews}), 200
+
+
+@app.route('/sandbox/execution-driver/replan-failure', methods=['POST'])
+def sandbox_execution_driver_replan_failure():
+    data = request.get_json(silent=True) or {}
+    result = advance_failed_sandbox_replan(
+        agent.task_tape,
+        source_execution_task_id=data.get('source_execution_task_id') or data.get('task_id') or '',
+        actor=request_actor(),
+        approve_retry=data.get('approve_retry') is True,
+        create_replan_template=data.get('create_replan_template') is True,
+        create_diff_intake=data.get('create_diff_intake') is True,
+        reason=data.get('reason'),
+    )
+    status = 200 if result.get('ok') else 400
+    audit_security_event(
+        'security_mutation',
+        'sandbox_execution_driver_replan_failure' if result.get('ok') else result.get('status') or 'sandbox_execution_driver_replan_denied',
+        status,
+        required_scope_for_request(),
+        {
+            'source_execution_task_id': data.get('source_execution_task_id') or data.get('task_id'),
+            'retry_task_id': result.get('retry_task_id'),
+            'replan_task_id': result.get('replan_task_id'),
+            'diff_intake_task_id': result.get('diff_intake_task_id'),
+            'step_count': result.get('step_count'),
+        },
+    )
+    return jsonify(result), status
 
 
 @app.route('/sandbox/executions/<task_id>/create-retry-review', methods=['POST'])

@@ -7,6 +7,10 @@ from .sandbox_patch_runner import (
     create_sandbox_patch_execution,
     approve_sandbox_patch_execution,
     execute_sandbox_patch_run,
+    create_sandbox_patch_execution_retry_review,
+    approve_sandbox_patch_execution_retry,
+    create_sandbox_patch_replan_template,
+    create_sandbox_replan_diff_intake,
 )
 from .task_tape import TaskTapeStore
 
@@ -140,6 +144,88 @@ def advance_sandbox_patch_pipeline(
         execution_task_id=execution_task_id,
         run_status=run_result.get("status"),
         failure_kind=run_result.get("failure_kind"),
+    )
+
+
+def advance_failed_sandbox_replan(
+    store: TaskTapeStore,
+    *,
+    source_execution_task_id: str,
+    actor: str = "ExecutionDriver",
+    approve_retry: bool = False,
+    create_replan_template: bool = False,
+    create_diff_intake: bool = False,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Advance a failed sandbox execution toward the next safe diff intake.
+
+    This does not rerun, patch, commit, push, or store raw outputs. It converts a
+    completed failed sandbox execution into reviewable retry/replan metadata and,
+    when explicitly requested, a checklist for the next human-supplied diff.
+    """
+    steps: list[dict[str, Any]] = []
+
+    retry_result = create_sandbox_patch_execution_retry_review(
+        store,
+        source_task_id=source_execution_task_id,
+        actor=actor,
+        reason=reason,
+    )
+    steps.append(_step("create_sandbox_patch_execution_retry_review", retry_result))
+    if not retry_result.get("ok"):
+        return _result(False, "sandbox_retry_review_failed", steps, source_execution_task_id=source_execution_task_id, workspace_reused=False)
+
+    retry_task_id = str(retry_result["task_id"])
+    if not approve_retry:
+        return _result(True, "pending_sandbox_retry_review", steps, source_execution_task_id=source_execution_task_id, retry_task_id=retry_task_id, workspace_reused=False)
+
+    retry_approval = approve_sandbox_patch_execution_retry(
+        store,
+        retry_task_id,
+        approver=actor,
+        reason=reason or "execution_driver_approve_retry",
+        confirm=True,
+    )
+    steps.append(_step("approve_sandbox_patch_execution_retry", retry_approval))
+    if not retry_approval.get("ok"):
+        return _result(False, "sandbox_retry_approval_failed", steps, source_execution_task_id=source_execution_task_id, retry_task_id=retry_task_id, workspace_reused=False)
+
+    if not create_replan_template:
+        return _result(True, "approved_sandbox_retry_ready", steps, source_execution_task_id=source_execution_task_id, retry_task_id=retry_task_id, workspace_reused=False)
+
+    replan_result = create_sandbox_patch_replan_template(
+        store,
+        retry_task_id=retry_task_id,
+        actor=actor,
+        reason=reason,
+    )
+    steps.append(_step("create_sandbox_patch_replan_template", replan_result))
+    if not replan_result.get("ok"):
+        return _result(False, "sandbox_replan_template_failed", steps, source_execution_task_id=source_execution_task_id, retry_task_id=retry_task_id, workspace_reused=False)
+
+    replan_task_id = str(replan_result["task_id"])
+    if not create_diff_intake:
+        return _result(True, "sandbox_replan_template_created", steps, source_execution_task_id=source_execution_task_id, retry_task_id=retry_task_id, replan_task_id=replan_task_id, workspace_reused=False)
+
+    intake_result = create_sandbox_replan_diff_intake(
+        store,
+        replan_task_id=replan_task_id,
+        actor=actor,
+        reason=reason,
+    )
+    steps.append(_step("create_sandbox_replan_diff_intake", intake_result))
+    if not intake_result.get("ok"):
+        return _result(False, "sandbox_diff_intake_failed", steps, source_execution_task_id=source_execution_task_id, retry_task_id=retry_task_id, replan_task_id=replan_task_id, workspace_reused=False)
+
+    return _result(
+        True,
+        "sandbox_diff_intake_created",
+        steps,
+        source_execution_task_id=source_execution_task_id,
+        retry_task_id=retry_task_id,
+        replan_task_id=replan_task_id,
+        diff_intake_task_id=intake_result.get("task_id"),
+        workspace_reused=False,
     )
 
 

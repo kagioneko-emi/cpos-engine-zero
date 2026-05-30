@@ -899,6 +899,22 @@ The driver is intentionally a coordinator, not a bypass: it records the same
 Task Tape review/approval/run events as the manual route, stores metadata only,
 and runs only after the execution plan is approved.
 
+Failed executions can also be advanced toward the next safe attempt without
+rerunning automatically. The failure driver creates a retry review, optionally
+approves it, creates a replan template, and optionally emits a diff-intake
+checklist for the next human-supplied patch. It never reuses the failed
+workspace and never stores raw stdout/stderr.
+
+```bash
+curl -X POST https://<host>/sandbox/execution-driver/replan-failure \
+  -d '{
+    "source_execution_task_id":"<failed_execution_task_id>",
+    "approve_retry":true,
+    "create_replan_template":true,
+    "create_diff_intake":true
+  }'
+```
+
 
 ## Sandbox Patch Execution Retry Review
 

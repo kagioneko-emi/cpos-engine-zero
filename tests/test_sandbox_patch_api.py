@@ -373,3 +373,47 @@ def test_sandbox_execution_driver_api_advances_to_ready(tmp_path):
 def test_sandbox_execution_driver_api_scope_mapping():
     with server.app.test_request_context("/sandbox/execution-driver/advance", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
+
+
+def test_sandbox_execution_driver_replan_failure_api(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    server.agent.task_tape.append_event(
+        task_id="task_failed_exec_api",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_failed_exec_api",
+        status="completed_with_failures",
+        payload={
+            "review_type": "sandbox_patch_execution",
+            "failure_kind": "validation_command",
+            "patch_applied": True,
+            "commands_executed": True,
+            "tests_run": True,
+            "workspace_copied": True,
+            "validation_command_hashes": [{"sha256": "abc", "size_bytes": 12}],
+            "validation_command_count": 1,
+            "command_results": [{"command_sha256": "abc", "exit_code": 1, "stdout_sha256": "out", "stderr_sha256": "err"}],
+            "success": False,
+            "execute_automatically": False,
+        },
+    )
+
+    res = client.post("/sandbox/execution-driver/replan-failure", json={
+        "source_execution_task_id": "task_failed_exec_api",
+        "approve_retry": True,
+        "create_replan_template": True,
+        "create_diff_intake": True,
+    })
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["ok"] is True
+    assert payload["status"] == "sandbox_diff_intake_created"
+    assert payload["raw_outputs_stored"] is False
+    assert payload["raw_diff_stored"] is False
+    assert payload["workspace_reused"] is False
+
+
+def test_sandbox_execution_driver_replan_failure_scope_mapping():
+    with server.app.test_request_context("/sandbox/execution-driver/replan-failure", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"
