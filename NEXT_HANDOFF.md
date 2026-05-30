@@ -1,3 +1,56 @@
+# Latest Handoff — Context Clean Checkpoint
+
+Generated: `2026-05-30T01:23:04Z`
+Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
+Branch: `main`
+Latest pushed commit before this handoff update: `df178d1 Add human escalation protocol`
+
+## What changed in the latest session
+
+- Added generic GitHub publish safety spec: `docs/GITHUB_PUBLISH_SAFETY_SPEC.md`.
+- Added non-destructive GitHub publish guard CLI: `python -m cpos.github_publish_guard`.
+- Added combined pre-publish safety gate: `python -m cpos.prepublish_check --json`.
+  - Combines `github_publish_guard`, `release_check`, and `secret_scan`.
+  - Confirms correct remote, clean tree, tracked bad artifacts, required files, and secret patterns.
+  - Performs no staging, commit, push, delete, history rewrite, port opening, or secret-value reads.
+- Added friendly publish safety guide: `docs/PUBLISH_SAFETY_USER_GUIDE.md`.
+- Added Human Escalation Protocol: `docs/HUMAN_ESCALATION_PROTOCOL.md` and `cpos/human_escalation.py`.
+  - Supports `safe_autonomy`, `cautious_autonomy`, and `assisted_autonomy`.
+  - Escalates to human for secrets, `.env`, tokens, SSH/private keys, destructive actions, `authorized_keys`, port exposure, production/service changes, GitHub publishing, and low-confidence tasks.
+- README now documents assisted autonomy and the publish-safety flow.
+
+## Latest verification
+
+- Full tests: `245 passed`.
+- Secret scan: `ok=true count=0`.
+- Prepublish gate after commit: `ok=true`.
+- Correct remote confirmed: `https://github.com/kagioneko/cpos-engine-zero.git`.
+
+## Current safety posture
+
+- Correct public repo is `kagioneko/cpos-engine-zero`; do not push to similarly named repos/accounts.
+- Secrets must stay in Vault or secret files; never code, `.env`, comments, logs, crontab, or GitHub.
+- Do not stage/publish `.venv`, `__pycache__`, `.pytest_cache`, runtime `*.jsonl`, cert/key files, generated local reports, or workspace artifacts.
+- `authorized_keys` changes remain forbidden.
+- Destructive operations, systemd stop/delete, user creation/deletion, and port opening require explicit user approval. Port opening also requires 15-minute auto-close and Discord notification.
+
+## Recommended next steps after context clean
+
+1. Start a fresh chat/session and point it at this repo.
+2. Ask it to read this `Latest Handoff` section first.
+3. Run `git status --short`.
+4. Run `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json` before any push.
+5. Continue toward agent capability by wiring Human Escalation into existing review pipelines/dashboard:
+   - dashboard card for human escalation decisions,
+   - integrate `cpos.human_escalation.decide_escalation()` into GitHub/MCP/sandbox flows,
+   - add a human-request queue that stores only metadata, not secrets/raw outputs.
+
+## Honest product assessment
+
+CPOS is now a distinctive safety-first agent runtime: Memory/Task separation, Context Pointer OS, Task Tape, governance-first MCP, sandbox retry/replan, GitHub publish safety, and assisted autonomy are in place. It is not yet fair to claim Hermes/OpenClaw surpassed; next milestone is stronger execution integration, dashboard UX, and a crisp demo.
+
+---
+
 # NEXT HANDOFF
 
 
