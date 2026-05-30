@@ -368,6 +368,17 @@ python3 -m cpos.secret_scan . --json
 
 The scanner reports file, line, and pattern name only; it does not print matched secret values.
 
+Pre-publish safety gate:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+```
+
+This non-destructive gate combines `cpos.github_publish_guard`, `cpos.release_check`,
+and `cpos.secret_scan`. It confirms the expected GitHub remote, checks publish
+boundaries, scans for high-risk secret patterns without printing values, and reports
+failures before any staging, commit, push, deletion, or history rewrite.
+
 ## Vault Migration Guide
 
 Secret artifact migration documentation lives at:
