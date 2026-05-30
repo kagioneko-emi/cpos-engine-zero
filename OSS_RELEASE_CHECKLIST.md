@@ -40,6 +40,8 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 - [ ] No raw stdout/stderr, raw diff text, request bodies, checkpoint contents, raw handoff bodies, or proposed code blobs persisted in docs, ledgers, reports, or tests.
 - [ ] If using an AI skill/MCP wrapper for publishing, confirm it follows `docs/GITHUB_PUBLISH_SAFETY_SPEC.md` and performs no staging/commit/push/delete operations by itself.
 - [ ] README includes `Safe Autonomy Demo Flow` and clearly states current MCP limitation: dry-run/governance only, no real tool execution by default.
+- [ ] README and `docs/HUMAN_ESCALATION_PROTOCOL.md` document `/human-escalations`, dashboard queue routing, and metadata-only persistence.
+- [ ] Dashboard/report Human Escalation summaries show review type, severity, reasons, and endpoint hints only; no raw request bodies, raw diffs, stdout/stderr, checkpoint contents, or secret values.
 - [ ] SECURITY.md includes `Data We Never Persist`.
 - [ ] LICENSE present.
 

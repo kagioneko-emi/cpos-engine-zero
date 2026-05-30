@@ -11,6 +11,7 @@ from cpos.security_validation import validate_security_posture
 from cpos.handoff_graph import build_handoff_graph
 from cpos.footprint import build_footprint
 from cpos.mcp_registry import MCPRegistry
+from cpos.human_escalation import pending_human_escalations
 from cpos.mcp_execution import pending_mcp_execution_reviews
 from cpos.github_pr_flow import pending_github_pr_reviews
 from cpos.github_diff_review import pending_github_diff_reviews
@@ -584,6 +585,48 @@ def render_mcp_execution_summary(task_tape_path, task_checkpoint_path):
     return html
 
 
+def render_human_escalation_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    escalations = pending_human_escalations(store)
+    human_required = [row for row in escalations if (row.get('decision') or {}).get('requires_human')]
+    severities = {}
+    for row in escalations:
+        severity = str((row.get('decision') or {}).get('severity') or 'unknown')
+        severities[severity] = severities.get(severity, 0) + 1
+    severity_summary = ', '.join(f'{escape(k)}={v}' for k, v in sorted(severities.items())) or 'none'
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Human Escalation Queue</div>
+            <h2>Assisted Autonomy Review Gate</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(escalations)}</strong><span>Pending Escalations</span></div>
+                <div class="metric"><strong>{len(human_required)}</strong><span>Human Required</span></div>
+                <div class="metric"><strong>no</strong><span>Secret Values Stored</span></div>
+                <div class="metric"><strong>no</strong><span>Raw Diffs / Outputs</span></div>
+            </div>
+            <p class="muted">Aggregates metadata-only escalation decisions from GitHub, MCP, and sandbox review pipelines. Approval/rejection stays routed through each owning pipeline endpoint.</p>
+            <p class="muted">Severity distribution: {severity_summary}. Raw request bodies, raw diff text, stdout/stderr, checkpoint contents, and secret values are not persisted.</p>
+    """
+    if not escalations:
+        html += '<p class="muted">No pending Human Escalation decisions.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Task</th><th>Review Type</th><th>Severity / Mode</th><th>Reasons</th><th>Pipeline Endpoint</th></tr></thead><tbody>'
+    for row in escalations[:10]:
+        decision = row.get('decision') or {}
+        reasons = ''.join(f'<span class="pill">{escape(str(reason))}</span>' for reason in decision.get('reasons', [])) or '<span class="muted">none</span>'
+        html += f"""
+            <tr>
+                <td><code>{escape(str(row.get('task_id')))}</code></td>
+                <td>{escape(str(row.get('review_type') or '-'))}</td>
+                <td>{escape(str(decision.get('severity') or '-'))}<br><span class="muted">mode={escape(str(decision.get('recommended_mode') or '-'))} / requires_human={escape(str(decision.get('requires_human')))}</span></td>
+                <td>{reasons}</td>
+                <td><code>{escape(str(row.get('approval_endpoint_hint') or '-'))}</code><br><span class="muted">metadata_only={escape(str(row.get('metadata_only')))}</span></td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+
 def render_github_pr_dry_run_summary(task_tape_path, task_checkpoint_path):
     store = TaskTapeStore(task_tape_path, task_checkpoint_path)
     reviews = pending_github_pr_reviews(store)
@@ -951,6 +994,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_handoff_queue_summary(queue)
     html += render_handoff_graph_report(pointer_path, task_tape_path, task_checkpoint_path)
     html += render_mcp_connector_summary(mcp_registry_path, mcp_audit_path, mcp_review_path)
+    html += render_human_escalation_summary(task_tape_path, task_checkpoint_path)
     html += render_mcp_execution_summary(task_tape_path, task_checkpoint_path)
     html += render_github_pr_dry_run_summary(task_tape_path, task_checkpoint_path)
     html += render_github_diff_review_summary(task_tape_path, task_checkpoint_path)

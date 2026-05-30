@@ -124,6 +124,28 @@ The dashboard surfaces each queue/result: PR dry-run, diff review, sandbox plan,
 execution review, completed execution result, retry review, replan template, and
 diff intake.
 
+## Human Escalation Queue
+
+Risky review stages now attach a metadata-only Human Escalation decision to their
+Task Tape review event. The queue is available through both the API and dashboard:
+
+```bash
+curl https://<host>/human-escalations
+```
+
+The queue covers GitHub PR dry-runs, GitHub diff reviews, MCP execution/probe
+reviews, sandbox patch plans, sandbox execution reviews, and sandbox retry reviews.
+It stores only policy metadata such as review type, severity, reasons, recommended
+mode, and owning approve/reject endpoint hints. It does **not** persist secret
+values, raw request bodies, raw diff text, raw stdout/stderr, checkpoint contents,
+or raw handoff bodies.
+
+Dashboard actions route approval/rejection back through the owning pipeline endpoint
+(for example `/github/pr-dry-runs/<task_id>/approve` or
+`/sandbox/executions/<task_id>/reject`) rather than creating a second approval
+authority. GitHub publishing, destructive operations, secrets, production changes,
+network exposure, and low-confidence tasks remain assisted-autonomy gates.
+
 ## HMAC API Client Helpers
 
 CPOS API calls can use HMAC-signed requests with key rotation. Secrets must come from Vault/secret volumes; do not hardcode them in code, `.env`, crontab, or docs.
