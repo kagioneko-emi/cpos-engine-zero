@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .human_escalation import review_escalation_decision
 from .mcp_registry import MCPRegistry
 from .task_tape import TaskTapeStore
 
@@ -37,6 +38,13 @@ def request_mcp_capability_probe(
         registry.audit("probe_denied", actor=actor, connector_id=connector_id, decision="real_probe_disabled", metadata={"purpose": purpose})
         return {"ok": False, "error": "real_probe_disabled", "connector_id": connector_id, "execute_automatically": False}
 
+    human_escalation = review_escalation_decision(
+        review_type="mcp_capability_probe",
+        summary=f"MCP capability probe dry-run for {connector_id}",
+        confidence=0.82,
+        risk="medium",
+        user_confirmation_required=True,
+    )
     payload = {
         "review_type": "mcp_capability_probe",
         "connector_id": connector.connector_id,
@@ -52,6 +60,7 @@ def request_mcp_capability_probe(
         "declared_allowed_tools": list(connector.allowed_tools),
         "declared_blocked_tools": list(connector.blocked_tools),
         "requires_human_approval": True,
+        "human_escalation": human_escalation,
     }
     if connector.transport == "stdio":
         payload["probe_plan"] = ["validate argv shape", "prepare isolated process policy", "list_tools handshake only after approval"]

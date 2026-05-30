@@ -5,6 +5,7 @@ import json
 import re
 from typing import Any
 
+from .human_escalation import review_escalation_decision
 from .task_tape import TaskTapeStore
 
 REVIEW_TYPE = "github_pr_dry_run"
@@ -111,6 +112,13 @@ def create_github_pr_dry_run(
         ],
     }
     plan["plan_sha256"] = _digest(plan)
+    human_escalation = review_escalation_decision(
+        review_type=REVIEW_TYPE,
+        summary=f"GitHub publish planning for {repo}: {title}",
+        confidence=0.9,
+        risk="high",
+        user_confirmation_required=True,
+    )
     target = f"github://{repo}/pr-dry-run/{issue_part}"
     task_id = store.create_task(
         target=target,
@@ -120,6 +128,7 @@ def create_github_pr_dry_run(
             "repo": repo,
             "issue_number": issue_number,
             "plan_sha256": plan["plan_sha256"],
+            "human_escalation": human_escalation,
             "actor": actor,
         },
     )
@@ -128,7 +137,7 @@ def create_github_pr_dry_run(
         event="review_required",
         target=target,
         status="pending_review",
-        payload={"review_type": REVIEW_TYPE, "plan": plan, "actor": actor},
+        payload={"review_type": REVIEW_TYPE, "plan": plan, "human_escalation": human_escalation, "actor": actor},
     )
     return {"ok": True, "task_id": task_id, "status": "pending_review", "review": event.to_dict(), "plan": plan, "execute_automatically": False}
 

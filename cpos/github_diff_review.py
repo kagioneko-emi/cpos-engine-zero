@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 from .github_pr_flow import REVIEW_TYPE as PR_REVIEW_TYPE, _digest, _secret_like_paths
+from .human_escalation import review_escalation_decision
 from .task_tape import TaskTapeStore
 
 REVIEW_TYPE = "github_diff_review"
@@ -95,6 +96,13 @@ def create_github_diff_review(
         ],
     }
     diff_plan["diff_plan_sha256"] = _digest(diff_plan)
+    human_escalation = review_escalation_decision(
+        review_type=REVIEW_TYPE,
+        summary=f"GitHub diff review for {plan.get('repo')} with sandbox follow-up",
+        confidence=0.88,
+        risk="medium",
+        user_confirmation_required=True,
+    )
     target = f"github://{plan.get('repo')}/diff-review/{source_task_id}"
     task_id = store.create_task(
         target=target,
@@ -104,6 +112,7 @@ def create_github_diff_review(
             "source_task_id": source_task_id,
             "repo": plan.get("repo"),
             "diff_plan_sha256": diff_plan["diff_plan_sha256"],
+            "human_escalation": human_escalation,
             "actor": actor,
         },
     )
@@ -112,7 +121,7 @@ def create_github_diff_review(
         event="review_required",
         target=target,
         status="pending_review",
-        payload={"review_type": REVIEW_TYPE, "plan": diff_plan, "actor": actor},
+        payload={"review_type": REVIEW_TYPE, "plan": diff_plan, "human_escalation": human_escalation, "actor": actor},
     )
     return {"ok": True, "task_id": task_id, "status": "pending_review", "review": event.to_dict(), "plan": diff_plan, "execute_automatically": False}
 

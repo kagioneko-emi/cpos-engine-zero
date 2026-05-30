@@ -39,6 +39,7 @@ from cpos.mcp_execution import request_mcp_execution, pending_mcp_execution_revi
 from cpos.mcp_probe import request_mcp_capability_probe, pending_mcp_probe_reviews, approve_mcp_probe_review, reject_mcp_probe_review
 from cpos.github_pr_flow import create_github_pr_dry_run, pending_github_pr_reviews, approve_github_pr_dry_run, reject_github_pr_dry_run
 from cpos.github_diff_review import create_github_diff_review, pending_github_diff_reviews, approve_github_diff_review, reject_github_diff_review
+from cpos.human_escalation import pending_human_escalations
 from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_patch_plans, approve_sandbox_patch_plan, reject_sandbox_patch_plan
 from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry, create_sandbox_patch_replan_template, sandbox_patch_replan_templates, create_sandbox_replan_diff_intake, sandbox_replan_diff_intakes
 
@@ -181,7 +182,7 @@ def load_api_scopes():
 
 
 def protected_request_path():
-    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
+    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
 
 
 def client_ip():
@@ -463,7 +464,7 @@ def request_needs_api_auth():
     # Health stays unauthenticated for load balancers / Cloud Run probes.
     if request.path == '/health':
         return False
-    return request.path.startswith(('/pointers', '/tasks', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/footprint', '/webhook', '/integrity', '/security-profile'))
+    return request.path.startswith(('/pointers', '/tasks', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/footprint', '/webhook', '/integrity', '/security-profile'))
 
 
 def required_scope_for_request():
@@ -479,6 +480,8 @@ def required_scope_for_request():
         return 'read:github' if request.method == 'GET' else 'write:github'
     if request.path.startswith('/sandbox'):
         return 'read:sandbox' if request.method == 'GET' else 'write:sandbox'
+    if request.path.startswith('/human-escalations'):
+        return 'read:reviews' if request.method == 'GET' else 'write:reviews'
     if request.path.startswith('/handoff-inbox') or request.path.startswith('/handoff-graph') or request.path.startswith('/handoff-executions') or request.path.startswith('/resume-reviews'):
         return 'read:reviews' if request.method == 'GET' else 'write:reviews'
     if request.path.startswith('/tasks'):
@@ -730,6 +733,11 @@ def pointer_policy_from_request():
     )
 
 
+
+@app.route('/human-escalations', methods=['GET'])
+def human_escalation_reviews():
+    escalations = pending_human_escalations(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(escalations), 'escalations': escalations, 'metadata_only': True}), 200
 
 @app.route('/github/pr-dry-runs', methods=['GET'])
 def github_pr_dry_run_reviews():

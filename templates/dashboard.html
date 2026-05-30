@@ -343,6 +343,11 @@
                 <div class="metric" id="mcp-connector-count">--</div>
                 <div class="muted" id="mcp-connector-detail">Text-first connector registry</div>
             </div>
+            <div class="card" id="human-escalation-card" style="border-color: var(--accent-orange);">
+                <h2>Human Escalation</h2>
+                <div class="metric" id="human-escalation-count">--</div>
+                <div class="muted" id="human-escalation-detail">Assisted autonomy decisions</div>
+            </div>
             <div class="card" id="github-pr-card" style="border-color: var(--accent-blue);">
                 <h2>GitHub PR Dry-run</h2>
                 <div class="metric" id="github-pr-count">--</div>
@@ -411,6 +416,13 @@
             <div id="mcp-pending-review-container" style="margin-bottom: 16px;"></div>
             <div id="mcp-execution-review-container" style="margin-bottom: 16px;"></div>
             <div id="mcp-review-container"></div>
+        </div>
+
+        <div id="human-escalation-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Human Escalation Queue</h2>
+            <p class="muted">Assisted autonomy gate across review pipelines. Metadata-only: no secrets, raw request bodies, raw diffs, stdout/stderr, or checkpoint contents are persisted.</p>
+            <div id="human-escalation-summary" class="muted" style="margin-bottom: 12px;">Loading Human Escalation decisions...</div>
+            <div id="human-escalation-container"></div>
         </div>
 
         <div id="github-pr-section" class="card" style="display: none; border-color: var(--accent-blue); margin-bottom: 30px;">
@@ -553,6 +565,12 @@
                 const approvalMcp = mcpConnectors.filter(c => c.requires_human_approval).length;
                 document.getElementById('mcp-connector-detail').innerText = mcpConnectors.length === 0 && !pendingMcpTotal ? 'No MCP connectors registered' : `active=${activeMcp}, approval_required=${approvalMcp}, connector_reviews=${mcpReviewsData.count || 0}, execution_reviews=${mcpExecutionData.count || 0}`;
                 renderMcpReview(mcpData, mcpReviewsData, mcpExecutionData);
+
+                const humanEscalationRes = await fetch('/human-escalations');
+                const humanEscalationData = humanEscalationRes.ok ? await humanEscalationRes.json() : {ok: false, count: 0, escalations: []};
+                document.getElementById('human-escalation-count').innerText = humanEscalationData.count || 0;
+                document.getElementById('human-escalation-detail').innerText = (humanEscalationData.escalations || []).length === 0 ? 'No pending escalations' : `${humanEscalationData.count} assisted gate(s), metadata-only`;
+                renderHumanEscalations(humanEscalationData);
 
                 const githubPrRes = await fetch('/github/pr-dry-runs');
                 const githubPrData = githubPrRes.ok ? await githubPrRes.json() : {ok: false, count: 0, reviews: []};
@@ -720,6 +738,45 @@
                     return div;
                 });
 
+                function renderHumanEscalations(humanEscalationData) {
+                    const section = document.getElementById('human-escalation-section');
+                    const summary = document.getElementById('human-escalation-summary');
+                    const container = document.getElementById('human-escalation-container');
+                    const rows = (humanEscalationData && humanEscalationData.escalations) || [];
+                    if (!rows.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    const hardGates = rows.filter(row => ((row.decision || {}).requires_human === true)).length;
+                    summary.innerText = `pending=${rows.length}, human_required=${hardGates}, secret_values_stored=false, raw_diff_stored=false, raw_outputs_stored=false`;
+                    container.innerHTML = '';
+                    rows.forEach(row => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-orange)';
+                        const decision = row.decision || {};
+                        const reasons = (decision.reasons || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div>
+                                <strong style="color: var(--accent-orange);">[HUMAN ESCALATION]</strong> <code>${row.task_id}</code><br>
+                                <span class="muted">review_type=${row.review_type || '-'} / severity=${decision.severity || '-'} / mode=${decision.recommended_mode || '-'}</span><br>
+                                <span class="muted">requires_human=${decision.requires_human} / safe_autonomy_allowed=${decision.safe_autonomy_allowed}</span><br>
+                                <span class="muted">approval_endpoint=${row.approval_endpoint_hint || '-'}</span><br>
+                                <span class="muted">metadata-only: raw_request_stored=${decision.raw_request_stored} / raw_diff_stored=${decision.raw_diff_stored} / raw_outputs_stored=${decision.raw_outputs_stored} / secret_values_stored=${decision.secret_values_stored}</span>
+                                <div style="margin-top: 8px;"><strong>Reasons</strong><br>${reasons}</div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                                    <button class="btn btn-success" onclick="approveHumanEscalation('${row.task_id}', '${row.approval_endpoint_hint || ''}')">Approve via Pipeline</button>
+                                    <button class="btn btn-danger" onclick="rejectHumanEscalation('${row.task_id}', '${row.rejection_endpoint_hint || ''}')">Reject via Pipeline</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
                 function renderGithubPrDryRuns(githubPrData) {
                     const section = document.getElementById('github-pr-section');
                     const summary = document.getElementById('github-pr-summary');
@@ -741,12 +798,14 @@
                         const payload = review.payload || {};
                         const plan = payload.plan || {};
                         const files = (plan.candidate_files || []).map(f => `<span class="pill"><code>${f}</code></span>`).join(' ') || '<span class="muted">none</span>';
+                        const escalation = payload.human_escalation || {};
                         div.innerHTML = `
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                                 <div>
                                     <strong style="color: var(--accent-blue);">[GITHUB PR DRY-RUN]</strong> <code>${review.task_id}</code><br>
                                     <span class="muted"><code>${plan.repo || '-'}</code> / branch=${plan.proposed_branch || '-'}</span><br>
                                     <span class="muted">branch_created=${plan.branch_created} / pushed=${plan.pushed} / pr_created=${plan.pr_created}</span><br>
+                                    <span class="muted">human_escalation=${escalation.requires_human} / severity=${escalation.severity || '-'}</span><br>
                                     <span class="muted">plan_sha256=${plan.plan_sha256 || '-'}</span>
                                     <div style="margin-top: 8px;"><strong>Candidate files</strong><br>${files}</div>
                                 </div>
@@ -1221,6 +1280,19 @@
             const reason = prompt('Reject resume review reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/resume-reviews/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveHumanEscalation(taskId, endpoint) {
+            if (!endpoint) { showNotification('No approval endpoint for escalation'); return; }
+            if (!confirm(`Approve human escalation ${taskId} through its owning review pipeline?`)) return;
+            await postJson(endpoint, {confirm: true, reason: 'dashboard_human_escalation_approve'});
+        }
+
+        async function rejectHumanEscalation(taskId, endpoint) {
+            if (!endpoint) { showNotification('No rejection endpoint for escalation'); return; }
+            const reason = prompt('Reject human escalation reason:', 'dashboard_human_escalation_reject');
+            if (reason === null) return;
+            await postJson(endpoint, {reason: reason});
         }
 
         async function approveGithubPrDryRun(taskId) {

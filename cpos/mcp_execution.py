@@ -5,6 +5,7 @@ import json
 import re
 from typing import Any
 
+from .human_escalation import review_escalation_decision
 from .mcp_registry import MCPRegistry
 from .task_tape import TaskTapeStore
 
@@ -82,6 +83,13 @@ def request_mcp_execution(
         return {**decision, "ok": False, "error": decision.get("decision"), "execute_automatically": False}
 
     args_meta = argument_fingerprint(arguments)
+    human_escalation = review_escalation_decision(
+        review_type="mcp_tool_execution",
+        summary=f"MCP tool execution dry-run for {connector_id}/{tool_name}",
+        confidence=0.82,
+        risk="high" if decision.get("requires_human_approval") else "medium",
+        user_confirmation_required=bool(decision.get("requires_human_approval")),
+    )
     payload = {
         "review_type": "mcp_tool_execution",
         "connector_id": connector_id,
@@ -91,6 +99,7 @@ def request_mcp_execution(
         "execution_mode": "dry_run_metadata_only",
         "execute_automatically": False,
         "tool_executed": False,
+        "human_escalation": human_escalation,
         **args_meta,
     }
     task_id = task_tape.create_task(target=_target(connector_id, tool_name), action="mcp_tool_execution_request", payload=payload)

@@ -11,6 +11,7 @@ from typing import Any
 
 from sandbox.runner import SandboxRunner
 
+from .human_escalation import review_escalation_decision
 from .sandbox_patch_plan import REVIEW_TYPE as PATCH_PLAN_REVIEW_TYPE, _digest
 from .task_tape import TaskTapeStore
 
@@ -263,6 +264,13 @@ def create_sandbox_patch_execution_retry_review(
         ],
     }
     retry_plan["retry_plan_sha256"] = _digest(retry_plan)
+    human_escalation = review_escalation_decision(
+        review_type=RETRY_REVIEW_TYPE,
+        summary=f"Sandbox execution retry review for {source_task_id}",
+        confidence=0.78,
+        risk="medium",
+        user_confirmation_required=True,
+    )
     target = f"sandbox://execution-retry/{source_task_id}"
     task_id = store.create_task(
         target=target,
@@ -271,6 +279,7 @@ def create_sandbox_patch_execution_retry_review(
             "review_type": RETRY_REVIEW_TYPE,
             "source_execution_task_id": source_task_id,
             "retry_plan_sha256": retry_plan["retry_plan_sha256"],
+            "human_escalation": human_escalation,
             "actor": actor,
         },
     )
@@ -279,7 +288,7 @@ def create_sandbox_patch_execution_retry_review(
         event="review_required",
         target=target,
         status="pending_review",
-        payload={"review_type": RETRY_REVIEW_TYPE, "plan": retry_plan, "actor": actor},
+        payload={"review_type": RETRY_REVIEW_TYPE, "plan": retry_plan, "human_escalation": human_escalation, "actor": actor},
     )
     return {"ok": True, "task_id": task_id, "status": "pending_review", "review": event.to_dict(), "plan": retry_plan, "execute_automatically": False}
 
@@ -550,6 +559,13 @@ def create_sandbox_patch_execution(
         ],
     }
     execution_plan["sandbox_execution_sha256"] = _digest(execution_plan)
+    human_escalation = review_escalation_decision(
+        review_type=REVIEW_TYPE,
+        summary=f"Sandbox patch execution review for {patch_plan.get('repo')}",
+        confidence=0.84,
+        risk="medium",
+        user_confirmation_required=True,
+    )
     target = f"sandbox://execution/{patch_task_id}"
     task_id = store.create_task(
         target=target,
@@ -559,6 +575,7 @@ def create_sandbox_patch_execution(
             "patch_task_id": patch_task_id,
             "repo": patch_plan.get("repo"),
             "sandbox_execution_sha256": execution_plan["sandbox_execution_sha256"],
+            "human_escalation": human_escalation,
             "actor": actor,
         },
     )
@@ -567,7 +584,7 @@ def create_sandbox_patch_execution(
         event="review_required",
         target=target,
         status="pending_review",
-        payload={"review_type": REVIEW_TYPE, "plan": execution_plan, "actor": actor},
+        payload={"review_type": REVIEW_TYPE, "plan": execution_plan, "human_escalation": human_escalation, "actor": actor},
     )
     return {"ok": True, "task_id": task_id, "status": "pending_review", "review": event.to_dict(), "plan": execution_plan, "execute_automatically": False}
 

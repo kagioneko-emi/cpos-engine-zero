@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 from .github_diff_review import REVIEW_TYPE as DIFF_REVIEW_TYPE, _digest
+from .human_escalation import review_escalation_decision
 from .task_tape import TaskTapeStore
 
 REVIEW_TYPE = "sandbox_patch_plan"
@@ -94,6 +95,13 @@ def create_sandbox_patch_plan(
         ],
     }
     plan["sandbox_plan_sha256"] = _digest(plan)
+    human_escalation = review_escalation_decision(
+        review_type=REVIEW_TYPE,
+        summary=f"Sandbox patch plan for {diff_plan.get('repo')}",
+        confidence=0.86,
+        risk="medium",
+        user_confirmation_required=True,
+    )
     target = f"sandbox://github-diff/{diff_task_id}"
     task_id = store.create_task(
         target=target,
@@ -103,6 +111,7 @@ def create_sandbox_patch_plan(
             "diff_task_id": diff_task_id,
             "repo": diff_plan.get("repo"),
             "sandbox_plan_sha256": plan["sandbox_plan_sha256"],
+            "human_escalation": human_escalation,
             "actor": actor,
         },
     )
@@ -111,7 +120,7 @@ def create_sandbox_patch_plan(
         event="review_required",
         target=target,
         status="pending_review",
-        payload={"review_type": REVIEW_TYPE, "plan": plan, "actor": actor},
+        payload={"review_type": REVIEW_TYPE, "plan": plan, "human_escalation": human_escalation, "actor": actor},
     )
     return {"ok": True, "task_id": task_id, "status": "pending_review", "review": event.to_dict(), "plan": plan, "execute_automatically": False}
 

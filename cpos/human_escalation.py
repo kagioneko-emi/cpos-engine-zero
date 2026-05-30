@@ -136,6 +136,115 @@ def decide_escalation(
     ).to_dict()
 
 
+
+def review_escalation_decision(
+    *,
+    review_type: str,
+    summary: str,
+    confidence: float = 1.0,
+    risk: str = 'medium',
+    touches_secrets: bool = False,
+    touches_production: bool = False,
+    destructive: bool = False,
+    user_confirmation_required: bool = True,
+) -> dict[str, Any]:
+    """Return a metadata-only escalation decision suitable for review payloads.
+
+    The decision intentionally stores only policy metadata: reasons, severity,
+    mode, options, and booleans. It must not include raw request bodies, raw
+    diffs, stdout/stderr, checkpoint contents, or secret values.
+    """
+    decision = decide_escalation(
+        summary=summary,
+        confidence=confidence,
+        risk=risk,
+        touches_secrets=touches_secrets,
+        touches_production=touches_production,
+        destructive=destructive,
+        user_confirmation_required=user_confirmation_required,
+    )
+    return {
+        'schema': 'cpos.human_escalation_decision.v1',
+        'review_type': review_type,
+        'requires_human': decision['requires_human'],
+        'severity': decision['severity'],
+        'reasons': decision['reasons'],
+        'recommended_mode': decision['recommended_mode'],
+        'question': decision['question'],
+        'options': decision['options'],
+        'safe_autonomy_allowed': decision['safe_autonomy_allowed'],
+        'decision_values_stored': True,
+        'raw_request_stored': False,
+        'raw_diff_stored': False,
+        'raw_outputs_stored': False,
+        'secret_values_stored': False,
+        'destructive_actions_performed': False,
+    }
+
+
+def pending_human_escalations(store: Any) -> list[dict[str, Any]]:
+    """Collect pending review events that carry a Human Escalation decision.
+
+    This is a read-only, metadata-only queue over existing Task Tape reviews.
+    Existing pipeline-specific approve/reject endpoints remain the source of
+    truth; this function does not create a second approval authority.
+    """
+    terminal_events_by_type = {
+        'github_pr_dry_run': {'github_pr_dry_run_approved', 'github_pr_dry_run_rejected'},
+        'github_diff_review': {'github_diff_review_approved', 'github_diff_review_rejected'},
+        'sandbox_patch_plan': {'sandbox_patch_plan_approved', 'sandbox_patch_plan_rejected'},
+        'sandbox_patch_execution': {'sandbox_patch_execution_approved', 'sandbox_patch_execution_rejected'},
+        'sandbox_patch_execution_retry': {'sandbox_patch_execution_retry_approved', 'sandbox_patch_execution_retry_rejected'},
+        'mcp_tool_execution': {'mcp_execution_approved', 'mcp_execution_rejected', 'mcp_execution_dry_run_ready'},
+        'mcp_capability_probe': {'mcp_probe_approved', 'mcp_probe_rejected', 'mcp_probe_dry_run_ready'},
+    }
+    terminal_task_ids: set[str] = set()
+    events = store.events()
+    for event in events:
+        review_type = (event.payload or {}).get('review_type')
+        if event.event in terminal_events_by_type.get(review_type, set()):
+            terminal_task_ids.add(event.task_id)
+
+    rows: list[dict[str, Any]] = []
+    for event in events:
+        payload = event.payload or {}
+        decision = payload.get('human_escalation')
+        if event.event != 'review_required' or not isinstance(decision, dict):
+            continue
+        if event.task_id in terminal_task_ids:
+            continue
+        rows.append({
+            'task_id': event.task_id,
+            'event_id': event.event_id,
+            'timestamp': event.timestamp,
+            'target': event.target,
+            'status': event.status,
+            'review_type': payload.get('review_type'),
+            'decision': decision,
+            'metadata_only': True,
+            'approval_endpoint_hint': _approval_endpoint_hint(payload.get('review_type'), event.task_id),
+            'rejection_endpoint_hint': _rejection_endpoint_hint(payload.get('review_type'), event.task_id),
+        })
+    return rows
+
+
+def _approval_endpoint_hint(review_type: str | None, task_id: str) -> str | None:
+    mapping = {
+        'github_pr_dry_run': f'/github/pr-dry-runs/{task_id}/approve',
+        'github_diff_review': f'/github/diff-reviews/{task_id}/approve',
+        'sandbox_patch_plan': f'/sandbox/patch-plans/{task_id}/approve',
+        'sandbox_patch_execution': f'/sandbox/executions/{task_id}/approve',
+        'sandbox_patch_execution_retry': f'/sandbox/execution-retries/{task_id}/approve',
+        'mcp_tool_execution': f'/mcp/executions/{task_id}/approve',
+        'mcp_capability_probe': f'/mcp/probes/{task_id}/approve',
+    }
+    return mapping.get(review_type)
+
+
+def _rejection_endpoint_hint(review_type: str | None, task_id: str) -> str | None:
+    approval = _approval_endpoint_hint(review_type, task_id)
+    return approval.replace('/approve', '/reject') if approval else None
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Decide whether an agent task should escalate to a human.')
     parser.add_argument('--summary', required=True, help='Short task summary to evaluate.')
