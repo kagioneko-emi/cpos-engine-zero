@@ -66,3 +66,19 @@ def test_readme_positioning_mentions_safe_autonomy_and_no_raw_persistence():
     assert 'relationship memory, task execution, and runtime state' in readme
     assert 'sandbox retry/replan loop' in readme
     assert 'raw diffs' in readme
+
+
+def test_github_publish_safety_spec_references_vps_rules_and_skill_adapter():
+    spec = open('docs/GITHUB_PUBLISH_SAFETY_SPEC.md', encoding='utf-8').read()
+    assert '/home/mayutama/AGENTS.md' in spec
+    assert '/home/mayutama/AI_RULES.md' in spec
+    assert 'neko-agent' in spec
+    assert 'claude-code-security' in spec
+    assert 'Skill / MCP adapter contract' in spec
+    assert 'must not stage, commit, push, delete' in spec
+
+
+def test_oss_checklist_references_github_publish_safety_spec():
+    checklist = open('OSS_RELEASE_CHECKLIST.md', encoding='utf-8').read()
+    assert 'docs/GITHUB_PUBLISH_SAFETY_SPEC.md' in checklist
+    assert 'no staging/commit/push/delete operations by itself' in checklist

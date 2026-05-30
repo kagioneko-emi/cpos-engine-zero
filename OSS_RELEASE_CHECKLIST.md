@@ -32,6 +32,7 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 - [ ] No `.venv/`, `__pycache__/`, `.pytest_cache/`, `workspace/`, `certs/`, runtime `*.jsonl`, generated local reports, or local demo artifacts staged.
 - [ ] No real API keys, bearer tokens, HMAC secrets, OAuth secrets, SSH keys, private certs, passwords, `.env` files, or crontab-inlined secrets staged.
 - [ ] No raw stdout/stderr, raw diff text, request bodies, checkpoint contents, raw handoff bodies, or proposed code blobs persisted in docs, ledgers, reports, or tests.
+- [ ] If using an AI skill/MCP wrapper for publishing, confirm it follows `docs/GITHUB_PUBLISH_SAFETY_SPEC.md` and performs no staging/commit/push/delete operations by itself.
 - [ ] README includes `Safe Autonomy Demo Flow` and clearly states current MCP limitation: dry-run/governance only, no real tool execution by default.
 - [ ] SECURITY.md includes `Data We Never Persist`.
 - [ ] LICENSE present.
