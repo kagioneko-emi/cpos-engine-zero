@@ -97,3 +97,14 @@ def test_oss_checklist_includes_combined_prepublish_gate():
     checklist = open('OSS_RELEASE_CHECKLIST.md', encoding='utf-8').read()
     assert 'combined pre-publish safety gate' in checklist
     assert 'cpos.prepublish_check --json' in checklist
+
+
+def test_publish_safety_user_guide_is_documented_and_friendly():
+    readme = open('README.md', encoding='utf-8').read()
+    guide = open('docs/PUBLISH_SAFETY_USER_GUIDE.md', encoding='utf-8').read()
+    assert 'docs/PUBLISH_SAFETY_USER_GUIDE.md' in readme
+    assert 'The one command' in guide
+    assert 'How to read the result' in guide
+    assert 'Do not push' in guide
+    assert 'does not stage, commit, push, delete' in guide
+    assert 'Move real secrets to Vault' in guide

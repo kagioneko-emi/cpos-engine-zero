@@ -379,6 +379,9 @@ and `cpos.secret_scan`. It confirms the expected GitHub remote, checks publish
 boundaries, scans for high-risk secret patterns without printing values, and reports
 failures before any staging, commit, push, deletion, or history rewrite.
 
+A friendly explanation of the command and failure names lives in
+`docs/PUBLISH_SAFETY_USER_GUIDE.md`.
+
 ## Vault Migration Guide
 
 Secret artifact migration documentation lives at:
