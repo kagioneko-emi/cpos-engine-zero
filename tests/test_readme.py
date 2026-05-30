@@ -47,3 +47,22 @@ def test_readme_contains_architecture_at_a_glance():
     assert 'Review-Gated Execution Pipeline' in readme
     assert 'Persistence Boundary' in readme
     assert 'Never store: secrets, raw stdout/stderr, raw diff, request bodies' in readme
+
+
+def test_release_notes_include_current_safe_autonomy_features():
+    notes = open('RELEASE_NOTES_v0.1.0.md', encoding='utf-8').read()
+    assert 'Safe autonomy loop' in notes
+    assert 'Sandbox execution retry reviews' in notes
+    assert 'Sandbox replan templates' in notes
+    assert 'Sandbox diff intakes' in notes
+    assert 'Release readiness CLI' in notes
+    assert '228 passed' in notes
+    assert 'ok=true' in notes
+
+
+def test_readme_positioning_mentions_safe_autonomy_and_no_raw_persistence():
+    readme = open('README.md', encoding='utf-8').read()
+    assert 'safe autonomy' in readme
+    assert 'relationship memory, task execution, and runtime state' in readme
+    assert 'sandbox retry/replan loop' in readme
+    assert 'raw diffs' in readme

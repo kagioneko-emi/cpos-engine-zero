@@ -2,9 +2,12 @@
 
 ## OSS Positioning
 
-CPOS Engine-Zero is a defensive, memory-governed AI agent runtime. It combines
-Context Pointer OS, append-only Task Tape, approval-gated remediation,
-tamper-evident audits, hardened API controls, and governance-first MCP integration.
+CPOS Engine-Zero is a defensive, memory-governed AI agent runtime for safe autonomy: it separates relationship memory, task execution, and runtime state while routing risky work through review-gated, metadata-only pipelines.
+
+It combines Context Pointer OS, append-only Task Tape, approval-gated remediation,
+tamper-evident audits, hardened API controls, governance-first MCP integration,
+and a sandbox retry/replan loop that learns from failures without persisting raw
+secrets, raw diffs, or raw command output.
 
 Current MCP support is intentionally conservative: connector definitions are
 statically checked, reviewed, and registered; execution requests are dry-run /
