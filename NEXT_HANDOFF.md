@@ -1,53 +1,69 @@
 # Latest Handoff — Context Clean Checkpoint
 
-Generated: `2026-05-30T01:23:04Z`
+Generated: `2026-05-31T00:00:00+09:00`
 Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Branch: `main`
-Latest pushed commit before this handoff update: `df178d1 Add human escalation protocol`
+Remote status at handoff: `main...origin/main [ahead 5]`
+Latest local commit: `1830ba1 Add sandbox test dependencies`
+Latest previously pushed commit before execution-driver work: `d8aa103 Document human escalation reporting`
 
-## What changed in the latest session
+## What changed in the latest execution-power session
 
-- Added generic GitHub publish safety spec: `docs/GITHUB_PUBLISH_SAFETY_SPEC.md`.
-- Added non-destructive GitHub publish guard CLI: `python -m cpos.github_publish_guard`.
-- Added combined pre-publish safety gate: `python -m cpos.prepublish_check --json`.
-  - Combines `github_publish_guard`, `release_check`, and `secret_scan`.
-  - Confirms correct remote, clean tree, tracked bad artifacts, required files, and secret patterns.
-  - Performs no staging, commit, push, delete, history rewrite, port opening, or secret-value reads.
-- Added friendly publish safety guide: `docs/PUBLISH_SAFETY_USER_GUIDE.md`.
-- Added Human Escalation Protocol: `docs/HUMAN_ESCALATION_PROTOCOL.md` and `cpos/human_escalation.py`.
-  - Supports `safe_autonomy`, `cautious_autonomy`, and `assisted_autonomy`.
-  - Escalates to human for secrets, `.env`, tokens, SSH/private keys, destructive actions, `authorized_keys`, port exposure, production/service changes, GitHub publishing, and low-confidence tasks.
-- README now documents assisted autonomy and the publish-safety flow.
+- Added review-gated sandbox execution driver: `cpos.execution_driver.advance_sandbox_patch_pipeline()`.
+  - API: `POST /sandbox/execution-driver/advance`.
+  - Can coordinate approved diff -> sandbox patch plan -> plan approval -> execution review -> execution approval -> optional ephemeral run.
+  - Explicit booleans are required for approvals/runs; no bypass of Task Tape review events.
+- Added failed-execution replan driver: `advance_failed_sandbox_replan()`.
+  - API: `POST /sandbox/execution-driver/replan-failure`.
+  - Can coordinate failed execution -> retry review -> retry approval -> replan template -> diff intake checklist.
+  - Never reruns automatically, never reuses failed workspace, never stores raw stdout/stderr or raw diff text.
+- Added dashboard one-click safe replan action for failed sandbox results.
+  - Button: `Create Retry → Replan → Diff Intake`.
+  - Calls `/sandbox/execution-driver/replan-failure` with explicit review/replan flags.
+- Added Execution Scoreboard.
+  - Function: `build_execution_scoreboard(store)`.
+  - API: `GET /sandbox/scoreboard`.
+  - Dashboard/report show completed runs, success/failure counts, success rate, failure kinds, retry/replan/intake counts, and recent failure metadata.
+- Added sandbox Docker image test dependencies: `flask`, `pyyaml`, and `cryptography`.
+- Local experimental CPOS prototype/demo modules were intentionally **not** committed.
+  - They are ignored locally in `.git/info/exclude` only.
+  - Some contain `os.system("rm -rf ...")`, `shutil.rmtree(...)`, file writes, and network reads; keep them out of OSS publish until safety-reviewed and rewritten.
 
 ## Latest verification
 
-- Full tests: `245 passed`.
+- Full test suite after Execution Scoreboard: `265 passed`.
+- Sandbox/execution focused tests after Dockerfile dependency update: `34 passed`.
+- `python -m py_compile cpos/execution_driver.py server.py generate_report.py`: passed.
+- `prepublish_check --json` after final commit: `ok=true`.
 - Secret scan: `ok=true count=0`.
-- Prepublish gate after commit: `ok=true`.
-- Correct remote confirmed: `https://github.com/kagioneko/cpos-engine-zero.git`.
+- Correct remote confirmed: `origin https://github.com/kagioneko/cpos-engine-zero.git`.
 
 ## Current safety posture
 
+- Working tree is clean as of the final check.
+- Branch is ahead of `origin/main` by 5 commits:
+  - `1830ba1 Add sandbox test dependencies`
+  - `6870e2f Add execution scoreboard`
+  - `15476d2 Add dashboard safe replan action`
+  - `c79fb24 Add sandbox failure replan driver`
+  - `109b299 Add sandbox execution driver`
+- Do not push unless the user explicitly approves GitHub publishing.
 - Correct public repo is `kagioneko/cpos-engine-zero`; do not push to similarly named repos/accounts.
 - Secrets must stay in Vault or secret files; never code, `.env`, comments, logs, crontab, or GitHub.
 - Do not stage/publish `.venv`, `__pycache__`, `.pytest_cache`, runtime `*.jsonl`, cert/key files, generated local reports, or workspace artifacts.
 - `authorized_keys` changes remain forbidden.
 - Destructive operations, systemd stop/delete, user creation/deletion, and port opening require explicit user approval. Port opening also requires 15-minute auto-close and Discord notification.
 
-## Recommended next steps after context clean
+## Recommended next steps
 
-1. Start a fresh chat/session and point it at this repo.
-2. Ask it to read this `Latest Handoff` section first.
-3. Run `git status --short`.
-4. Run `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json` before any push.
-5. Continue toward agent capability by wiring Human Escalation into existing review pipelines/dashboard:
-   - dashboard card for human escalation decisions,
-   - integrate `cpos.human_escalation.decide_escalation()` into GitHub/MCP/sandbox flows,
-   - add a human-request queue that stores only metadata, not secrets/raw outputs.
+1. If continuing execution-power work: build a safe Auto Fix Candidate Builder from failure metadata only.
+2. If preparing release: run full tests and `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`, then ask before pushing.
+3. If deciding whether to include local experimental modules: review/sanitize them one feature at a time; do not commit the current raw demo/prototype files wholesale.
+4. Consider updating release notes/checklist if these execution-driver commits become part of the release branch.
 
 ## Honest product assessment
 
-CPOS is now a distinctive safety-first agent runtime: Memory/Task separation, Context Pointer OS, Task Tape, governance-first MCP, sandbox retry/replan, GitHub publish safety, and assisted autonomy are in place. It is not yet fair to claim Hermes/OpenClaw surpassed; next milestone is stronger execution integration, dashboard UX, and a crisp demo.
+CPOS is now materially stronger on safe execution: it has review-gated pipeline advancement, failure-to-replan routing, dashboard one-click recovery scaffolding, and metadata-only execution scoring. This is a strong differentiator versus ordinary tool agents. Still avoid claiming full superiority over Hermes/OpenClaw/Claude Code until there is a crisp demo and more real-world success evidence.
 
 ---
 
