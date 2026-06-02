@@ -170,6 +170,10 @@ def test_dashboard_contains_sandbox_patch_execution_results_ui():
     assert 'sandbox-execution-result-container' in html
     assert '/sandbox/executions/completed' in html
     assert 'renderSandboxPatchExecutionResults' in html
+    assert 'Show in Sandbox Flow' in html
+    assert 'Create Retry → Replan → Diff Intake + Focus Flow' in html
+    assert 'focusSandboxFlow' in html
+    assert 'success_path_visible=true' in html
     assert 'Sandbox Patch Execution Results' in html
     assert 'raw patch text or command output' in html
 
@@ -229,7 +233,8 @@ def test_dashboard_contains_sandbox_execution_driver_actions():
     assert 'SANDBOX PATCH PLAN' in html
     assert 'createFailureReplanIntake' in html
     assert '/sandbox/execution-driver/replan-failure' in html
-    assert 'Create Retry → Replan → Diff Intake' in html
+    assert 'Create Retry → Replan → Diff Intake + Focus Flow' in html
+    assert 'focusSandboxFlow(taskId)' in html
     assert 'This will not rerun, patch, commit, push, or store raw outputs' in html
 
 

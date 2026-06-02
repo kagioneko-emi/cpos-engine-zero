@@ -1010,7 +1010,8 @@
                     }
                     section.style.display = 'block';
                     const successCount = results.filter(result => (result.payload || {}).success === true).length;
-                    summary.innerText = `completed=${results.length}, success=${successCount}, raw_outputs_stored=false, commit_created=false, pushed=false, pr_created=false`;
+                    const failureCount = results.length - successCount;
+                    summary.innerText = `completed=${results.length}, success=${successCount}, failure=${failureCount}, raw_outputs_stored=false, commit_created=false, pushed=false, pr_created=false`;
 
                     container.innerHTML = '';
                     results.slice(-5).reverse().forEach(result => {
@@ -1030,7 +1031,10 @@
                                 <span class="muted">patch_apply=${payload.patch_apply_stage || '-'} exit=${payload.patch_apply_exit_code}</span><br>
                                 <span class="muted">stdout_sha256=${payload.patch_apply_stdout_sha256 || '-'} / stderr_sha256=${payload.patch_apply_stderr_sha256 || '-'}</span>
                                 <div style="margin-top: 8px;"><strong>Command metadata</strong><br>${commandSummary}</div>
-                                ${payload.success === false ? `<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;"><button class="btn btn-warning" onclick="createFailureReplanIntake('${result.task_id}')">Create Retry → Replan → Diff Intake</button></div>` : ''}
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                                    <button class="btn btn-primary" onclick="focusSandboxFlow('${result.task_id}')">Show in Sandbox Flow</button>
+                                    ${payload.success === false ? `<button class="btn btn-warning" onclick="createFailureReplanIntake('${result.task_id}')">Create Retry → Replan → Diff Intake + Focus Flow</button>` : '<span class="pill">success_path_visible=true</span>'}
+                                </div>
                             </div>
                         `;
                         container.appendChild(div);
@@ -1563,11 +1567,15 @@
             await postJson(`/resume-reviews/${taskId}/reject`, {reason: reason});
         }
 
-        function focusSandboxFlowFromEscalation(sourceExecutionTaskId) {
+        function focusSandboxFlow(sourceExecutionTaskId) {
             const input = document.getElementById('sandbox-flow-source-filter');
             if (input) input.value = sourceExecutionTaskId || '';
             updateDashboard();
             document.getElementById('sandbox-flow-section')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+        }
+
+        function focusSandboxFlowFromEscalation(sourceExecutionTaskId) {
+            focusSandboxFlow(sourceExecutionTaskId);
         }
 
         async function approveHumanEscalation(taskId, endpoint) {
@@ -1672,13 +1680,14 @@
 
         async function createFailureReplanIntake(taskId) {
             if (!confirm(`Create retry review, approve retry, create replan template, and create diff intake for failed sandbox execution ${taskId}? This will not rerun, patch, commit, push, or store raw outputs.`)) return;
-            await postJson('/sandbox/execution-driver/replan-failure', {
+            const result = await postJson('/sandbox/execution-driver/replan-failure', {
                 source_execution_task_id: taskId,
                 approve_retry: true,
                 create_replan_template: true,
                 create_diff_intake: true,
                 reason: 'dashboard_safe_replan_intake'
             });
+            if (result && result.ok !== false) focusSandboxFlow(taskId);
         }
 
         async function createAutoFixCandidate(taskId) {
