@@ -818,7 +818,9 @@ def test_generate_report_renders_human_escalation_summary(tmp_path):
     assert "Assisted Autonomy Review Gate" in html
     assert created["task_id"] in html
     assert "github_pr_dry_run" in html
+    assert "pr_dry_run_review" in html
     assert "/github/pr-dry-runs/" in html
+    assert "Review / Flow Endpoint" in html
     assert "Secret Values Stored" in html
     assert "ctx" not in html
 

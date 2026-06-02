@@ -614,17 +614,17 @@ def render_human_escalation_summary(task_tape_path, task_checkpoint_path):
     if not escalations:
         html += '<p class="muted">No pending Human Escalation decisions.</p></div>'
         return html
-    html += '<table><thead><tr><th>Task</th><th>Review Type</th><th>Severity / Mode</th><th>Reasons</th><th>Pipeline Endpoint</th></tr></thead><tbody>'
+    html += '<table><thead><tr><th>Task</th><th>Pipeline</th><th>Severity / Mode</th><th>Reasons</th><th>Review / Flow Endpoint</th></tr></thead><tbody>'
     for row in escalations[:10]:
         decision = row.get('decision') or {}
         reasons = ''.join(f'<span class="pill">{escape(str(reason))}</span>' for reason in decision.get('reasons', [])) or '<span class="muted">none</span>'
         html += f"""
             <tr>
                 <td><code>{escape(str(row.get('task_id')))}</code></td>
-                <td>{escape(str(row.get('review_type') or '-'))}</td>
+                <td>{escape(str(row.get('owning_pipeline') or '-'))}<br><span class="muted">stage={escape(str(row.get('pipeline_stage') or '-'))}</span><br><span class="muted">type={escape(str(row.get('review_type') or '-'))}</span></td>
                 <td>{escape(str(decision.get('severity') or '-'))}<br><span class="muted">mode={escape(str(decision.get('recommended_mode') or '-'))} / requires_human={escape(str(decision.get('requires_human')))}</span></td>
                 <td>{reasons}</td>
-                <td><code>{escape(str(row.get('approval_endpoint_hint') or '-'))}</code><br><span class="muted">metadata_only={escape(str(row.get('metadata_only')))}</span></td>
+                <td><code>{escape(str(row.get('approval_endpoint_hint') or '-'))}</code><br><span class="muted">flow={escape(str(row.get('flow_graph_endpoint_hint') or '-'))}</span><br><span class="muted">metadata_only={escape(str(row.get('metadata_only')))}</span></td>
             </tr>
         """
     html += '</tbody></table></div>'

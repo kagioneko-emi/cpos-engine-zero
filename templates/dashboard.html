@@ -808,13 +808,16 @@
                             <div>
                                 <strong style="color: var(--accent-orange);">[HUMAN ESCALATION]</strong> <code>${row.task_id}</code><br>
                                 <span class="muted">review_type=${row.review_type || '-'} / severity=${decision.severity || '-'} / mode=${decision.recommended_mode || '-'}</span><br>
+                                <span class="muted">owning_pipeline=${row.owning_pipeline || '-'} / pipeline_stage=${row.pipeline_stage || '-'} / node=${row.pipeline_node_id || '-'}</span><br>
                                 <span class="muted">requires_human=${decision.requires_human} / safe_autonomy_allowed=${decision.safe_autonomy_allowed}</span><br>
                                 <span class="muted">approval_endpoint=${row.approval_endpoint_hint || '-'}</span><br>
+                                <span class="muted">flow_graph_endpoint=${row.flow_graph_endpoint_hint || '-'}</span><br>
                                 <span class="muted">metadata-only: raw_request_stored=${decision.raw_request_stored} / raw_diff_stored=${decision.raw_diff_stored} / raw_outputs_stored=${decision.raw_outputs_stored} / secret_values_stored=${decision.secret_values_stored}</span>
                                 <div style="margin-top: 8px;"><strong>Reasons</strong><br>${reasons}</div>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
                                     <button class="btn btn-success" onclick="approveHumanEscalation('${row.task_id}', '${row.approval_endpoint_hint || ''}')">Approve via Pipeline</button>
                                     <button class="btn btn-danger" onclick="rejectHumanEscalation('${row.task_id}', '${row.rejection_endpoint_hint || ''}')">Reject via Pipeline</button>
+                                    ${row.sandbox_flow_source_execution_task_id ? `<button class="btn btn-primary" onclick="focusSandboxFlowFromEscalation('${row.sandbox_flow_source_execution_task_id}')">Show in Sandbox Flow</button>` : ''}
                                 </div>
                             </div>
                         `;
@@ -1508,6 +1511,13 @@
             const reason = prompt('Reject resume review reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/resume-reviews/${taskId}/reject`, {reason: reason});
+        }
+
+        function focusSandboxFlowFromEscalation(sourceExecutionTaskId) {
+            const input = document.getElementById('sandbox-flow-source-filter');
+            if (input) input.value = sourceExecutionTaskId || '';
+            updateDashboard();
+            document.getElementById('sandbox-flow-section')?.scrollIntoView({behavior: 'smooth', block: 'start'});
         }
 
         async function approveHumanEscalation(taskId, endpoint) {

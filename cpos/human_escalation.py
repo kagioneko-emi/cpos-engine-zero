@@ -213,20 +213,70 @@ def pending_human_escalations(store: Any) -> list[dict[str, Any]]:
             continue
         if event.task_id in terminal_task_ids:
             continue
+        review_type = payload.get('review_type')
         rows.append({
             'task_id': event.task_id,
             'event_id': event.event_id,
             'timestamp': event.timestamp,
             'target': event.target,
             'status': event.status,
-            'review_type': payload.get('review_type'),
+            'review_type': review_type,
             'decision': decision,
             'metadata_only': True,
-            'approval_endpoint_hint': _approval_endpoint_hint(payload.get('review_type'), event.task_id),
-            'rejection_endpoint_hint': _rejection_endpoint_hint(payload.get('review_type'), event.task_id),
+            'owning_pipeline': _owning_pipeline_hint(review_type),
+            'pipeline_stage': _pipeline_stage_hint(review_type),
+            'pipeline_node_id': f'{review_type}:{event.task_id}' if review_type else event.task_id,
+            'flow_graph_endpoint_hint': _flow_graph_endpoint_hint(review_type, payload, event.task_id),
+            'sandbox_flow_source_execution_task_id': _sandbox_flow_source_execution_task_id(review_type, payload, event.task_id),
+            'approval_endpoint_hint': _approval_endpoint_hint(review_type, event.task_id),
+            'rejection_endpoint_hint': _rejection_endpoint_hint(review_type, event.task_id),
         })
     return rows
 
+
+
+def _owning_pipeline_hint(review_type: str | None) -> str:
+    mapping = {
+        'github_pr_dry_run': 'github_pr_dry_run',
+        'github_diff_review': 'github_diff_review',
+        'sandbox_patch_plan': 'sandbox_patch_pipeline',
+        'sandbox_patch_execution': 'sandbox_patch_pipeline',
+        'sandbox_patch_execution_retry': 'sandbox_failure_recovery',
+        'mcp_tool_execution': 'mcp_execution',
+        'mcp_capability_probe': 'mcp_probe',
+    }
+    return mapping.get(review_type, 'unknown')
+
+
+def _pipeline_stage_hint(review_type: str | None) -> str:
+    mapping = {
+        'github_pr_dry_run': 'pr_dry_run_review',
+        'github_diff_review': 'diff_review_gate',
+        'sandbox_patch_plan': 'sandbox_patch_plan_gate',
+        'sandbox_patch_execution': 'sandbox_execution_gate',
+        'sandbox_patch_execution_retry': 'sandbox_retry_gate',
+        'mcp_tool_execution': 'mcp_tool_execution_gate',
+        'mcp_capability_probe': 'mcp_capability_probe_gate',
+    }
+    return mapping.get(review_type, 'unknown')
+
+
+def _sandbox_flow_source_execution_task_id(review_type: str | None, payload: dict[str, Any], task_id: str) -> str | None:
+    plan = payload.get('plan') or {}
+    if review_type == 'sandbox_patch_execution_retry':
+        return plan.get('source_execution_task_id') or payload.get('source_execution_task_id')
+    if review_type == 'sandbox_patch_execution':
+        # This review becomes the execution task once approved and run; use it
+        # as a future graph filter without executing anything automatically.
+        return task_id
+    return None
+
+
+def _flow_graph_endpoint_hint(review_type: str | None, payload: dict[str, Any], task_id: str) -> str | None:
+    source_task_id = _sandbox_flow_source_execution_task_id(review_type, payload, task_id)
+    if source_task_id:
+        return f'/sandbox/flow-graph?source_execution_task_id={source_task_id}'
+    return None
 
 def _approval_endpoint_hint(review_type: str | None, task_id: str) -> str | None:
     mapping = {

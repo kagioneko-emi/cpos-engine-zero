@@ -15,6 +15,9 @@ def test_human_escalation_queue_collects_github_pr_metadata(tmp_path):
     assert rows[0]['decision']['secret_values_stored'] is False
     assert rows[0]['decision']['raw_diff_stored'] is False
     assert rows[0]['approval_endpoint_hint'].endswith('/approve')
+    assert rows[0]['owning_pipeline'] == 'github_pr_dry_run'
+    assert rows[0]['pipeline_stage'] == 'pr_dry_run_review'
+    assert rows[0]['pipeline_node_id'].startswith('github_pr_dry_run:')
 
 
 def test_human_escalation_api_and_dashboard_are_wired():
@@ -34,6 +37,10 @@ def test_human_escalation_api_and_dashboard_are_wired():
     assert 'approveHumanEscalation' in html
     assert 'rejectHumanEscalation' in html
     assert 'Approve via Pipeline' in html
+    assert 'Show in Sandbox Flow' in html
+    assert 'focusSandboxFlowFromEscalation' in html
+    assert 'owning_pipeline=${row.owning_pipeline' in html
+    assert 'flow_graph_endpoint=${row.flow_graph_endpoint_hint' in html
     assert 'Assisted autonomy gate across review pipelines' in html
     assert 'metadata-only: raw_request_stored' in html
 
@@ -103,5 +110,10 @@ def test_human_escalation_queue_collects_sandbox_pipeline_metadata(tmp_path):
     rows = pending_human_escalations(agent.task_tape)
     review_types = {row["review_type"] for row in rows}
     assert "sandbox_patch_execution" in review_types
+    execution_row = next(row for row in rows if row["review_type"] == "sandbox_patch_execution")
+    assert execution_row["owning_pipeline"] == "sandbox_patch_pipeline"
+    assert execution_row["pipeline_stage"] == "sandbox_execution_gate"
+    assert execution_row["flow_graph_endpoint_hint"].startswith("/sandbox/flow-graph?source_execution_task_id=")
+    assert execution_row["sandbox_flow_source_execution_task_id"] == execution.get_json()["task_id"]
     assert all(row["decision"]["secret_values_stored"] is False for row in rows)
     assert "+hello" not in str(rows)
