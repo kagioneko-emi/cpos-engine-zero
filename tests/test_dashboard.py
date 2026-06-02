@@ -152,6 +152,10 @@ def test_dashboard_contains_sandbox_patch_execution_ui():
     assert '/sandbox/executions' in html
     assert 'renderSandboxPatchExecutions' in html
     assert 'approveSandboxPatchExecution' in html
+    assert 'approveSandboxPatchExecutionAndRun' in html
+    assert 'Approve + Run with Supplied Diff' in html
+    assert '/sandbox/executions/${taskId}/run' in html
+    assert 'raw output' in html
     assert 'rejectSandboxPatchExecution' in html
     assert 'SANDBOX PATCH EXECUTION' in html
     assert 'Isolated Runner Readiness' in html

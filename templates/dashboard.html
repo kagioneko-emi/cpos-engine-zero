@@ -990,6 +990,7 @@
                                 </div>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
                                     <button class="btn btn-success" onclick="approveSandboxPatchExecution('${review.task_id}')">Approve Execution Plan</button>
+                                    <button class="btn btn-warning" onclick="approveSandboxPatchExecutionAndRun('${review.task_id}')">Approve + Run with Supplied Diff</button>
                                     <button class="btn btn-danger" onclick="rejectSandboxPatchExecution('${review.task_id}')">Reject</button>
                                 </div>
                             </div>
@@ -1631,6 +1632,25 @@
         async function approveSandboxPatchExecution(taskId) {
             if (!confirm(`Approve sandbox patch execution ${taskId}? This will not copy a workspace or run commands yet.`)) return;
             await postJson(`/sandbox/executions/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function approveSandboxPatchExecutionAndRun(taskId) {
+            const diffText = prompt('Paste raw diff text for this sandbox run. It is sent transiently; only hashes/metadata/results are stored:');
+            if (!diffText) return;
+            const validationCommandsText = prompt('Validation commands, one per line. Use allowlisted pytest-style commands:', 'pytest -q tests');
+            if (validationCommandsText === null) return;
+            const validationCommands = validationCommandsText.split('\n').map(item => item.trim()).filter(Boolean);
+            if (!validationCommands.length) { showNotification('Validation commands are required'); return; }
+            const runnerMode = prompt('Runner mode:', 'strict') || 'strict';
+            if (!confirm(`Approve execution ${taskId} and run in sandbox? This copies an ephemeral workspace only; it will not patch the live repo, commit, push, create PRs, or store raw output.`)) return;
+            const approved = await postJson(`/sandbox/executions/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve_and_run'});
+            if (!approved || approved.ok === false) return;
+            await postJson(`/sandbox/executions/${taskId}/run`, {
+                diff_text: diffText,
+                validation_commands: validationCommands,
+                runner_mode: runnerMode,
+                reason: 'dashboard_run_with_supplied_diff'
+            });
         }
 
         async function rejectSandboxPatchExecution(taskId) {
