@@ -930,6 +930,69 @@ def render_diff_review_draft_summary(task_tape_path, task_checkpoint_path):
     return html
 
 
+def render_autonomy_loop_demo_snapshot(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    events = [event.to_dict() for event in store.events()]
+    github_diff_reviews = pending_github_diff_reviews(store)
+    pending_executions = pending_sandbox_patch_executions(store)
+    completed_executions = completed_sandbox_patch_executions(store)
+    scoreboard = build_execution_scoreboard(store)
+    graph = build_sandbox_flow_graph(store, limit=50)
+    retry_reviews = [
+        event for event in events
+        if event.get('event') == 'review_required'
+        and (event.get('payload') or {}).get('review_type') == 'sandbox_patch_execution_retry'
+    ]
+    replan_templates = [event for event in events if event.get('event') == 'sandbox_patch_replan_template_created']
+    diff_intakes = [event for event in events if event.get('event') == 'sandbox_replan_diff_intake_created']
+    candidates = pending_auto_fix_candidates(store)
+    drafts = pending_diff_review_drafts(store)
+    failed_executions = [row for row in completed_executions if ((row.get('payload') or {}).get('success') is False)]
+    retry_replan_count = len(retry_reviews) + len(replan_templates) + len(diff_intakes) + len(candidates)
+    stages = [
+        ('Diff Draft', len(drafts), 'Create GitHub Diff Review from Draft'),
+        ('GitHub Diff Review', len(github_diff_reviews), 'Approve -> Sandbox Execution Review'),
+        ('Sandbox Execution Review', len(pending_executions), 'Approve + Run with Supplied Diff'),
+        ('Execution Result', len(completed_executions), 'Retry/Replan failed run' if failed_executions else 'Inspect success path'),
+        ('Retry/Replan', retry_replan_count, 'Candidate/Draft next diff'),
+        ('Flow Graph', (graph.get('counts') or {}).get('nodes', 0), 'Show lineage'),
+    ]
+    active_total = sum(count for _, count, _ in stages)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Autonomy Loop Demo Snapshot</div>
+            <h2>Safe Execution Loop on One Report</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{active_total}</strong><span>Active Items</span></div>
+                <div class="metric"><strong>{len(completed_executions)}</strong><span>Completed Runs</span></div>
+                <div class="metric"><strong>{len(failed_executions)}</strong><span>Failed Runs</span></div>
+                <div class="metric"><strong>{scoreboard.get('success_rate', 0)}%</strong><span>Success Rate</span></div>
+            </div>
+            <p class="muted">Demo path: Diff Draft → GitHub Diff Review → Sandbox Execution Review → Supplied-diff Run → Result → Retry/Replan → Flow Graph focus.</p>
+            <p>
+                <span class="pill">metadata_only=true</span>
+                <span class="pill">raw_diff_stored=false</span>
+                <span class="pill">raw_outputs_stored=false</span>
+                <span class="pill">live_repo_patch=false</span>
+                <span class="pill">commit_created=false</span>
+                <span class="pill">pushed=false</span>
+                <span class="pill">pr_created=false</span>
+                <span class="pill">auto_execute=false</span>
+            </p>
+            <table><thead><tr><th>Stage</th><th>Count</th><th>Next Action</th></tr></thead><tbody>
+    """
+    for name, count, next_action in stages:
+        html += f"""
+            <tr>
+                <td>{escape(name)}</td>
+                <td><strong>{count}</strong></td>
+                <td>{escape(next_action)}</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+
 def render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path):
     store = TaskTapeStore(task_tape_path, task_checkpoint_path)
     graph = build_sandbox_flow_graph(store, limit=50)
@@ -1181,6 +1244,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path)
     html += render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path)
     html += render_diff_review_draft_summary(task_tape_path, task_checkpoint_path)
+    html += render_autonomy_loop_demo_snapshot(task_tape_path, task_checkpoint_path)
     html += render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
     html += render_security_profile_validation()

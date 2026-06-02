@@ -1036,3 +1036,51 @@ def test_generate_report_renders_sandbox_flow_graph(tmp_path):
     assert 'auto_fix_candidate: 1' in html
     assert 'task_draft_flow_report' in html
     assert 'Raw Diff' in html
+
+
+def test_generate_report_renders_autonomy_loop_demo_snapshot(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    store.append_event(
+        task_id="task_exec_demo_report",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_exec_demo_report",
+        status="completed_with_failures",
+        payload={"review_type": "sandbox_patch_execution", "success": False, "failure_kind": "validation_command", "execute_automatically": False},
+    )
+    store.append_event(
+        task_id="task_draft_demo_report",
+        event="sandbox_diff_review_draft_created",
+        target="sandbox://diff-review-draft/task_candidate_demo_report",
+        status="draft_created",
+        payload={"review_type": "sandbox_diff_review_draft", "draft": {"candidate_task_id": "task_candidate_demo_report", "source_execution_task_id": "task_exec_demo_report", "failure_kind": "validation_command", "target_api": "POST /github/pr-dry-runs/<source_task_id>/create-diff-review", "raw_diff_stored": False, "execute_automatically": False}},
+    )
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert 'Autonomy Loop Demo Snapshot' in html
+    assert 'Safe Execution Loop on One Report' in html
+    assert 'Diff Draft → GitHub Diff Review → Sandbox Execution Review' in html
+    assert 'raw_diff_stored=false' in html
+    assert 'raw_outputs_stored=false' in html
+    assert 'live_repo_patch=false' in html
+    assert 'auto_execute=false' in html
+    assert 'Retry/Replan failed run' in html
