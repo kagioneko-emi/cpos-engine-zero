@@ -97,6 +97,14 @@ def build_sandbox_flow_graph(store: TaskTapeStore, *, source_execution_task_id: 
             add_node(_node(task_id, "diff_review_draft", status=event.get("status"), label="Diff Review Draft", metadata={"failure_kind": draft.get("failure_kind"), "target_api": draft.get("target_api"), "raw_diff_stored": False, "execute_automatically": False}))
             add_edge(_edge(draft.get("candidate_task_id"), task_id, "creates_diff_review_draft"))
 
+        elif name == "sandbox_diff_review_draft_linked_to_github_diff_review":
+            source = payload.get("source_execution_task_id")
+            if source_execution_task_id and source != source_execution_task_id:
+                continue
+            github_task_id = payload.get("github_diff_review_task_id") or task_id
+            add_node(_node(github_task_id, "github_diff_review", status=event.get("status"), label="GitHub Diff Review", metadata={"failure_kind": payload.get("failure_kind"), "source_task_id": payload.get("source_task_id"), "diff_size_bytes": payload.get("diff_size_bytes"), "changed_file_count": payload.get("changed_file_count"), "raw_diff_stored": False, "execute_automatically": False}))
+            add_edge(_edge(payload.get("draft_task_id"), github_task_id, "creates_github_diff_review"))
+
     node_values = list(nodes.values())[:max(1, limit)]
     allowed_ids = {node["id"] for node in node_values}
     edge_values = [edge for edge in edges if edge["source"] in allowed_ids and edge["target"] in allowed_ids]

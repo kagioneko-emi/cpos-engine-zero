@@ -952,7 +952,7 @@ def render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path):
         html += '<p class="muted">No sandbox autonomy flow nodes yet.</p></div>'
         return html
     html += '<div class="step-label">Node Kinds</div><p>'
-    for kind in ['sandbox_execution', 'retry_review', 'replan_template', 'diff_intake', 'auto_fix_candidate', 'diff_review_draft']:
+    for kind in ['sandbox_execution', 'retry_review', 'replan_template', 'diff_intake', 'auto_fix_candidate', 'diff_review_draft', 'github_diff_review']:
         if counts.get(kind):
             html += f'<span class="pill">{escape(kind)}: {counts.get(kind)}</span>'
     html += '</p>'

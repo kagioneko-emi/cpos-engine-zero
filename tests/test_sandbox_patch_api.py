@@ -490,6 +490,56 @@ def test_sandbox_flow_graph_scope_mapping():
 
 
 
+
+
+def test_sandbox_diff_draft_to_github_diff_review_api(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    pr = client.post("/github/pr-dry-runs", json={"repo": "kagioneko/cpos-engine-zero", "title": "Draft route", "files": ["README.md"], "summary": "ctx"})
+    source_task_id = pr.get_json()["task_id"]
+    assert client.post(f"/github/pr-dry-runs/{source_task_id}/approve", json={"confirm": True}).status_code == 200
+    draft_task_id = "task_draft_api"
+    server.agent.task_tape.append_event(
+        task_id=draft_task_id,
+        event="sandbox_diff_review_draft_created",
+        target="sandbox://diff-review-draft/task_candidate",
+        status="draft_created",
+        payload={
+            "review_type": "sandbox_diff_review_draft",
+            "draft": {
+                "candidate_task_id": "task_candidate",
+                "source_execution_task_id": "task_exec_api",
+                "failure_kind": "validation_command",
+                "target_api": "POST /github/pr-dry-runs/<source_task_id>/create-diff-review",
+                "raw_diff_stored": False,
+                "execute_automatically": False,
+            },
+        },
+    )
+
+    res = client.post(f"/sandbox/diff-drafts/{draft_task_id}/create-github-diff-review", json={
+        "source_task_id": source_task_id,
+        "diff_text": "diff --git a/README.md b/README.md\n@@\n-old\n+new\n",
+        "changed_files": ["README.md"],
+        "validation_commands": ["pytest -q tests/test_report.py"],
+        "reason": "api",
+    })
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["ok"] is True
+    assert payload["draft_task_id"] == draft_task_id
+    assert payload["raw_diff_stored"] is False
+    assert payload["diff_text_included"] is False
+    assert payload["plan"]["diff_values_stored"] is False
+    assert "diff --git" not in str(payload["draft_link"])
+
+
+def test_sandbox_diff_draft_to_github_diff_review_scope_mapping():
+    with server.app.test_request_context("/sandbox/diff-drafts/task/create-github-diff-review", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"
+
+
 def test_sandbox_auto_fix_candidate_api(tmp_path):
     configure(tmp_path)
     client = server.app.test_client()

@@ -93,6 +93,24 @@ def _append_flow_events(store):
             },
         },
     )
+    store.append_event(
+        task_id="task_github_diff",
+        event="sandbox_diff_review_draft_linked_to_github_diff_review",
+        target="sandbox://diff-review-draft/task_draft/github-diff-review/task_github_diff",
+        status="linked_metadata_only",
+        payload={
+            "review_type": "sandbox_diff_review_draft_to_github_diff_review",
+            "draft_task_id": "task_draft",
+            "github_diff_review_task_id": "task_github_diff",
+            "source_task_id": "task_pr",
+            "source_execution_task_id": "task_exec",
+            "failure_kind": "validation_command",
+            "diff_size_bytes": 42,
+            "changed_file_count": 1,
+            "raw_diff_stored": False,
+            "execute_automatically": False,
+        },
+    )
 
 
 def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
@@ -106,14 +124,15 @@ def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
     assert graph["raw_diff_stored"] is False
     assert graph["raw_outputs_stored"] is False
     assert graph["execute_automatically"] is False
-    assert graph["counts"]["nodes"] == 6
-    assert graph["counts"]["edges"] == 5
+    assert graph["counts"]["nodes"] == 7
+    assert graph["counts"]["edges"] == 6
     assert graph["counts"]["sandbox_execution"] == 1
     assert graph["counts"]["retry_review"] == 1
     assert graph["counts"]["replan_template"] == 1
     assert graph["counts"]["diff_intake"] == 1
     assert graph["counts"]["auto_fix_candidate"] == 1
     assert graph["counts"]["diff_review_draft"] == 1
+    assert graph["counts"]["github_diff_review"] == 1
     assert {node["kind"] for node in graph["nodes"]} == {
         "sandbox_execution",
         "retry_review",
@@ -121,11 +140,15 @@ def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
         "diff_intake",
         "auto_fix_candidate",
         "diff_review_draft",
+        "github_diff_review",
     }
     assert ("task_exec", "task_retry", "creates_retry_review") in {
         (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
     }
     assert ("task_candidate", "task_draft", "creates_diff_review_draft") in {
+        (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
+    }
+    assert ("task_draft", "task_github_diff", "creates_github_diff_review") in {
         (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
     }
 

@@ -266,4 +266,7 @@ def test_dashboard_contains_diff_review_draft_ui():
     assert 'createDiffReviewDraft' in html
     assert 'DIFF REVIEW DRAFT' in html
     assert 'Create Diff Review Draft' in html
+    assert 'Create GitHub Diff Review from Draft' in html
+    assert 'createGithubDiffReviewFromDraft' in html
+    assert '/sandbox/diff-drafts/${taskId}/create-github-diff-review' in html
     assert 'never stores raw diff text' in html

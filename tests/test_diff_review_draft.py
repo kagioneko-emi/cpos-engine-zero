@@ -1,4 +1,4 @@
-from cpos.diff_review_draft import create_diff_review_draft, pending_diff_review_drafts
+from cpos.diff_review_draft import create_diff_review_draft, create_github_diff_review_from_draft, pending_diff_review_drafts
 from cpos.task_tape import TaskTapeStore
 
 
@@ -63,3 +63,78 @@ def test_diff_review_draft_is_metadata_only(tmp_path):
     assert "diff_text" in draft["required_human_inputs"]
     assert pending_diff_review_drafts(store)[0]["task_id"] == result["task_id"]
     assert "raw diff --git" not in str(store.events())
+
+
+
+def _approved_pr_plan(store):
+    from cpos.github_pr_flow import approve_github_pr_dry_run, create_github_pr_dry_run
+
+    result = create_github_pr_dry_run(
+        store,
+        repo="kagioneko/cpos-engine-zero",
+        title="Draft routed diff",
+        files=["README.md"],
+        summary="ctx",
+    )
+    approve_github_pr_dry_run(store, result["task_id"], confirm=True)
+    return result["task_id"]
+
+
+def test_create_github_diff_review_from_draft_requires_human_inputs(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    candidate_task_id = _candidate(store)
+    draft = create_diff_review_draft(store, candidate_task_id=candidate_task_id)
+
+    missing_diff = create_github_diff_review_from_draft(
+        store,
+        draft_task_id=draft["task_id"],
+        source_task_id="task_pr",
+        diff_text="",
+        changed_files=["README.md"],
+        validation_commands=["pytest -q tests"],
+    )
+
+    assert missing_diff["ok"] is False
+    assert missing_diff["error"] == "diff_text_required"
+    assert missing_diff["raw_diff_stored"] is False
+    assert missing_diff["execute_automatically"] is False
+
+
+def test_create_github_diff_review_from_draft_links_metadata_only(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    source_task_id = _approved_pr_plan(store)
+    candidate_task_id = _candidate(store)
+    draft = create_diff_review_draft(store, candidate_task_id=candidate_task_id)
+    diff_text = """diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@
+-old
++new
+"""
+
+    result = create_github_diff_review_from_draft(
+        store,
+        draft_task_id=draft["task_id"],
+        source_task_id=source_task_id,
+        diff_text=diff_text,
+        changed_files=["README.md"],
+        validation_commands=["pytest -q tests/test_report.py"],
+        reason="unit",
+    )
+
+    assert result["ok"] is True
+    assert result["draft_task_id"] == draft["task_id"]
+    assert result["raw_diff_stored"] is False
+    assert result["diff_text_included"] is False
+    assert result["plan"]["diff_values_stored"] is False
+    assert result["plan"]["diff_size_bytes"] == len(diff_text.encode("utf-8"))
+    link = result["draft_link"]["payload"]
+    assert link["draft_task_id"] == draft["task_id"]
+    assert link["github_diff_review_task_id"] == result["task_id"]
+    assert link["source_execution_task_id"] == "task_exec"
+    assert link["raw_diff_stored"] is False
+    assert link["execute_automatically"] is False
+    assert "new" not in str(link)
+    assert "old" not in str(link)
+    assert "diff --git" not in str(store.events())

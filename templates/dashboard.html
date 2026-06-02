@@ -1201,6 +1201,7 @@
                                 <span class="muted">raw_diff_stored=${draft.raw_diff_stored} / diff_text_included=${draft.diff_text_included} / execute_automatically=${draft.execute_automatically}</span>
                                 <div style="margin-top: 8px;"><strong>Validation hints</strong><br>${hints}</div>
                                 <div style="margin-top: 8px;"><strong>Required human inputs</strong><br>${inputs}</div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;"><button class="btn btn-warning" onclick="createGithubDiffReviewFromDraft('${row.task_id}')">Create GitHub Diff Review from Draft</button></div>
                             </div>
                         `;
                         container.appendChild(div);
@@ -1596,6 +1597,27 @@
         async function createDiffReviewDraft(taskId) {
             if (!confirm(`Create metadata-only diff review draft from auto fix candidate ${taskId}? This will not store diff text, execute commands, commit, push, or create a PR.`)) return;
             await postJson(`/sandbox/fix-candidates/${taskId}/create-diff-draft`, {reason: 'dashboard_diff_review_draft'});
+        }
+
+        async function createGithubDiffReviewFromDraft(taskId) {
+            const sourceTaskId = prompt('Approved GitHub PR dry-run task id for this diff review:');
+            if (!sourceTaskId) return;
+            const diffText = prompt('Paste the raw diff text. It will be sent transiently and only hash/size/counters are stored:');
+            if (!diffText) return;
+            const changedFilesText = prompt('Changed files, comma-separated:', 'README.md');
+            if (changedFilesText === null) return;
+            const validationCommandsText = prompt('Validation commands, one per line:', 'pytest -q tests');
+            if (validationCommandsText === null) return;
+            const changedFiles = changedFilesText.split(',').map(item => item.trim()).filter(Boolean);
+            const validationCommands = validationCommandsText.split('\n').map(item => item.trim()).filter(Boolean);
+            if (!confirm(`Create GitHub Diff Review from draft ${taskId}? Raw diff text is not stored; no patch, commit, push, or PR will be created.`)) return;
+            await postJson(`/sandbox/diff-drafts/${taskId}/create-github-diff-review`, {
+                source_task_id: sourceTaskId.trim(),
+                diff_text: diffText,
+                changed_files: changedFiles,
+                validation_commands: validationCommands,
+                reason: 'dashboard_create_github_diff_review_from_draft'
+            });
         }
 
         async function approveMcpExecution(taskId) {
