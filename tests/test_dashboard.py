@@ -50,6 +50,25 @@ def test_dashboard_contains_handoff_detail_drilldown():
     assert 'Filter source' in html
 
 
+
+
+def test_dashboard_contains_autonomy_loop_demo_panel():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'autonomy-loop-demo-section' in html
+    assert 'autonomy-loop-demo-summary' in html
+    assert 'autonomy-loop-demo-container' in html
+    assert 'renderAutonomyLoopDemo' in html
+    assert 'Autonomy Loop Demo Panel' in html
+    assert 'Diff Draft → GitHub Diff Review → Sandbox Execution' in html
+    assert 'raw_diff_stored=false' in html
+    assert 'raw_outputs_stored=false' in html
+    assert 'auto_execute=false' in html
+    assert 'live_repo_patch=false' in html
+
+
 def test_dashboard_contains_mcp_review_ui():
     client = server.app.test_client()
     res = client.get('/dashboard')

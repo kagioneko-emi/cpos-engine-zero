@@ -409,6 +409,13 @@
             <p class="muted" style="margin-top: 10px; font-size: 0.75rem;">Interactive visualization of files (blue), pointers (purple), and rule-findings (red).</p>
         </div>
 
+        <div id="autonomy-loop-demo-section" class="card" style="border-color: var(--accent-green); margin-bottom: 30px;">
+            <h2>Autonomy Loop Demo Panel</h2>
+            <p class="muted">One-screen safe execution loop: Diff Draft → GitHub Diff Review → Sandbox Execution → Result → Retry/Replan → Flow Graph. Metadata-only by default; raw diffs and raw outputs are never persisted.</p>
+            <div id="autonomy-loop-demo-summary" class="muted" style="margin-bottom: 12px;">Loading autonomy loop demo...</div>
+            <div id="autonomy-loop-demo-container"></div>
+        </div>
+
         <div id="mcp-review-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
             <h2>MCP Connector Review</h2>
             <p class="muted">Text-first governance only. No MCP tool execution is performed from this dashboard. HTTP connectors must be HTTPS and secrets must stay in Vault-rendered files.</p>
@@ -659,6 +666,20 @@
                 renderSandboxAutoFixCandidates(sandboxFixCandidateData);
                 renderSandboxDiffReviewDrafts(sandboxDiffDraftData);
                 renderSandboxReplanDiffIntakes(sandboxDiffIntakeData);
+                renderAutonomyLoopDemo({
+                    githubPrData,
+                    githubDiffData,
+                    sandboxPatchData,
+                    sandboxExecutionData,
+                    sandboxExecutionResultData,
+                    sandboxRetryData,
+                    sandboxReplanData,
+                    sandboxDiffIntakeData,
+                    sandboxFixCandidateData,
+                    sandboxDiffDraftData,
+                    sandboxFlowData,
+                    sandboxScoreboardData,
+                });
 
                 const handoffStatus = document.getElementById('handoff-flow-status-filter')?.value || '';
                 const handoffSource = document.getElementById('handoff-flow-source-filter')?.value || '';
@@ -874,6 +895,52 @@
                         `;
                         container.appendChild(div);
                     });
+                }
+
+                function renderAutonomyLoopDemo(data) {
+                    const section = document.getElementById('autonomy-loop-demo-section');
+                    const summary = document.getElementById('autonomy-loop-demo-summary');
+                    const container = document.getElementById('autonomy-loop-demo-container');
+                    if (!section || !summary || !container) return;
+                    const diffDrafts = (data.sandboxDiffDraftData && data.sandboxDiffDraftData.count) || 0;
+                    const githubDiffs = (data.githubDiffData && data.githubDiffData.count) || 0;
+                    const pendingExecutions = (data.sandboxExecutionData && data.sandboxExecutionData.count) || 0;
+                    const completedExecutions = (data.sandboxExecutionResultData && data.sandboxExecutionResultData.count) || 0;
+                    const failedExecutions = ((data.sandboxExecutionResultData && data.sandboxExecutionResultData.results) || []).filter(row => (row.payload || {}).success === false).length;
+                    const retries = (data.sandboxRetryData && data.sandboxRetryData.count) || 0;
+                    const replans = (data.sandboxReplanData && data.sandboxReplanData.count) || 0;
+                    const intakes = (data.sandboxDiffIntakeData && data.sandboxDiffIntakeData.count) || 0;
+                    const candidates = (data.sandboxFixCandidateData && data.sandboxFixCandidateData.count) || 0;
+                    const flowNodes = ((data.sandboxFlowData && data.sandboxFlowData.counts) || {}).nodes || 0;
+                    const successRate = (data.sandboxScoreboardData && data.sandboxScoreboardData.success_rate) || 0;
+                    const stages = [
+                        {name: 'Diff Draft', count: diffDrafts, next: 'Create GitHub Diff Review from Draft'},
+                        {name: 'GitHub Diff Review', count: githubDiffs, next: 'Approve → Sandbox Execution Review'},
+                        {name: 'Sandbox Execution Review', count: pendingExecutions, next: 'Approve + Run with Supplied Diff'},
+                        {name: 'Execution Result', count: completedExecutions, next: failedExecutions ? 'Retry/Replan failed run' : 'Inspect success path'},
+                        {name: 'Retry/Replan', count: retries + replans + intakes + candidates, next: 'Candidate/Draft next diff'},
+                        {name: 'Flow Graph', count: flowNodes, next: 'Show lineage'},
+                    ];
+                    const totalActive = stages.reduce((sum, stage) => sum + stage.count, 0);
+                    summary.innerText = `active_items=${totalActive}, completed=${completedExecutions}, failed=${failedExecutions}, success_rate=${successRate}%, raw_diff_stored=false, raw_outputs_stored=false, auto_execute=false`;
+                    const cards = stages.map(stage => `
+                        <div class="metric"><strong>${stage.count}</strong><span>${stage.name}</span><br><small class="muted">${stage.next}</small></div>
+                    `).join('');
+                    container.innerHTML = `
+                        <div class="metrics">${cards}</div>
+                        <div class="step-label">Safety Flags</div>
+                        <p>
+                            <span class="pill">metadata_only=true</span>
+                            <span class="pill">raw_diff_stored=false</span>
+                            <span class="pill">raw_outputs_stored=false</span>
+                            <span class="pill">live_repo_patch=false</span>
+                            <span class="pill">commit_created=false</span>
+                            <span class="pill">pushed=false</span>
+                            <span class="pill">pr_created=false</span>
+                        </p>
+                        <div class="step-label">Demo Path</div>
+                        <p class="muted">Diff Draft → GitHub Diff Review → Sandbox Execution Review → Supplied-diff Run → Result → Retry/Replan → Flow Graph focus.</p>
+                    `;
                 }
 
                 function renderGithubDiffReviews(githubDiffData) {
