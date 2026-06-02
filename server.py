@@ -45,6 +45,7 @@ from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_
 from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed_sandbox_replan, build_execution_scoreboard
 from cpos.auto_fix_candidate import create_auto_fix_candidate, pending_auto_fix_candidates
 from cpos.diff_review_draft import create_diff_review_draft, pending_diff_review_drafts
+from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 
 apply_security_profile_defaults()
 
@@ -1070,6 +1071,21 @@ def sandbox_auto_fix_candidates_list():
 def sandbox_diff_review_drafts_list():
     drafts = pending_diff_review_drafts(agent.task_tape)
     return jsonify({'ok': True, 'count': len(drafts), 'drafts': drafts, 'metadata_only': True}), 200
+
+
+@app.route('/sandbox/flow-graph', methods=['GET'])
+def sandbox_flow_graph():
+    source_execution_task_id = request.args.get('source_execution_task_id') or None
+    try:
+        limit = int(request.args.get('limit') or 100)
+    except ValueError:
+        limit = 100
+    graph = build_sandbox_flow_graph(
+        agent.task_tape,
+        source_execution_task_id=source_execution_task_id,
+        limit=max(1, min(limit, 500)),
+    )
+    return jsonify(graph), 200
 
 
 @app.route('/sandbox/fix-candidates/<task_id>/create-diff-draft', methods=['POST'])

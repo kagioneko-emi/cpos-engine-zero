@@ -452,6 +452,43 @@ def test_sandbox_scoreboard_scope_mapping():
         assert server.required_scope_for_request() == "read:sandbox"
 
 
+def test_sandbox_flow_graph_api(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    server.agent.task_tape.append_event(
+        task_id="task_exec_api",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_exec_api",
+        status="completed_with_failures",
+        payload={"review_type": "sandbox_patch_execution", "success": False, "failure_kind": "validation_command"},
+    )
+    server.agent.task_tape.append_event(
+        task_id="task_retry_api",
+        event="review_required",
+        target="sandbox://execution/task_exec_api/retry",
+        status="pending",
+        payload={"review_type": "sandbox_patch_execution_retry", "plan": {"source_execution_task_id": "task_exec_api", "failure_kind": "validation_command"}},
+    )
+
+    res = client.get("/sandbox/flow-graph?source_execution_task_id=task_exec_api")
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["ok"] is True
+    assert payload["metadata_only"] is True
+    assert payload["source_execution_task_id"] == "task_exec_api"
+    assert payload["counts"]["nodes"] == 2
+    assert payload["counts"]["edges"] == 1
+    assert payload["raw_diff_stored"] is False
+    assert payload["raw_outputs_stored"] is False
+    assert payload["execute_automatically"] is False
+
+
+def test_sandbox_flow_graph_scope_mapping():
+    with server.app.test_request_context("/sandbox/flow-graph", method="GET"):
+        assert server.required_scope_for_request() == "read:sandbox"
+
+
 
 def test_sandbox_auto_fix_candidate_api(tmp_path):
     configure(tmp_path)

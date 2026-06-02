@@ -20,6 +20,7 @@ from cpos.sandbox_patch_runner import pending_sandbox_patch_executions, complete
 from cpos.execution_driver import build_execution_scoreboard
 from cpos.auto_fix_candidate import pending_auto_fix_candidates
 from cpos.diff_review_draft import pending_diff_review_drafts
+from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 
 
 def load_jsonl(path):
@@ -929,6 +930,58 @@ def render_diff_review_draft_summary(task_tape_path, task_checkpoint_path):
     return html
 
 
+def render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    graph = build_sandbox_flow_graph(store, limit=50)
+    counts = graph.get('counts') or {}
+    nodes = graph.get('nodes') or []
+    edges = graph.get('edges') or []
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Sandbox Autonomy Flow Graph</div>
+            <h2>Failure → Replan → Candidate → Diff Draft</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{counts.get('nodes', 0)}</strong><span>Nodes</span></div>
+                <div class="metric"><strong>{counts.get('edges', 0)}</strong><span>Edges</span></div>
+                <div class="metric"><strong>no</strong><span>Raw Diff</span></div>
+                <div class="metric"><strong>no</strong><span>Auto Execute</span></div>
+            </div>
+            <p class="muted">Metadata-only graph linking failed sandbox execution results to retry reviews, replan templates, diff intakes, auto fix candidates, and diff review drafts. Raw outputs and raw diff text are excluded.</p>
+    """
+    if not nodes:
+        html += '<p class="muted">No sandbox autonomy flow nodes yet.</p></div>'
+        return html
+    html += '<div class="step-label">Node Kinds</div><p>'
+    for kind in ['sandbox_execution', 'retry_review', 'replan_template', 'diff_intake', 'auto_fix_candidate', 'diff_review_draft']:
+        if counts.get(kind):
+            html += f'<span class="pill">{escape(kind)}: {counts.get(kind)}</span>'
+    html += '</p>'
+    html += '<table><thead><tr><th>Node</th><th>Kind</th><th>Status</th><th>Metadata</th></tr></thead><tbody>'
+    for node in nodes[:12]:
+        metadata = node.get('metadata') or {}
+        metadata_bits = []
+        for key in ['failure_kind', 'success', 'strategy', 'confidence', 'target_api']:
+            if key in metadata and metadata.get(key) is not None:
+                metadata_bits.append(f'{escape(str(key))}={escape(str(metadata.get(key)))}')
+        metadata_text = '<br>'.join(metadata_bits) or '<span class="muted">metadata-only</span>'
+        html += f"""
+            <tr>
+                <td><code>{escape(str(node.get('id') or '-'))}</code></td>
+                <td>{escape(str(node.get('kind') or '-'))}</td>
+                <td>{escape(str(node.get('status') or '-'))}</td>
+                <td>{metadata_text}</td>
+            </tr>
+        """
+    html += '</tbody></table>'
+    if edges:
+        html += '<div class="step-label">Edges</div><ul>'
+        for edge in edges[:12]:
+            html += f"<li><code>{escape(str(edge.get('source') or '-'))}</code> → <code>{escape(str(edge.get('target') or '-'))}</code> <span class=\"muted\">{escape(str(edge.get('relation') or '-'))}</span></li>"
+        html += '</ul>'
+    html += '</div>'
+    return html
+
+
 def render_rate_limit_backend_summary(environ=None):
     environ = os.environ if environ is None else environ
     enabled = str(environ.get('CPOS_RATE_LIMIT_ENABLED', 'false')).lower() in {'1', 'true', 'yes'}
@@ -1128,6 +1181,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path)
     html += render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path)
     html += render_diff_review_draft_summary(task_tape_path, task_checkpoint_path)
+    html += render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
     html += render_security_profile_validation()
     html += render_secret_inventory_summary(secret_inventory_path)

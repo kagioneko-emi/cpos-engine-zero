@@ -1,0 +1,142 @@
+from cpos.sandbox_flow_graph import build_sandbox_flow_graph
+from cpos.task_tape import TaskTapeStore
+
+
+def _append_flow_events(store):
+    store.append_event(
+        task_id="task_exec",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_exec",
+        status="completed_with_failures",
+        payload={
+            "review_type": "sandbox_patch_execution",
+            "success": False,
+            "failure_kind": "validation_command",
+            "patch_applied": True,
+            "workspace_copied": True,
+        },
+    )
+    store.append_event(
+        task_id="task_retry",
+        event="review_required",
+        target="sandbox://execution/task_exec/retry",
+        status="pending",
+        payload={
+            "review_type": "sandbox_patch_execution_retry",
+            "plan": {
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "validation_command",
+                "raw_outputs_stored": False,
+            },
+        },
+    )
+    store.append_event(
+        task_id="task_replan",
+        event="sandbox_patch_replan_template_created",
+        target="sandbox://replan-template/task_retry",
+        status="template_created",
+        payload={
+            "review_type": "sandbox_patch_replan_template",
+            "template": {
+                "retry_task_id": "task_retry",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "validation_command",
+                "diff_text_included": False,
+            },
+        },
+    )
+    store.append_event(
+        task_id="task_intake",
+        event="sandbox_replan_diff_intake_created",
+        target="sandbox://diff-intake/task_replan",
+        status="intake_created",
+        payload={
+            "review_type": "sandbox_replan_diff_intake",
+            "intake": {
+                "replan_task_id": "task_replan",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "validation_command",
+                "execute_automatically": False,
+            },
+        },
+    )
+    store.append_event(
+        task_id="task_candidate",
+        event="sandbox_auto_fix_candidate_created",
+        target="sandbox://auto-fix-candidate/task_replan",
+        status="candidate_created",
+        payload={
+            "review_type": "sandbox_auto_fix_candidate",
+            "candidate": {
+                "replan_task_id": "task_replan",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "validation_command",
+                "candidate_strategy": "target_failed_validation_metadata",
+                "confidence": 0.68,
+                "raw_diff_stored": False,
+            },
+        },
+    )
+    store.append_event(
+        task_id="task_draft",
+        event="sandbox_diff_review_draft_created",
+        target="sandbox://diff-review-draft/task_candidate",
+        status="draft_created",
+        payload={
+            "review_type": "sandbox_diff_review_draft",
+            "draft": {
+                "candidate_task_id": "task_candidate",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "validation_command",
+                "target_api": "POST /github/pr-dry-runs",
+                "execute_automatically": False,
+            },
+        },
+    )
+
+
+def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    _append_flow_events(store)
+
+    graph = build_sandbox_flow_graph(store, source_execution_task_id="task_exec")
+
+    assert graph["ok"] is True
+    assert graph["metadata_only"] is True
+    assert graph["raw_diff_stored"] is False
+    assert graph["raw_outputs_stored"] is False
+    assert graph["execute_automatically"] is False
+    assert graph["counts"]["nodes"] == 6
+    assert graph["counts"]["edges"] == 5
+    assert graph["counts"]["sandbox_execution"] == 1
+    assert graph["counts"]["retry_review"] == 1
+    assert graph["counts"]["replan_template"] == 1
+    assert graph["counts"]["diff_intake"] == 1
+    assert graph["counts"]["auto_fix_candidate"] == 1
+    assert graph["counts"]["diff_review_draft"] == 1
+    assert {node["kind"] for node in graph["nodes"]} == {
+        "sandbox_execution",
+        "retry_review",
+        "replan_template",
+        "diff_intake",
+        "auto_fix_candidate",
+        "diff_review_draft",
+    }
+    assert ("task_exec", "task_retry", "creates_retry_review") in {
+        (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
+    }
+    assert ("task_candidate", "task_draft", "creates_diff_review_draft") in {
+        (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
+    }
+
+
+def test_sandbox_flow_graph_filters_by_source_execution(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    _append_flow_events(store)
+
+    graph = build_sandbox_flow_graph(store, source_execution_task_id="missing")
+
+    assert graph["counts"]["nodes"] == 0
+    assert graph["counts"]["edges"] == 0
+    assert graph["nodes"] == []
+    assert graph["edges"] == []

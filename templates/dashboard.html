@@ -455,6 +455,16 @@
             <div id="sandbox-scoreboard-summary" class="muted" style="margin-bottom: 12px;">Loading execution scoreboard...</div>
             <div id="sandbox-scoreboard-container"></div>
         </div>
+        <div id="sandbox-flow-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
+            <h2>Sandbox Autonomy Flow Graph</h2>
+            <p class="muted">Metadata-only lineage: failed execution → retry review → replan template → diff intake / auto fix candidate → diff review draft.</p>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+                <label class="muted">Source execution</label>
+                <input id="sandbox-flow-source-filter" class="btn" style="min-width: 260px;" placeholder="task_failed_exec..." onchange="updateDashboard()">
+            </div>
+            <div id="sandbox-flow-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox autonomy flow...</div>
+            <div id="sandbox-flow-container"></div>
+        </div>
         <div id="sandbox-retry-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
             <h2>Sandbox Patch Execution Retry Reviews</h2>
             <p class="muted">Failure-metadata review only: no raw stdout/stderr, no raw patch text, no workspace reuse, and no automatic rerun.</p>
@@ -616,6 +626,12 @@
                 const sandboxFixCandidateData = sandboxFixCandidateRes.ok ? await sandboxFixCandidateRes.json() : {ok: false, count: 0, candidates: []};
                 const sandboxDiffDraftRes = await fetch('/sandbox/diff-drafts');
                 const sandboxDiffDraftData = sandboxDiffDraftRes.ok ? await sandboxDiffDraftRes.json() : {ok: false, count: 0, drafts: []};
+                const sandboxFlowSource = document.getElementById('sandbox-flow-source-filter')?.value || '';
+                const sandboxFlowParams = new URLSearchParams();
+                if (sandboxFlowSource) sandboxFlowParams.set('source_execution_task_id', sandboxFlowSource);
+                const sandboxFlowUrl = `/sandbox/flow-graph?${sandboxFlowParams.toString()}`;
+                const sandboxFlowRes = await fetch(sandboxFlowUrl);
+                const sandboxFlowData = sandboxFlowRes.ok ? await sandboxFlowRes.json() : {ok: false, counts: {nodes: 0, edges: 0}, nodes: [], edges: []};
                 const pendingSandboxExecutions = sandboxExecutionData.count || 0;
                 const completedSandboxExecutions = sandboxExecutionResultData.count || 0;
                 const pendingSandboxRetries = sandboxRetryData.count || 0;
@@ -628,6 +644,7 @@
                 renderSandboxPatchExecutions(sandboxExecutionData);
                 renderSandboxPatchExecutionResults(sandboxExecutionResultData);
                 renderSandboxExecutionScoreboard(sandboxScoreboardData);
+                renderSandboxFlowGraph(sandboxFlowData);
                 renderSandboxPatchExecutionRetries(sandboxRetryData);
                 renderSandboxPatchReplanTemplates(sandboxReplanData);
                 renderSandboxAutoFixCandidates(sandboxFixCandidateData);
@@ -994,6 +1011,41 @@
                         <p><span class="pill">retry=${scoreboardData.pending_retry_reviews || 0}</span> <span class="pill">replan=${scoreboardData.replan_templates || 0}</span> <span class="pill">intake=${scoreboardData.diff_intakes || 0}</span></p>
                         <div class="step-label">Recent Failures</div>
                         <ul>${recentFailures}</ul>
+                    `;
+                }
+
+                function renderSandboxFlowGraph(flowData) {
+                    const section = document.getElementById('sandbox-flow-section');
+                    const summary = document.getElementById('sandbox-flow-summary');
+                    const container = document.getElementById('sandbox-flow-container');
+                    const nodes = (flowData && flowData.nodes) || [];
+                    const edges = (flowData && flowData.edges) || [];
+                    const counts = (flowData && flowData.counts) || {};
+                    if (!nodes.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `nodes=${counts.nodes || nodes.length}, edges=${counts.edges || edges.length}, raw_diff_stored=false, raw_outputs_stored=false, execute_automatically=false`;
+                    const kindPills = Object.entries(counts)
+                        .filter(([key]) => !['nodes', 'edges'].includes(key))
+                        .map(([key, value]) => `<span class="pill">${key}: ${value}</span>`)
+                        .join(' ') || '<span class="muted">none</span>';
+                    const nodeRows = nodes.slice(-12).reverse().map(node => {
+                        const meta = node.metadata || {};
+                        const metaBits = ['failure_kind', 'success', 'strategy', 'confidence', 'target_api']
+                            .filter(key => meta[key] !== undefined && meta[key] !== null)
+                            .map(key => `${key}=${meta[key]}`)
+                            .join('<br>') || '<span class="muted">metadata-only</span>';
+                        return `<tr><td><code>${node.id || '-'}</code></td><td>${node.kind || '-'}</td><td>${node.status || '-'}</td><td>${metaBits}</td></tr>`;
+                    }).join('');
+                    const edgeRows = edges.slice(-12).reverse().map(edge => `<li><code>${edge.source || '-'}</code> → <code>${edge.target || '-'}</code> <span class="muted">${edge.relation || '-'}</span></li>`).join('') || '<li class="muted">No connected edges</li>';
+                    container.innerHTML = `
+                        <div class="step-label">Node Kinds</div>
+                        <p>${kindPills}</p>
+                        <table><thead><tr><th>Node</th><th>Kind</th><th>Status</th><th>Metadata</th></tr></thead><tbody>${nodeRows}</tbody></table>
+                        <div class="step-label">Edges</div>
+                        <ul>${edgeRows}</ul>
                     `;
                 }
 

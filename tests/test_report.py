@@ -967,3 +967,70 @@ def test_generate_report_renders_diff_review_drafts(tmp_path):
     assert 'Next Diff Review Payload Shape' in html
     assert 'POST /github/pr-dry-runs' in html
     assert 'Raw Diff' in html
+
+
+def test_generate_report_renders_sandbox_flow_graph(tmp_path):
+    audit_path = tmp_path / "cpos" / "audit_log.jsonl"
+    pointer_path = tmp_path / "cpos" / "pointers.jsonl"
+    tape_path = tmp_path / "tapes" / "task_runs.jsonl"
+    checkpoint_path = tmp_path / "tapes" / "task_checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.parent.mkdir()
+    audit_path.write_text("", encoding="utf-8")
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    pointer_path.write_text("", encoding="utf-8")
+
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    store.append_event(
+        task_id="task_exec_flow_report",
+        event="sandbox_patch_execution_completed",
+        target="sandbox://execution/task_exec_flow_report",
+        status="completed_with_failures",
+        payload={"review_type": "sandbox_patch_execution", "success": False, "failure_kind": "validation_command"},
+    )
+    store.append_event(
+        task_id="task_retry_flow_report",
+        event="review_required",
+        target="sandbox://execution/task_exec_flow_report/retry",
+        status="pending",
+        payload={"review_type": "sandbox_patch_execution_retry", "plan": {"source_execution_task_id": "task_exec_flow_report", "failure_kind": "validation_command"}},
+    )
+    store.append_event(
+        task_id="task_replan_flow_report",
+        event="sandbox_patch_replan_template_created",
+        target="sandbox://replan-template/task_retry_flow_report",
+        status="template_created",
+        payload={"review_type": "sandbox_patch_replan_template", "template": {"retry_task_id": "task_retry_flow_report", "source_execution_task_id": "task_exec_flow_report", "failure_kind": "validation_command"}},
+    )
+    store.append_event(
+        task_id="task_candidate_flow_report",
+        event="sandbox_auto_fix_candidate_created",
+        target="sandbox://auto-fix-candidate/task_replan_flow_report",
+        status="candidate_created",
+        payload={"review_type": "sandbox_auto_fix_candidate", "candidate": {"replan_task_id": "task_replan_flow_report", "source_execution_task_id": "task_exec_flow_report", "failure_kind": "validation_command", "candidate_strategy": "target_failed_validation_metadata"}},
+    )
+    store.append_event(
+        task_id="task_draft_flow_report",
+        event="sandbox_diff_review_draft_created",
+        target="sandbox://diff-review-draft/task_candidate_flow_report",
+        status="draft_created",
+        payload={"review_type": "sandbox_diff_review_draft", "draft": {"candidate_task_id": "task_candidate_flow_report", "source_execution_task_id": "task_exec_flow_report", "failure_kind": "validation_command", "target_api": "POST /github/pr-dry-runs"}},
+    )
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert 'Sandbox Autonomy Flow Graph' in html
+    assert 'Failure → Replan → Candidate → Diff Draft' in html
+    assert 'sandbox_execution: 1' in html
+    assert 'auto_fix_candidate: 1' in html
+    assert 'task_draft_flow_report' in html
+    assert 'Raw Diff' in html

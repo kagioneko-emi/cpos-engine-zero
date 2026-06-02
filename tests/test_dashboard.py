@@ -222,6 +222,22 @@ def test_dashboard_contains_execution_scoreboard_ui():
     assert 'Metadata-only throughput snapshot' in html
 
 
+def test_dashboard_contains_sandbox_flow_graph_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-flow-section' in html
+    assert 'sandbox-flow-summary' in html
+    assert 'sandbox-flow-container' in html
+    assert 'sandbox-flow-source-filter' in html
+    assert '/sandbox/flow-graph' in html
+    assert 'renderSandboxFlowGraph' in html
+    assert 'Sandbox Autonomy Flow Graph' in html
+    assert 'failed execution → retry review' in html
+    assert 'raw_outputs_stored=false' in html
+
+
 
 def test_dashboard_contains_auto_fix_candidate_ui():
     client = server.app.test_client()
