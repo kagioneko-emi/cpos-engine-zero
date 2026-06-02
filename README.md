@@ -88,7 +88,10 @@ GitHub PR dry-run
   -> Retry review
   -> Replan template
   -> Diff intake checklist
-  -> Back to human-supplied diff review
+  -> Auto Fix Candidate
+  -> Diff Review Draft
+  -> Human-supplied GitHub diff review
+  -> Back to sandbox execution
 ```
 
 Key safety properties:
@@ -121,8 +124,28 @@ curl -X POST https://<host>/sandbox/replan-templates/<replan_task_id>/create-dif
 ```
 
 The dashboard surfaces each queue/result: PR dry-run, diff review, sandbox plan,
-execution review, completed execution result, retry review, replan template, and
-diff intake.
+execution review, completed execution result, retry review, replan template, diff
+intake, auto fix candidate, diff review draft, and sandbox flow graph.
+
+### Autonomy Loop Demo Panel
+
+The dashboard includes an **Autonomy Loop Demo Panel** that compresses the safe
+execution loop into one screen for demos and operations. It shows counts and next
+actions for:
+
+1. Diff Draft
+2. GitHub Diff Review
+3. Sandbox Execution Review
+4. Execution Result
+5. Retry/Replan
+6. Flow Graph
+
+The panel is intentionally status-only. It does not create branches, apply
+patches to the live repository, run commands automatically, commit, push, create
+PRs, persist raw diff text, or persist raw stdout/stderr. It highlights the same
+safety flags as the underlying pipeline: `metadata_only=true`,
+`raw_diff_stored=false`, `raw_outputs_stored=false`, `live_repo_patch=false`,
+`commit_created=false`, `pushed=false`, and `pr_created=false`.
 
 ## Human Escalation Queue
 
@@ -927,12 +950,17 @@ curl https://<host>/sandbox/fix-candidates
 
 Diff Review Drafts can then turn an Auto Fix Candidate into the payload shape for
 the next GitHub diff-review request. Drafts intentionally leave `diff_text` as a
-required human/agent input and never persist raw diff text.
+required human/agent input and never persist raw diff text. A draft can also be
+routed into the normal GitHub diff-review gate with transient diff input; the
+stored event links draft -> GitHub diff review using hashes, sizes, counters, and
+lineage metadata only.
 
 ```bash
 curl -X POST https://<host>/sandbox/fix-candidates/<task_id>/create-diff-draft \
   -d '{"reason":"prepare_next_diff_review"}'
 curl https://<host>/sandbox/diff-drafts
+curl -X POST https://<host>/sandbox/diff-drafts/<draft_task_id>/create-github-diff-review \
+  -d '{"source_task_id":"<approved_pr_dry_run_task_id>","diff_text":"...","changed_files":["README.md"],"validation_commands":["pytest -q tests/test_report.py"]}'
 ```
 
 
