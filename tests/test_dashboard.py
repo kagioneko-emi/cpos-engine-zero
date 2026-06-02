@@ -107,6 +107,26 @@ def test_dashboard_contains_github_pr_dry_run_ui():
     assert 'no branch creation, no commits, no push' in html
 
 
+
+
+def test_dashboard_contains_github_diff_review_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'github-diff-section' in html
+    assert 'github-diff-summary' in html
+    assert 'github-diff-container' in html
+    assert '/github/diff-reviews' in html
+    assert 'renderGithubDiffReviews' in html
+    assert 'approveGithubDiffReview' in html
+    assert 'rejectGithubDiffReview' in html
+    assert 'approveDiffAndCreateSandboxExecutionReview' in html
+    assert 'Approve → Sandbox Execution Review' in html
+    assert '/sandbox/execution-driver/advance' in html
+    assert 'raw_diff_stored=false' in html
+
+
 def test_dashboard_contains_sandbox_patch_plan_ui():
     client = server.app.test_client()
     res = client.get('/dashboard')

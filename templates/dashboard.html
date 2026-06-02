@@ -431,6 +431,12 @@
             <div id="github-pr-summary" class="muted" style="margin-bottom: 12px;">Loading GitHub PR dry-runs...</div>
             <div id="github-pr-container"></div>
         </div>
+        <div id="github-diff-section" class="card" style="display: none; border-color: var(--accent-blue); margin-bottom: 30px;">
+            <h2>GitHub Diff Reviews</h2>
+            <p class="muted">Metadata-only diff gate: raw diff text is not persisted. Approval can return the repair loop to sandbox patch planning and execution review.</p>
+            <div id="github-diff-summary" class="muted" style="margin-bottom: 12px;">Loading GitHub diff reviews...</div>
+            <div id="github-diff-container"></div>
+        </div>
         <div id="sandbox-patch-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
             <h2>Sandbox Patch Plans</h2>
             <p class="muted">Metadata-only planning: no live repo writes, no patch apply, and no command execution. Approval only unlocks the isolated runner step.</p>
@@ -605,6 +611,9 @@
                 document.getElementById('github-pr-count').innerText = githubPrData.count || 0;
                 document.getElementById('github-pr-detail').innerText = (githubPrData.reviews || []).length === 0 ? 'No pending PR dry-runs' : `${githubPrData.count} pending dry-run review(s)`;
                 renderGithubPrDryRuns(githubPrData);
+                const githubDiffRes = await fetch('/github/diff-reviews');
+                const githubDiffData = githubDiffRes.ok ? await githubDiffRes.json() : {ok: false, count: 0, reviews: []};
+                renderGithubDiffReviews(githubDiffData);
                 const sandboxPatchRes = await fetch('/sandbox/patch-plans');
                 const sandboxPatchData = sandboxPatchRes.ok ? await sandboxPatchRes.json() : {ok: false, count: 0, reviews: []};
                 document.getElementById('sandbox-patch-count').innerText = sandboxPatchData.count || 0;
@@ -860,6 +869,45 @@
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
                                     <button class="btn btn-success" onclick="approveGithubPrDryRun('${review.task_id}')">Approve Plan</button>
                                     <button class="btn btn-danger" onclick="rejectGithubPrDryRun('${review.task_id}')">Reject</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderGithubDiffReviews(githubDiffData) {
+                    const section = document.getElementById('github-diff-section');
+                    const summary = document.getElementById('github-diff-summary');
+                    const container = document.getElementById('github-diff-container');
+                    const reviews = (githubDiffData && githubDiffData.reviews) || [];
+                    if (!reviews.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `pending_reviews=${reviews.length}, raw_diff_stored=false, patch_applied=false, commit_created=false, pushed=false, pr_created=false`;
+                    container.innerHTML = '';
+                    reviews.slice(-5).reverse().forEach(review => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-blue)';
+                        const payload = review.payload || {};
+                        const plan = payload.plan || {};
+                        const files = (plan.changed_files || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div>
+                                <strong style="color: var(--accent-blue);">[GITHUB DIFF REVIEW]</strong> <code>${review.task_id}</code><br>
+                                <span class="muted">source=${plan.source_task_id || '-'} / repo=${plan.repo || '-'} / branch=${plan.proposed_branch || '-'}</span><br>
+                                <span class="muted">diff_sha256=${plan.diff_sha256 || '-'} / size=${plan.diff_size_bytes || 0} / +${plan.added_lines || 0} / -${plan.removed_lines || 0}</span><br>
+                                <span class="muted">diff_values_stored=${plan.diff_values_stored} / patch_applied=${plan.patch_applied} / pushed=${plan.pushed} / pr_created=${plan.pr_created}</span>
+                                <div style="margin-top: 8px;"><strong>Changed files</strong><br>${files}</div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                                    <button class="btn btn-success" onclick="approveGithubDiffReview('${review.task_id}')">Approve Diff Review</button>
+                                    <button class="btn btn-danger" onclick="rejectGithubDiffReview('${review.task_id}')">Reject</button>
+                                    <button class="btn btn-warning" onclick="approveDiffAndCreateSandboxExecutionReview('${review.task_id}')">Approve → Sandbox Execution Review</button>
                                 </div>
                             </div>
                         `;
@@ -1543,6 +1591,30 @@
             const reason = prompt('Reject GitHub PR dry-run reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/github/pr-dry-runs/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveGithubDiffReview(taskId) {
+            if (!confirm(`Approve GitHub diff review ${taskId}? This stores metadata only and does not apply patches.`)) return;
+            await postJson(`/github/diff-reviews/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectGithubDiffReview(taskId) {
+            const reason = prompt('Reject GitHub diff review reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/github/diff-reviews/${taskId}/reject`, {reason: reason});
+        }
+
+        async function approveDiffAndCreateSandboxExecutionReview(taskId) {
+            if (!confirm(`Approve diff ${taskId} and create sandbox execution review? This will not run commands or apply patches to the live repo.`)) return;
+            const approved = await postJson(`/github/diff-reviews/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve_return_to_sandbox'});
+            if (!approved || approved.ok === false) return;
+            await postJson('/sandbox/execution-driver/advance', {
+                diff_task_id: taskId,
+                approve_plan: true,
+                approve_execution: false,
+                run: false,
+                reason: 'dashboard_return_to_sandbox_execution_review'
+            });
         }
 
         async function approveSandboxPatchPlan(taskId) {
