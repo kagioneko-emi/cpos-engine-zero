@@ -11,46 +11,53 @@ In the age of AI agents, autonomous coding is becoming a reality. However, curre
 ---
 
 ## 2. Our Solution: CPOS Engine-Zero
-**CPOS Engine-Zero** is an autonomous "stability guardian" that handles the full **Issue -> Fix -> Verify -> Deploy** cycle. It doesn't just write code; it operates within a **Cognitive Runtime Architecture** that prioritizes safety and precision.
+**CPOS Engine-Zero** is a defensive agent runtime for safe autonomous development. It is built around a **review-gated execution loop**: the agent can plan, route, sandbox, observe failure metadata, replan, and prepare the next diff attempt—without silently patching the live repository or persisting sensitive raw data.
 
 ### The "Three Pillars" of Engine-Zero:
-1.  **Cognitive Memory Layer (Context Pointers)**: Instead of feeding the whole codebase to the LLM, we use **#ctx Pointers**. The AI "recalls" only what it needs, drastically reducing token costs and hallucination risks.
-2.  **Operational Safety (Task Tape & Sandbox)**: Every action is recorded on an **immutable ledger (Task Tape)**. Every fix is verified in a **Docker Sandbox**. If anything fails, a **One-Click Rollback** restores the system instantly.
-3.  **Defensive Backend (Encrypted Integrity)**: Built for zero-trust environments. Audit logs and memory pointers are **AES-encrypted** and **Hash-chained**, making the agent's "brain" tamper-proof.
+1.  **Cognitive Memory Layer (Context Pointers)**: Instead of feeding the whole codebase to the LLM, CPOS uses governed **Context Pointers**. The agent recalls only relevant, scoped metadata, reducing prompt bloat and context decay.
+2.  **Safe Execution Loop (Task Tape, Sandbox, Human Escalation)**: Every risky step is recorded as a Task Tape event and routed through human approval. Sandbox runs use ephemeral workspaces, store hashes/counters/status only, and never create commits, pushes, or PRs automatically.
+3.  **Failure-to-Replan Runtime (Flow Graph + Demo Snapshot)**: Failed runs are classified, converted into retry/replan artifacts, and visualized in dashboard/report views. Operators can see Diff Draft → GitHub Diff Review → Sandbox Execution → Result → Retry/Replan → Flow Graph in one loop.
 
 ---
 
-## 3. Technical Moats (Why we win)
-*   **Memory Network Graph**: A live, force-directed visualization of how the AI "thinks" and links different parts of the codebase.
-*   **Tamper-evident Integrity**: Even if the server is compromised, the hash-chained ledger detects any unauthorized changes to the AI's memory or logs.
-*   **Approval Gate API**: A secure, HTTPS-enforced interface for humans to review and approve AI decisions, bridging the gap between autonomy and control.
+## 3. Technical Moats (Why this is different)
+*   **Metadata-only persistence**: Raw diffs, raw stdout/stderr, request bodies, checkpoint contents, and secrets are excluded from persistent Task Tape/dashboard/report surfaces. CPOS stores hashes, sizes, counters, statuses, and lineage metadata instead.
+*   **Human Escalation as a first-class pipeline**: GitHub, MCP, sandbox plan, sandbox execution, and retry reviews all surface approval/rejection endpoints through a unified queue without creating a second approval authority.
+*   **Sandbox Autonomy Flow Graph**: Operators can trace failed execution → retry review → replan template → diff intake → auto fix candidate → diff review draft → GitHub diff review.
+*   **Autonomy Loop Demo Panel + Report Snapshot**: The same safe loop is visible in the live dashboard and generated report, making demos and audits explainable in one screen.
+*   **Tamper-evident governance**: Hash-chain integrity, security profile validation, prepublish checks, and secret scanning are part of the release path.
+
+### Positioning vs. Hermes / OpenClaw / Claude Code-style agents
+CPOS does not try to win by giving an agent unrestricted write power. The goal is **safer-by-design execution power**: comparable autonomous workflow depth, but with explicit review gates, metadata-only storage, sandbox-first execution, and failure-to-replan lineage. That makes it easier to audit, demo, and operate in defensive or regulated environments.
 
 ---
 
-## 4. The Demo: "Watch it Heal & Grow"
-### Scenario A: The Autonomous Fix
-1.  **Detection**: GitHub Webhook triggers Engine-Zero from any repository.
-2.  **Analysis**: The agent identifies the target file and uses **Context Pointers** to focus.
-3.  **Human-in-the-Loop**: A notification pops up on the **Command Center Dashboard**.
-4.  **Iteration**: The user comments on the Issue: *"Handle the edge case too"*. Engine-Zero **instantly re-triggers**, refines the patch, and notifies the user.
+## 4. The Demo: "Safe Autonomy Loop"
+### Scenario A: Review-gated repair loop
+1.  **Diff Draft**: CPOS proposes the next diff-review payload shape from failure metadata and an Auto Fix Candidate.
+2.  **GitHub Diff Review**: A human/agent supplies raw diff text transiently; CPOS stores only hashes, sizes, counters, changed files, and validation commands.
+3.  **Sandbox Execution Review**: The approved diff is promoted into a sandbox plan and execution review. The live repository is not patched.
+4.  **Supplied-diff Run**: Only after explicit approval, CPOS runs the patch in an ephemeral sandbox workspace and stores result metadata only.
+5.  **Failure-to-Replan**: Failures become retry reviews, replan templates, diff intakes, and new draft candidates—not blind automatic reruns.
+6.  **Flow Graph + Demo Snapshot**: The dashboard and report show the whole lineage and safety flags in one view.
 
-### Scenario B: Zero-to-One Creation
-*   **Command**: `[CREATE] src/utils.py: Data validation helper`
-*   **Result**: Engine-Zero initializes the file with TDD patterns and business logic, then posts the "Creation Completed" status back to GitHub.
+### Scenario B: Audit-ready operator view
+*   **Dashboard**: Human Escalation Queue, GitHub Diff Reviews, Sandbox Execution Reviews, Execution Scoreboard, Sandbox Flow Graph, and Autonomy Loop Demo Panel.
+*   **Report**: Autonomy Loop Demo Snapshot plus safety/integrity summaries for external review.
 
 ---
 
-## 5. Future Vision: The Self-Evolving OS
-Engine-Zero is the first step toward a **Self-Correcting Infrastructure**. By leveraging the **Genetic Kernel** of CPOS v10.0, the system doesn't just fix bugs—it learns from every failure, evolving its own defensive patterns to prevent future incidents before they even happen.
+## 5. Future Vision: The Defensive Agent OS
+Engine-Zero is the first step toward a **defensive execution OS** for AI agents: agents can become more capable without becoming less auditable. The long-term goal is an agent that improves through failure metadata, governed memory, and operator-approved execution—not hidden side effects.
 
 ---
 
 ### 🚀 Technical Stack
-- **AI Engine**: Google Cloud Gemini (via Gemini CLI / Vertex AI)
-- **Runtime**: CPOS (Context Pointer OS) v10.0
-- **Security**: AES-128 (Fernet), SHA-256 Hash Chaining, HMAC-Auth
-- **Visualization**: Canvas-based Force-Directed Graph, HSTS Secure Dashboard
-- **Sandbox**: Docker (Python/Ruff/Pytest)
+- **AI Runtime**: CPOS (Context Pointer OS) + Task Tape
+- **Safety Gates**: Human Escalation Queue, review approvals, prepublish guard, secret scan
+- **Execution**: Docker sandbox / ephemeral workspace / allowlisted validation commands
+- **Observability**: Execution Scoreboard, Sandbox Flow Graph, Autonomy Loop Demo Panel, report snapshot
+- **Security**: Hash-chain integrity, HMAC auth support, Vault-first secret handling policy
 
 ---
 ** Kagioneko (2026) | DevOps x AI Agent Hackathon **
