@@ -15,7 +15,7 @@ Core idea:
 - Human approval gates before sensitive actions
 - Hash-chained audit logs for tamper-evident operation
 - Governance-first MCP integration
-- Safe autonomy loop: dry-run planning -> diff review -> sandbox validation -> retry/replan metadata
+- Safe autonomy loop: dry-run planning -> diff review -> sandbox execution -> retry/replan -> auto fix candidate -> diff review draft -> flow graph/demo snapshot
 
 ## Highlights
 
@@ -42,9 +42,16 @@ Core idea:
 - Sandbox diff intakes: metadata-only checklist for the next human-supplied diff review
 - Auto Fix Candidates: metadata-only repair strategies from replan templates with confidence, required inputs, and no raw diff/output storage
 - Diff Review Drafts: metadata-only next-review payload shape from Auto Fix Candidates; diff_text remains an external required input
+- Diff Review Draft -> GitHub Diff Review routing: transient diff input only; persisted lineage stores hashes, sizes, counters, and task IDs, not raw diff text
+- Sandbox Autonomy Flow Graph: links failed execution -> retry review -> replan template -> diff intake -> auto fix candidate -> diff review draft -> GitHub diff review
+- Human Escalation pipeline hints: queue rows include owning pipeline, stage, endpoint hints, and flow graph hints without duplicating approval authority
+- Autonomy Loop Demo Panel: dashboard one-screen view of Diff Draft, GitHub Diff Review, Sandbox Execution Review, Execution Result, Retry/Replan, and Flow Graph with safety flags
+- Autonomy Loop Demo Snapshot: generated report version of the same safe execution loop for demos and audits
+- Execution Scoreboard: completed/success/failure counts, success rate, failure kinds, retry/replan/intake load, and recent failure metadata
 - Failure classification: `patch_apply`, `validation_command`, `sandbox_unavailable`, and `policy_rejected`
+- Dashboard safe return actions: diff review can be approved back into sandbox execution review; execution reviews can be approved and run only with supplied transient diff input
 - Release readiness CLI: non-destructive checks for remote, clean tree, tracked bad artifacts, and required files
-- README architecture overview and safe autonomy demo flow
+- README/PITCH architecture overview, safer-by-design positioning, and safe autonomy demo flow
 
 ## Security posture
 
@@ -59,7 +66,8 @@ MCP support is intentionally conservative in this release:
 Data minimization is a first-class release goal:
 
 - Secrets, `.env` values, SSH keys, tokens, and private certs must stay in Vault/secret files.
-- Raw stdout/stderr, raw diff text, request bodies, checkpoint contents, and raw handoff bodies are not persisted.
+- Raw stdout/stderr, raw diff text, request bodies, checkpoint contents, raw handoff bodies, and proposed code blobs are not persisted in Task Tape/dashboard/report surfaces.
+- Sandbox run outputs are represented as hashes, sizes, exit codes, status flags, and failure kinds only.
 - Runtime JSONL ledgers, caches, pycache, pytest cache, `.venv`, certs, and local reports are ignored and release-blocked.
 
 ## Validation
@@ -67,11 +75,14 @@ Data minimization is a first-class release goal:
 Latest local validation before this release candidate:
 
 ```text
-PYTHONPATH=. .venv/bin/pytest -q tests
-228 passed
+PYTHONPATH=. .venv/bin/python -m pytest tests -q
+290 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.secret_scan ... --json
 ok=true count=0
+
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+ok=true, secret_scan ok=true count=0, destructive_actions_performed=false
 
 PYTHONPATH=. .venv/bin/python -m cpos.release_check --json
 ok=true
@@ -80,5 +91,7 @@ ok=true
 ## Before publishing
 
 Follow `OSS_RELEASE_CHECKLIST.md` and review `git status --short` line-by-line.
+Confirm the remote is `https://github.com/kagioneko/cpos-engine-zero.git` before pushing.
 Do not publish runtime ledgers, `.venv`, cache files, generated local reports,
-workspace demos, certificates, or secret material.
+workspace demos, certificates, or secret material. Keep all API keys, OAuth tokens,
+SSH keys, and passwords in Vault or secret files only.

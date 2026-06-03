@@ -56,7 +56,7 @@ def test_release_notes_include_current_safe_autonomy_features():
     assert 'Sandbox replan templates' in notes
     assert 'Sandbox diff intakes' in notes
     assert 'Release readiness CLI' in notes
-    assert '228 passed' in notes
+    assert '290 passed' in notes
     assert 'ok=true' in notes
 
 
