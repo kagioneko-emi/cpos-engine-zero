@@ -498,7 +498,7 @@
         </div>
         <div id="sandbox-patch-generation-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
             <h2>Patch Generation Reviews</h2>
-            <p class="muted">Review-gated patch generation: generated diff text is transient input only; persisted lineage stores hashes, sizes, counters, and task IDs.</p>
+            <p class="muted">Review-gated patch generation: generated diff text is transient input only; validation harness stores only hashes, sizes, counters, and task IDs.</p>
             <div id="sandbox-patch-generation-summary" class="muted" style="margin-bottom: 12px;">Loading patch generation reviews...</div>
             <div id="sandbox-patch-generation-container"></div>
         </div>
@@ -1314,7 +1314,7 @@
                         return;
                     }
                     section.style.display = 'block';
-                    summary.innerText = `pending_reviews=${reviews.length}, raw_diff_stored=false, diff_text_included=false, execute_automatically=false`;
+                    summary.innerText = `pending_reviews=${reviews.length}, validation_harness=git_apply_check_only, raw_diff_stored=false, diff_text_included=false, execute_automatically=false`;
                     container.innerHTML = '';
                     reviews.slice(-5).reverse().forEach(review => {
                         const div = document.createElement('div');
@@ -1334,6 +1334,7 @@
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
                                     <button class="btn btn-success" onclick="approvePatchGenerationReview('${review.task_id}')">Approve Patch Generation</button>
                                     <button class="btn btn-danger" onclick="rejectPatchGenerationReview('${review.task_id}')">Reject</button>
+                                    <button class="btn btn-primary" onclick="validatePatchGenerationOutput('${review.task_id}')">Validate Generated Diff</button>
                                     <button class="btn btn-warning" onclick="createGithubDiffReviewFromPatchGeneration('${review.task_id}')">Create GitHub Diff Review from Generated Diff</button>
                                 </div>
                             </div>
@@ -1828,6 +1829,25 @@
             const reason = prompt('Reject patch generation review reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/sandbox/patch-generations/${taskId}/reject`, {reason: reason});
+        }
+
+        async function validatePatchGenerationOutput(taskId) {
+            const diffText = prompt('Paste generated raw diff text for validation. It is sent transiently; only hashes/metadata are stored:');
+            if (!diffText) return;
+            const changedFilesText = prompt('Changed files, comma-separated:', 'README.md');
+            if (changedFilesText === null) return;
+            const validationCommandsText = prompt('Validation commands, one per line. Commands are policy-checked but not executed by this harness:', 'pytest -q tests');
+            if (validationCommandsText === null) return;
+            const changedFiles = changedFilesText.split(',').map(item => item.trim()).filter(Boolean);
+            const validationCommands = validationCommandsText.split('\n').map(item => item.trim()).filter(Boolean);
+            if (!changedFiles.length || !validationCommands.length) { showNotification('Changed files and validation commands are required'); return; }
+            if (!confirm(`Validate generated diff for patch generation ${taskId}? This runs git apply --check in an ephemeral workspace only; no live repo patch, command execution, commit, push, PR, or raw diff storage.`)) return;
+            await postJson(`/sandbox/patch-generations/${taskId}/validate-output`, {
+                diff_text: diffText,
+                changed_files: changedFiles,
+                validation_commands: validationCommands,
+                reason: 'dashboard_validate_patch_generation_output'
+            });
         }
 
         async function createGithubDiffReviewFromPatchGeneration(taskId) {

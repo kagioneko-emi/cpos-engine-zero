@@ -319,8 +319,12 @@ def test_dashboard_contains_patch_generation_review_ui():
     assert 'approvePatchGenerationReview' in html
     assert 'rejectPatchGenerationReview' in html
     assert 'createGithubDiffReviewFromPatchGeneration' in html
+    assert 'validatePatchGenerationOutput' in html
+    assert '/sandbox/patch-generations/${taskId}/validate-output' in html
+    assert 'Validate Generated Diff' in html
     assert 'PATCH GENERATION REVIEW' in html
-    assert 'transient generated diff input only' in html
+    assert 'git apply --check' in html
+    assert 'validation harness stores only hashes' in html
 
 
 def test_dashboard_contains_diff_review_draft_ui():

@@ -632,7 +632,7 @@ def test_sandbox_diff_review_draft_scope_mapping():
         assert server.required_scope_for_request() == "write:sandbox"
 
 
-def test_sandbox_patch_generation_api_flow(tmp_path):
+def test_sandbox_patch_generation_api_flow(tmp_path, monkeypatch):
     configure(tmp_path)
     client = server.app.test_client()
     pr = client.post("/github/pr-dry-runs", json={"repo": "kagioneko/cpos-engine-zero", "title": "Patch gen", "files": ["README.md"], "summary": "ctx"})
@@ -678,6 +678,35 @@ def test_sandbox_patch_generation_api_flow(tmp_path):
     approved = client.post(f"/sandbox/patch-generations/{task_id}/approve", json={"confirm": True})
     assert approved.status_code == 200
 
+    monkeypatch.setattr(
+        "cpos.patch_generation_review._check_generated_patch",
+        lambda diff_text: {
+            "ok": True,
+            "stage": "git_apply_check",
+            "exit_code": 0,
+            "stdout_sha256": "out",
+            "stderr_sha256": "err",
+            "stdout_size_bytes": 0,
+            "stderr_size_bytes": 0,
+            "workspace_copied": True,
+            "patch_applied": False,
+            "commands_executed": False,
+        },
+    )
+    validated = client.post(f"/sandbox/patch-generations/{task_id}/validate-output", json={
+        "diff_text": "diff --git a/README.md b/README.md\n@@\n-old\n+new\n",
+        "changed_files": ["README.md"],
+        "validation_commands": ["pytest -q tests/test_report.py"],
+        "reason": "api",
+    })
+    assert validated.status_code == 200
+    validated_payload = validated.get_json()
+    assert validated_payload["ok"] is True
+    assert validated_payload["validation"]["patch_applied"] is False
+    assert validated_payload["validation"]["commands_executed"] is False
+    assert validated_payload["raw_diff_stored"] is False
+    assert "diff --git" not in str(validated_payload["event"])
+
     routed = client.post(f"/sandbox/patch-generations/{task_id}/create-github-diff-review", json={
         "source_task_id": source_task_id,
         "diff_text": "diff --git a/README.md b/README.md\n@@\n-old\n+new\n",
@@ -699,6 +728,8 @@ def test_sandbox_patch_generation_scope_mapping():
     with server.app.test_request_context("/sandbox/fix-candidates/task/create-patch-generation", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
     with server.app.test_request_context("/sandbox/patch-generations/task/approve", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"
+    with server.app.test_request_context("/sandbox/patch-generations/task/validate-output", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
     with server.app.test_request_context("/sandbox/patch-generations/task/create-github-diff-review", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"

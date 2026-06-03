@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import subprocess
+
 from typing import Any
 
 from .github_diff_review import create_github_diff_review
 from .human_escalation import review_escalation_decision
 from .sandbox_patch_plan import _digest
+from .sandbox_patch_runner import _hash_commands, _hash_text, _prepare_workspace, validate_validation_commands
 from .task_tape import TaskTapeStore
 
 REVIEW_TYPE = "sandbox_patch_generation"
@@ -185,6 +188,128 @@ def _approved_patch_generation_plan(store: TaskTapeStore, task_id: str) -> dict[
         return None
     return (review.payload or {}).get("plan") or {}
 
+
+
+def _check_generated_patch(diff_text: str) -> dict[str, Any]:
+    workspace_tmp, workspace = _prepare_workspace()
+    try:
+        patch_file = workspace / "generated_patch.diff"
+        patch_file.write_text(diff_text, encoding="utf-8")
+        check = subprocess.run(["git", "apply", "--check", str(patch_file)], cwd=workspace, capture_output=True, text=True)
+        stdout_hash = _hash_text(check.stdout or "")
+        stderr_hash = _hash_text(check.stderr or "")
+        return {
+            "ok": check.returncode == 0,
+            "stage": "git_apply_check",
+            "exit_code": check.returncode,
+            "stdout_sha256": stdout_hash["sha256"],
+            "stderr_sha256": stderr_hash["sha256"],
+            "stdout_size_bytes": stdout_hash["size_bytes"],
+            "stderr_size_bytes": stderr_hash["size_bytes"],
+            "workspace_copied": True,
+            "patch_applied": False,
+            "commands_executed": False,
+        }
+    finally:
+        workspace_tmp.cleanup()
+
+
+def validate_patch_generation_output(
+    store: TaskTapeStore,
+    *,
+    patch_generation_task_id: str,
+    diff_text: str | None = None,
+    changed_files: list[str] | None = None,
+    validation_commands: list[str] | None = None,
+    actor: str = "PatchGenerationHarness",
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Validate generated patch output in an ephemeral workspace.
+
+    This is a pre-review harness: it checks command policy and `git apply --check`
+    only. It never stores raw diff text or raw command output, never mutates the
+    live repo, and never runs validation commands.
+    """
+    plan = _approved_patch_generation_plan(store, patch_generation_task_id)
+    if plan is None:
+        return {"ok": False, "error": "approved_patch_generation_review_required", "patch_generation_task_id": patch_generation_task_id, "execute_automatically": False}
+    if not diff_text:
+        return {"ok": False, "error": "diff_text_required", "patch_generation_task_id": patch_generation_task_id, "raw_diff_stored": False, "execute_automatically": False}
+    if not isinstance(changed_files, list) or not changed_files:
+        return {"ok": False, "error": "changed_files_required", "patch_generation_task_id": patch_generation_task_id, "execute_automatically": False}
+    if not isinstance(validation_commands, list) or not validation_commands:
+        return {"ok": False, "error": "validation_commands_required", "patch_generation_task_id": patch_generation_task_id, "execute_automatically": False}
+
+    command_policy = validate_validation_commands(validation_commands)
+    command_hashes = _hash_commands(validation_commands)
+    diff_hash = _hash_text(diff_text)
+    apply_check = None
+    policy_rejected = not bool(command_policy.get("ok"))
+    if not policy_rejected:
+        apply_check = _check_generated_patch(diff_text)
+    else:
+        apply_check = {"ok": False, "stage": "command_policy", "exit_code": 1, "workspace_copied": False, "patch_applied": False, "commands_executed": False}
+
+    success = bool(command_policy.get("ok")) and bool(apply_check.get("ok"))
+    failure_kind = None if success else ("policy_rejected" if policy_rejected else "patch_apply")
+    payload = {
+        "review_type": "sandbox_patch_generation_validation",
+        "patch_generation_task_id": patch_generation_task_id,
+        "candidate_task_id": plan.get("candidate_task_id"),
+        "source_execution_task_id": plan.get("source_execution_task_id"),
+        "failure_kind": failure_kind,
+        "candidate_strategy": plan.get("candidate_strategy"),
+        "actor": actor,
+        "reason": reason,
+        "diff_sha256": diff_hash["sha256"],
+        "diff_size_bytes": diff_hash["size_bytes"],
+        "changed_files": list(changed_files),
+        "changed_file_count": len(changed_files),
+        "validation_command_hashes": command_hashes,
+        "validation_command_count": len(command_hashes),
+        "command_policy": command_policy,
+        "patch_apply_stage": apply_check.get("stage"),
+        "patch_apply_exit_code": apply_check.get("exit_code"),
+        "patch_apply_stdout_sha256": apply_check.get("stdout_sha256"),
+        "patch_apply_stderr_sha256": apply_check.get("stderr_sha256"),
+        "patch_apply_stdout_size_bytes": apply_check.get("stdout_size_bytes"),
+        "patch_apply_stderr_size_bytes": apply_check.get("stderr_size_bytes"),
+        "workspace_copied": apply_check.get("workspace_copied", False),
+        "raw_diff_stored": False,
+        "diff_text_included": False,
+        "raw_outputs_stored": False,
+        "patch_applied": False,
+        "commands_executed": False,
+        "tests_run": False,
+        "execute_automatically": False,
+        "commit_created": False,
+        "pushed": False,
+        "pr_created": False,
+        "next_step": "create_github_diff_review_from_transient_diff" if success else "revise_generated_diff_before_review",
+    }
+    payload["validation_sha256"] = _digest(payload)
+    status = "validated" if success else "validation_failed"
+    event = store.append_event(
+        task_id=patch_generation_task_id,
+        event="sandbox_patch_generation_output_validated",
+        target=f"sandbox://patch-generation/{patch_generation_task_id}/validation",
+        status=status,
+        payload=payload,
+    )
+    return {
+        "ok": success,
+        "task_id": patch_generation_task_id,
+        "status": status,
+        "event": event.to_dict(),
+        "validation": payload,
+        "failure_kind": failure_kind,
+        "raw_diff_stored": False,
+        "diff_text_included": False,
+        "raw_outputs_stored": False,
+        "patch_applied": False,
+        "commands_executed": False,
+        "execute_automatically": False,
+    }
 
 def create_github_diff_review_from_patch_generation(
     store: TaskTapeStore,

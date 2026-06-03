@@ -988,6 +988,7 @@ def test_generate_report_renders_patch_generation_reviews(tmp_path):
         approve_patch_generation_review,
         create_github_diff_review_from_patch_generation,
         create_patch_generation_review,
+        validate_patch_generation_output,
     )
 
     store = TaskTapeStore(tape_path, checkpoint_path)
@@ -1012,6 +1013,13 @@ def test_generate_report_renders_patch_generation_reviews(tmp_path):
     )
     review = create_patch_generation_review(store, candidate_task_id=candidate_task_id)
     approve_patch_generation_review(store, review["task_id"], confirm=True)
+    validate_patch_generation_output(
+        store,
+        patch_generation_task_id=review["task_id"],
+        diff_text="diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1 +1 @@\n-old\n+new\n",
+        changed_files=["app.py"],
+        validation_commands=["pytest tests/test_app.py -q"],
+    )
     pr = create_github_pr_dry_run(
         store,
         repo="kagioneko/cpos-engine-zero",
@@ -1042,6 +1050,8 @@ def test_generate_report_renders_patch_generation_reviews(tmp_path):
     assert 'Review-Gated Patch Generator' in html
     assert 'Pending Reviews' in html
     assert 'Diff Reviews Linked' in html
+    assert 'Validation Harness' in html
+    assert 'Validation Harness Runs' in html
     assert 'Raw Diff' in html
     assert 'Auto Execute' in html
     assert review["task_id"] in html

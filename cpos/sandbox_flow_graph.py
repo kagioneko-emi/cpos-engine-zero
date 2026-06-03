@@ -97,6 +97,14 @@ def build_sandbox_flow_graph(store: TaskTapeStore, *, source_execution_task_id: 
             add_node(_node(task_id, "patch_generation_review", status=event.get("status"), label="Patch Generation Review", metadata={"failure_kind": plan.get("failure_kind"), "strategy": plan.get("candidate_strategy"), "confidence": plan.get("confidence"), "raw_diff_stored": False, "execute_automatically": False}))
             add_edge(_edge(plan.get("candidate_task_id"), task_id, "creates_patch_generation_review"))
 
+        elif name == "sandbox_patch_generation_output_validated":
+            source = payload.get("source_execution_task_id")
+            if source_execution_task_id and source != source_execution_task_id:
+                continue
+            validation_node_id = f"{task_id}:validation"
+            add_node(_node(validation_node_id, "patch_generation_validation", status=event.get("status"), label="Patch Generation Validation", metadata={"failure_kind": payload.get("failure_kind"), "changed_file_count": payload.get("changed_file_count"), "diff_size_bytes": payload.get("diff_size_bytes"), "workspace_copied": payload.get("workspace_copied"), "patch_applied": False, "commands_executed": False, "raw_diff_stored": False, "raw_outputs_stored": False, "execute_automatically": False}))
+            add_edge(_edge(payload.get("patch_generation_task_id") or task_id, validation_node_id, "validates_generated_patch"))
+
         elif name == "sandbox_patch_generation_linked_to_github_diff_review":
             source = payload.get("source_execution_task_id")
             if source_execution_task_id and source != source_execution_task_id:

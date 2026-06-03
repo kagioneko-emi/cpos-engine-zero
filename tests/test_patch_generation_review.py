@@ -105,3 +105,79 @@ def test_patch_generation_routes_transient_diff_to_github_diff_review(tmp_path):
     assert "diff --git" not in str(link)
     assert "new" not in str(link)
     assert "diff --git" not in str(store.events())
+
+def test_patch_generation_validation_harness_is_metadata_only(tmp_path, monkeypatch):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    candidate_task_id = _candidate(store)
+    review = create_patch_generation_review(store, candidate_task_id=candidate_task_id)
+    approve_patch_generation_review(store, review["task_id"], confirm=True)
+    diff_text = "diff --git a/README.md b/README.md\n@@\n-old\n+new\n"
+    monkeypatch.setattr(
+        "cpos.patch_generation_review._check_generated_patch",
+        lambda diff_text: {
+            "ok": True,
+            "stage": "git_apply_check",
+            "exit_code": 0,
+            "stdout_sha256": "out",
+            "stderr_sha256": "err",
+            "stdout_size_bytes": 0,
+            "stderr_size_bytes": 0,
+            "workspace_copied": True,
+            "patch_applied": False,
+            "commands_executed": False,
+        },
+    )
+
+    from cpos.patch_generation_review import validate_patch_generation_output
+
+    result = validate_patch_generation_output(
+        store,
+        patch_generation_task_id=review["task_id"],
+        diff_text=diff_text,
+        changed_files=["README.md"],
+        validation_commands=["pytest -q tests/test_report.py"],
+        reason="unit",
+    )
+
+    assert result["ok"] is True
+    validation = result["validation"]
+    assert validation["patch_apply_stage"] == "git_apply_check"
+    assert validation["raw_diff_stored"] is False
+    assert validation["diff_text_included"] is False
+    assert validation["raw_outputs_stored"] is False
+    assert validation["patch_applied"] is False
+    assert validation["commands_executed"] is False
+    assert validation["diff_size_bytes"] == len(diff_text.encode("utf-8"))
+    assert "diff --git" not in str(result["event"])
+    assert "diff --git" not in str(store.events())
+
+
+def test_patch_generation_validation_rejects_disallowed_command(tmp_path, monkeypatch):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    candidate_task_id = _candidate(store)
+    review = create_patch_generation_review(store, candidate_task_id=candidate_task_id)
+    approve_patch_generation_review(store, review["task_id"], confirm=True)
+    called = {"check": False}
+
+    def fake_check(diff_text):
+        called["check"] = True
+        return {"ok": True}
+
+    monkeypatch.setattr("cpos.patch_generation_review._check_generated_patch", fake_check)
+
+    from cpos.patch_generation_review import validate_patch_generation_output
+
+    result = validate_patch_generation_output(
+        store,
+        patch_generation_task_id=review["task_id"],
+        diff_text="diff --git a/README.md b/README.md\n@@\n-old\n+new\n",
+        changed_files=["README.md"],
+        validation_commands=["python -c 'print(1)'"]
+    )
+
+    assert result["ok"] is False
+    assert result["failure_kind"] == "policy_rejected"
+    assert result["validation"]["command_policy"]["ok"] is False
+    assert result["validation"]["commands_executed"] is False
+    assert called["check"] is False
+
