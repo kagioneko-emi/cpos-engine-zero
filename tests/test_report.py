@@ -1036,6 +1036,24 @@ def test_generate_report_renders_patch_generation_reviews(tmp_path):
         changed_files=["app.py"],
         validation_commands=["pytest tests/test_app.py -q"],
     )
+    store.append_event(
+        task_id=review["task_id"],
+        event="sandbox_patch_generation_advanced_to_execution_review",
+        target=f"sandbox://patch-generation/{review['task_id']}/execution-review/task_execution_review_report",
+        status="execution_review_ready",
+        payload={
+            "review_type": "sandbox_patch_generation_safe_advance",
+            "patch_generation_task_id": review["task_id"],
+            "github_diff_review_task_id": linked["task_id"],
+            "patch_task_id": "task_patch_plan_report",
+            "execution_task_id": "task_execution_review_report",
+            "status": "pending_sandbox_patch_execution_review",
+            "raw_diff_stored": False,
+            "raw_outputs_stored": False,
+            "commands_executed": False,
+            "execute_automatically": False,
+        },
+    )
 
     generate_hackathon_report(
         str(audit_path),
@@ -1052,6 +1070,8 @@ def test_generate_report_renders_patch_generation_reviews(tmp_path):
     assert 'Diff Reviews Linked' in html
     assert 'Validation Harness' in html
     assert 'Validation Harness Runs' in html
+    assert 'Safe Advances' in html
+    assert 'task_execution_review_report' in html
     assert 'Raw Diff' in html
     assert 'Auto Execute' in html
     assert review["task_id"] in html

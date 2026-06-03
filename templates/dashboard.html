@@ -1314,7 +1314,7 @@
                         return;
                     }
                     section.style.display = 'block';
-                    summary.innerText = `pending_reviews=${reviews.length}, validation_harness=git_apply_check_only, raw_diff_stored=false, diff_text_included=false, execute_automatically=false`;
+                    summary.innerText = `pending_reviews=${reviews.length}, validation_harness=git_apply_check_only, safe_advance=diff_review_to_execution_review, raw_diff_stored=false, diff_text_included=false, execute_automatically=false`;
                     container.innerHTML = '';
                     reviews.slice(-5).reverse().forEach(review => {
                         const div = document.createElement('div');
@@ -1335,6 +1335,7 @@
                                     <button class="btn btn-success" onclick="approvePatchGenerationReview('${review.task_id}')">Approve Patch Generation</button>
                                     <button class="btn btn-danger" onclick="rejectPatchGenerationReview('${review.task_id}')">Reject</button>
                                     <button class="btn btn-primary" onclick="validatePatchGenerationOutput('${review.task_id}')">Validate Generated Diff</button>
+                                    <button class="btn btn-warning" onclick="advancePatchGenerationToExecutionReview('${review.task_id}')">Advance to Execution Review</button>
                                     <button class="btn btn-warning" onclick="createGithubDiffReviewFromPatchGeneration('${review.task_id}')">Create GitHub Diff Review from Generated Diff</button>
                                 </div>
                             </div>
@@ -1847,6 +1848,29 @@
                 changed_files: changedFiles,
                 validation_commands: validationCommands,
                 reason: 'dashboard_validate_patch_generation_output'
+            });
+        }
+
+        async function advancePatchGenerationToExecutionReview(taskId) {
+            const sourceTaskId = prompt('Approved GitHub PR dry-run task id for this generated diff review:');
+            if (!sourceTaskId) return;
+            const diffText = prompt('Paste generated raw diff text. It will be validated and sent transiently; only hash/size/counters are stored:');
+            if (!diffText) return;
+            const changedFilesText = prompt('Changed files, comma-separated:', 'README.md');
+            if (changedFilesText === null) return;
+            const validationCommandsText = prompt('Validation commands, one per line. They define the later sandbox execution review and are not executed by this action:', 'pytest -q tests');
+            if (validationCommandsText === null) return;
+            const changedFiles = changedFilesText.split(',').map(item => item.trim()).filter(Boolean);
+            const validationCommands = validationCommandsText.split('\n').map(item => item.trim()).filter(Boolean);
+            if (!changedFiles.length || !validationCommands.length) { showNotification('Changed files and validation commands are required'); return; }
+            if (!confirm(`Validate generated diff, create/approve metadata-only GitHub Diff Review and Sandbox Plan, then create a pending Sandbox Execution Review for ${taskId}? This will not approve execution, run commands, patch the live repo, commit, push, create a PR, or store raw diff/output.`)) return;
+            await postJson(`/sandbox/patch-generations/${taskId}/advance-to-execution-review`, {
+                confirm: true,
+                source_task_id: sourceTaskId.trim(),
+                diff_text: diffText,
+                changed_files: changedFiles,
+                validation_commands: validationCommands,
+                reason: 'dashboard_safe_advance_patch_generation_to_execution_review'
             });
         }
 

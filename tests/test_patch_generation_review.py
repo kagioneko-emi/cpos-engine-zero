@@ -1,5 +1,6 @@
 from cpos.github_pr_flow import approve_github_pr_dry_run, create_github_pr_dry_run
 from cpos.patch_generation_review import (
+    advance_patch_generation_to_execution_review,
     approve_patch_generation_review,
     create_github_diff_review_from_patch_generation,
     create_patch_generation_review,
@@ -180,4 +181,73 @@ def test_patch_generation_validation_rejects_disallowed_command(tmp_path, monkey
     assert result["validation"]["command_policy"]["ok"] is False
     assert result["validation"]["commands_executed"] is False
     assert called["check"] is False
+
+def test_patch_generation_safe_advance_opens_execution_review(tmp_path, monkeypatch):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    source_task_id = _approved_pr(store)
+    candidate_task_id = _candidate(store)
+    review = create_patch_generation_review(store, candidate_task_id=candidate_task_id)
+    approve_patch_generation_review(store, review["task_id"], confirm=True)
+    diff_text = "diff --git a/README.md b/README.md\n@@\n-old\n+new\n"
+    monkeypatch.setattr(
+        "cpos.patch_generation_review._check_generated_patch",
+        lambda diff_text: {
+            "ok": True,
+            "stage": "git_apply_check",
+            "exit_code": 0,
+            "stdout_sha256": "out",
+            "stderr_sha256": "err",
+            "stdout_size_bytes": 0,
+            "stderr_size_bytes": 0,
+            "workspace_copied": True,
+            "patch_applied": False,
+            "commands_executed": False,
+        },
+    )
+
+    result = advance_patch_generation_to_execution_review(
+        store,
+        patch_generation_task_id=review["task_id"],
+        source_task_id=source_task_id,
+        diff_text=diff_text,
+        changed_files=["README.md"],
+        validation_commands=["pytest -q tests/test_report.py"],
+        confirm=True,
+        reason="unit",
+    )
+
+    assert result["ok"] is True
+    assert result["status"] == "execution_review_ready"
+    assert result["github_diff_review_task_id"]
+    assert result["patch_task_id"]
+    assert result["execution_task_id"]
+    assert result["raw_diff_stored"] is False
+    assert result["patch_applied"] is False
+    assert result["commands_executed"] is False
+    assert result["execute_automatically"] is False
+    assert any(event.event == "github_diff_review_approved" for event in store.events())
+    assert any(event.event == "sandbox_patch_plan_approved" for event in store.events())
+    assert any(
+        event.event == "review_required" and event.payload.get("review_type") == "sandbox_patch_execution"
+        for event in store.events()
+    )
+    assert any(event.event == "sandbox_patch_generation_advanced_to_execution_review" for event in store.events())
+    assert "diff --git" not in str(result["event"])
+    assert "diff --git" not in str(store.events())
+
+
+def test_patch_generation_safe_advance_requires_confirm(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    result = advance_patch_generation_to_execution_review(
+        store,
+        patch_generation_task_id="task_patch_generation",
+        source_task_id="task_source",
+        diff_text="diff --git a/README.md b/README.md\n@@\n-old\n+new\n",
+        changed_files=["README.md"],
+        validation_commands=["pytest -q tests/test_report.py"],
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "confirm_required"
+    assert result["execute_automatically"] is False
 

@@ -901,6 +901,7 @@ def render_patch_generation_review_summary(task_tape_path, task_checkpoint_path)
     reviews = pending_patch_generation_reviews(store)
     linked = [event.to_dict() for event in store.events() if event.event == 'sandbox_patch_generation_linked_to_github_diff_review']
     validations = [event.to_dict() for event in store.events() if event.event == 'sandbox_patch_generation_output_validated']
+    advances = [event.to_dict() for event in store.events() if event.event == 'sandbox_patch_generation_advanced_to_execution_review']
     html = f"""
         <div class="card governance-card">
             <div class="step-label">Patch Generation Reviews</div>
@@ -909,12 +910,13 @@ def render_patch_generation_review_summary(task_tape_path, task_checkpoint_path)
                 <div class="metric"><strong>{len(reviews)}</strong><span>Pending Reviews</span></div>
                 <div class="metric"><strong>{len(linked)}</strong><span>Diff Reviews Linked</span></div>
                 <div class="metric"><strong>{len(validations)}</strong><span>Validation Harness Runs</span></div>
+                <div class="metric"><strong>{len(advances)}</strong><span>Safe Advances</span></div>
                 <div class="metric"><strong>no</strong><span>Raw Diff</span></div>
                 <div class="metric"><strong>no</strong><span>Auto Execute</span></div>
             </div>
             <p class="muted">Patch generation reviews authorize a transient patch-generation attempt only. Generated diff text can be checked by the validation harness with git apply --check before routing into GitHub Diff Review; Task Tape stores hashes, sizes, counters, and lineage metadata only.</p>
     """
-    if not reviews and not linked and not validations:
+    if not reviews and not linked and not validations and not advances:
         html += '<p class="muted">No patch generation reviews yet.</p></div>'
         return html
     if reviews:
@@ -936,6 +938,12 @@ def render_patch_generation_review_summary(task_tape_path, task_checkpoint_path)
         for row in validations[-10:]:
             payload = row.get('payload') or {}
             html += f"<li><code>{escape(str(payload.get('patch_generation_task_id') or row.get('task_id') or '-'))}</code> <span class=\"muted\">status={escape(str(row.get('status') or '-'))} stage={escape(str(payload.get('patch_apply_stage') or '-'))} exit={escape(str(payload.get('patch_apply_exit_code')))} raw_diff_stored={escape(str(payload.get('raw_diff_stored')))} commands_executed={escape(str(payload.get('commands_executed')))}</span></li>"
+        html += '</ul>'
+    if advances:
+        html += '<div class="step-label">Safe Advances</div><ul>'
+        for row in advances[-10:]:
+            payload = row.get('payload') or {}
+            html += f"<li><code>{escape(str(payload.get('patch_generation_task_id') or row.get('task_id') or '-'))}</code> → execution <code>{escape(str(payload.get('execution_task_id') or '-'))}</code> <span class=\"muted\">status={escape(str(payload.get('status') or '-'))} raw_diff_stored={escape(str(payload.get('raw_diff_stored')))} run=false</span></li>"
         html += '</ul>'
     if linked:
         html += '<div class="step-label">Linked GitHub Diff Reviews</div><ul>'
@@ -1067,7 +1075,7 @@ def render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path):
         html += '<p class="muted">No sandbox autonomy flow nodes yet.</p></div>'
         return html
     html += '<div class="step-label">Node Kinds</div><p>'
-    for kind in ['sandbox_execution', 'retry_review', 'replan_template', 'diff_intake', 'auto_fix_candidate', 'patch_generation_review', 'patch_generation_validation', 'diff_review_draft', 'github_diff_review']:
+    for kind in ['sandbox_execution', 'retry_review', 'replan_template', 'diff_intake', 'auto_fix_candidate', 'patch_generation_review', 'patch_generation_validation', 'patch_generation_safe_advance', 'sandbox_execution_review', 'diff_review_draft', 'github_diff_review']:
         if counts.get(kind):
             html += f'<span class="pill">{escape(kind)}: {counts.get(kind)}</span>'
     html += '</p>'

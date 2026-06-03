@@ -965,6 +965,26 @@ curl -X POST https://<host>/sandbox/diff-drafts/<draft_task_id>/create-github-di
   -d '{"source_task_id":"<approved_pr_dry_run_task_id>","diff_text":"...","changed_files":["README.md"],"validation_commands":["pytest -q tests/test_report.py"]}'
 ```
 
+Patch Generation Reviews add a stronger execution-power path for Auto Fix
+Candidates without relaxing safety gates. An approved patch-generation review can
+accept generated diff text as transient input, check it with `git apply --check`
+in an ephemeral workspace, and then safely advance to a pending Sandbox Execution
+Review. This route may approve the metadata-only GitHub Diff Review and Sandbox
+Patch Plan when `confirm=true`, but it still does not approve execution, run
+commands, mutate the live repository, commit, push, create a PR, or store raw diff
+or raw output.
+
+```bash
+curl -X POST https://<host>/sandbox/fix-candidates/<task_id>/create-patch-generation \
+  -d '{"reason":"review_generated_repair"}'
+curl -X POST https://<host>/sandbox/patch-generations/<patch_generation_task_id>/approve \
+  -d '{"confirm":true}'
+curl -X POST https://<host>/sandbox/patch-generations/<patch_generation_task_id>/validate-output \
+  -d '{"diff_text":"...","changed_files":["README.md"],"validation_commands":["pytest -q tests/test_report.py"]}'
+curl -X POST https://<host>/sandbox/patch-generations/<patch_generation_task_id>/advance-to-execution-review \
+  -d '{"confirm":true,"source_task_id":"<approved_pr_dry_run_task_id>","diff_text":"...","changed_files":["README.md"],"validation_commands":["pytest -q tests/test_report.py"]}'
+```
+
 
 ## Sandbox Patch Execution Retry Review
 

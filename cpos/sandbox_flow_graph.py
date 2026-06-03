@@ -105,6 +105,18 @@ def build_sandbox_flow_graph(store: TaskTapeStore, *, source_execution_task_id: 
             add_node(_node(validation_node_id, "patch_generation_validation", status=event.get("status"), label="Patch Generation Validation", metadata={"failure_kind": payload.get("failure_kind"), "changed_file_count": payload.get("changed_file_count"), "diff_size_bytes": payload.get("diff_size_bytes"), "workspace_copied": payload.get("workspace_copied"), "patch_applied": False, "commands_executed": False, "raw_diff_stored": False, "raw_outputs_stored": False, "execute_automatically": False}))
             add_edge(_edge(payload.get("patch_generation_task_id") or task_id, validation_node_id, "validates_generated_patch"))
 
+        elif name == "sandbox_patch_generation_advanced_to_execution_review":
+            source = payload.get("source_execution_task_id")
+            if source_execution_task_id and source != source_execution_task_id:
+                continue
+            execution_task_id = payload.get("execution_task_id")
+            advance_node_id = f"{task_id}:safe-advance"
+            add_node(_node(advance_node_id, "patch_generation_safe_advance", status=event.get("status"), label="Patch Generation Safe Advance", metadata={"github_diff_review_task_id": payload.get("github_diff_review_task_id"), "patch_task_id": payload.get("patch_task_id"), "execution_task_id": execution_task_id, "step_count": payload.get("step_count"), "raw_diff_stored": False, "execute_automatically": False}))
+            add_edge(_edge(payload.get("patch_generation_task_id") or task_id, advance_node_id, "advances_to_execution_review"))
+            if execution_task_id:
+                add_node(_node(execution_task_id, "sandbox_execution_review", status="pending_review", label="Sandbox Execution Review", metadata={"patch_task_id": payload.get("patch_task_id"), "raw_diff_stored": False, "execute_automatically": False}))
+                add_edge(_edge(advance_node_id, execution_task_id, "creates_execution_review"))
+
         elif name == "sandbox_patch_generation_linked_to_github_diff_review":
             source = payload.get("source_execution_task_id")
             if source_execution_task_id and source != source_execution_task_id:

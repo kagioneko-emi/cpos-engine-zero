@@ -321,7 +321,10 @@ def test_dashboard_contains_patch_generation_review_ui():
     assert 'createGithubDiffReviewFromPatchGeneration' in html
     assert 'validatePatchGenerationOutput' in html
     assert '/sandbox/patch-generations/${taskId}/validate-output' in html
+    assert '/sandbox/patch-generations/${taskId}/advance-to-execution-review' in html
     assert 'Validate Generated Diff' in html
+    assert 'Advance to Execution Review' in html
+    assert 'advancePatchGenerationToExecutionReview' in html
     assert 'PATCH GENERATION REVIEW' in html
     assert 'git apply --check' in html
     assert 'validation harness stores only hashes' in html

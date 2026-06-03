@@ -721,6 +721,24 @@ def test_sandbox_patch_generation_api_flow(tmp_path, monkeypatch):
     assert routed_payload["diff_text_included"] is False
     assert "diff --git" not in str(routed_payload["patch_generation_link"])
 
+    advanced = client.post(f"/sandbox/patch-generations/{task_id}/advance-to-execution-review", json={
+        "confirm": True,
+        "source_task_id": source_task_id,
+        "diff_text": "diff --git a/README.md b/README.md\n@@\n-old\n+new\n",
+        "changed_files": ["README.md"],
+        "validation_commands": ["pytest -q tests/test_report.py"],
+        "reason": "api",
+    })
+    assert advanced.status_code == 200
+    advanced_payload = advanced.get_json()
+    assert advanced_payload["ok"] is True
+    assert advanced_payload["status"] == "execution_review_ready"
+    assert advanced_payload["execution_task_id"]
+    assert advanced_payload["raw_diff_stored"] is False
+    assert advanced_payload["patch_applied"] is False
+    assert advanced_payload["commands_executed"] is False
+    assert "diff --git" not in str(advanced_payload["event"])
+
 
 def test_sandbox_patch_generation_scope_mapping():
     with server.app.test_request_context("/sandbox/patch-generations", method="GET"):
@@ -730,6 +748,8 @@ def test_sandbox_patch_generation_scope_mapping():
     with server.app.test_request_context("/sandbox/patch-generations/task/approve", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
     with server.app.test_request_context("/sandbox/patch-generations/task/validate-output", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"
+    with server.app.test_request_context("/sandbox/patch-generations/task/advance-to-execution-review", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
     with server.app.test_request_context("/sandbox/patch-generations/task/create-github-diff-review", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"

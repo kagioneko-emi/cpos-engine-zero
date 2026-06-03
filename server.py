@@ -46,7 +46,7 @@ from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed
 from cpos.auto_fix_candidate import create_auto_fix_candidate, pending_auto_fix_candidates
 from cpos.diff_review_draft import create_diff_review_draft, create_github_diff_review_from_draft, pending_diff_review_drafts
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
-from cpos.patch_generation_review import create_patch_generation_review, pending_patch_generation_reviews, approve_patch_generation_review, reject_patch_generation_review, validate_patch_generation_output, create_github_diff_review_from_patch_generation
+from cpos.patch_generation_review import create_patch_generation_review, pending_patch_generation_reviews, approve_patch_generation_review, reject_patch_generation_review, validate_patch_generation_output, advance_patch_generation_to_execution_review, create_github_diff_review_from_patch_generation
 
 apply_security_profile_defaults()
 
@@ -1141,6 +1141,25 @@ def sandbox_patch_generation_validate_output(task_id):
     )
     status = 200 if result.get('ok') else (404 if result.get('error') == 'approved_patch_generation_review_required' else 400)
     audit_security_event('security_mutation', 'sandbox_patch_generation_output_validated' if result.get('ok') else result.get('error', 'sandbox_patch_generation_validation_denied'), status, required_scope_for_request(), {'task_id': task_id, 'failure_kind': result.get('failure_kind')})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/patch-generations/<task_id>/advance-to-execution-review', methods=['POST'])
+def sandbox_patch_generation_advance_to_execution_review(task_id):
+    data = request.get_json(silent=True) or {}
+    result = advance_patch_generation_to_execution_review(
+        agent.task_tape,
+        patch_generation_task_id=task_id,
+        source_task_id=data.get('source_task_id'),
+        diff_text=data.get('diff_text'),
+        changed_files=data.get('changed_files') if isinstance(data.get('changed_files'), list) else [],
+        validation_commands=data.get('validation_commands') if isinstance(data.get('validation_commands'), list) else [],
+        actor=request_actor(),
+        reason=data.get('reason'),
+        confirm=data.get('confirm') is True,
+    )
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'approved_patch_generation_review_required' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_generation_advanced_to_execution_review' if result.get('ok') else result.get('error', result.get('status') or 'sandbox_patch_generation_advance_denied'), status, required_scope_for_request(), {'task_id': task_id, 'github_diff_review_task_id': result.get('github_diff_review_task_id'), 'patch_task_id': result.get('patch_task_id'), 'execution_task_id': result.get('execution_task_id'), 'step_count': result.get('step_count')})
     return jsonify(result), status
 
 

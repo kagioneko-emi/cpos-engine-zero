@@ -4,7 +4,8 @@ import subprocess
 
 from typing import Any
 
-from .github_diff_review import create_github_diff_review
+from .github_diff_review import approve_github_diff_review, create_github_diff_review
+from .execution_driver import advance_sandbox_patch_pipeline
 from .human_escalation import review_escalation_decision
 from .sandbox_patch_plan import _digest
 from .sandbox_patch_runner import _hash_commands, _hash_text, _prepare_workspace, validate_validation_commands
@@ -309,6 +310,171 @@ def validate_patch_generation_output(
         "patch_applied": False,
         "commands_executed": False,
         "execute_automatically": False,
+    }
+
+
+def advance_patch_generation_to_execution_review(
+    store: TaskTapeStore,
+    *,
+    patch_generation_task_id: str,
+    source_task_id: str | None,
+    diff_text: str | None = None,
+    changed_files: list[str] | None = None,
+    validation_commands: list[str] | None = None,
+    actor: str = "PatchGenerationSafeAdvance",
+    reason: str | None = None,
+    confirm: bool = False,
+) -> dict[str, Any]:
+    """Validate generated diff, create/approve diff review, and open execution review.
+
+    This is a one-click safe route from an approved patch-generation review to a
+    pending sandbox execution review. It requires explicit confirmation because it
+    approves the metadata-only GitHub diff review and sandbox patch plan. It does
+    not approve execution, run commands, mutate the live repo, commit, push, or
+    create a PR.
+    """
+    if not confirm:
+        return {"ok": False, "error": "confirm_required", "patch_generation_task_id": patch_generation_task_id, "execute_automatically": False}
+
+    steps: list[dict[str, Any]] = []
+    validation = validate_patch_generation_output(
+        store,
+        patch_generation_task_id=patch_generation_task_id,
+        diff_text=diff_text,
+        changed_files=changed_files,
+        validation_commands=validation_commands,
+        actor=actor,
+        reason=reason or "safe_advance_validate_generated_patch",
+    )
+    steps.append({"name": "validate_patch_generation_output", "ok": bool(validation.get("ok")), "task_id": validation.get("task_id"), "status": validation.get("status"), "error": validation.get("error")})
+    if not validation.get("ok"):
+        return {
+            "ok": False,
+            "status": "patch_generation_validation_failed",
+            "patch_generation_task_id": patch_generation_task_id,
+            "steps": steps,
+            "step_count": len(steps),
+            "failure_kind": validation.get("failure_kind"),
+            "raw_diff_stored": False,
+            "diff_text_included": False,
+            "raw_outputs_stored": False,
+            "patch_applied": False,
+            "commands_executed": False,
+            "execute_automatically": False,
+        }
+
+    diff_review = create_github_diff_review_from_patch_generation(
+        store,
+        patch_generation_task_id=patch_generation_task_id,
+        source_task_id=source_task_id,
+        diff_text=diff_text,
+        changed_files=changed_files,
+        validation_commands=validation_commands,
+        actor=actor,
+        reason=reason or "safe_advance_create_github_diff_review",
+    )
+    steps.append({"name": "create_github_diff_review", "ok": bool(diff_review.get("ok")), "task_id": diff_review.get("task_id"), "status": diff_review.get("status"), "error": diff_review.get("error")})
+    if not diff_review.get("ok"):
+        return {
+            "ok": False,
+            "status": "github_diff_review_creation_failed",
+            "patch_generation_task_id": patch_generation_task_id,
+            "steps": steps,
+            "step_count": len(steps),
+            "raw_diff_stored": False,
+            "diff_text_included": False,
+            "raw_outputs_stored": False,
+            "patch_applied": False,
+            "commands_executed": False,
+            "execute_automatically": False,
+        }
+
+    diff_task_id = str(diff_review["task_id"])
+    diff_approval = approve_github_diff_review(
+        store,
+        diff_task_id,
+        approver=actor,
+        reason=reason or "safe_advance_approve_diff_review_metadata_only",
+        confirm=True,
+    )
+    steps.append({"name": "approve_github_diff_review", "ok": bool(diff_approval.get("ok")), "task_id": diff_approval.get("task_id"), "status": diff_approval.get("status"), "error": diff_approval.get("error")})
+    if not diff_approval.get("ok"):
+        return {
+            "ok": False,
+            "status": "github_diff_review_approval_failed",
+            "patch_generation_task_id": patch_generation_task_id,
+            "github_diff_review_task_id": diff_task_id,
+            "steps": steps,
+            "step_count": len(steps),
+            "raw_diff_stored": False,
+            "diff_text_included": False,
+            "raw_outputs_stored": False,
+            "patch_applied": False,
+            "commands_executed": False,
+            "execute_automatically": False,
+        }
+
+    advanced = advance_sandbox_patch_pipeline(
+        store,
+        diff_task_id=diff_task_id,
+        actor=actor,
+        approve_plan=True,
+        approve_execution=False,
+        run=False,
+        reason=reason or "safe_advance_to_execution_review",
+    )
+    steps.extend(advanced.get("steps") or [])
+    ok = bool(advanced.get("ok")) and advanced.get("status") == "pending_sandbox_patch_execution_review"
+    link_payload = {
+        "review_type": "sandbox_patch_generation_safe_advance",
+        "patch_generation_task_id": patch_generation_task_id,
+        "source_execution_task_id": (validation.get("validation") or {}).get("source_execution_task_id"),
+        "candidate_task_id": (validation.get("validation") or {}).get("candidate_task_id"),
+        "github_diff_review_task_id": diff_task_id,
+        "patch_task_id": advanced.get("patch_task_id"),
+        "execution_task_id": advanced.get("execution_task_id"),
+        "status": advanced.get("status"),
+        "step_count": len(steps),
+        "raw_diff_stored": False,
+        "diff_text_included": False,
+        "raw_outputs_stored": False,
+        "patch_applied": False,
+        "commands_executed": False,
+        "execute_automatically": False,
+        "commit_created": False,
+        "pushed": False,
+        "pr_created": False,
+        "next_step": "approve_sandbox_execution_then_run_with_transient_diff" if ok else "inspect_safe_advance_failure",
+    }
+    link_payload["safe_advance_sha256"] = _digest(link_payload)
+    event = store.append_event(
+        task_id=patch_generation_task_id,
+        event="sandbox_patch_generation_advanced_to_execution_review",
+        target=f"sandbox://patch-generation/{patch_generation_task_id}/execution-review/{advanced.get('execution_task_id') or '-'}",
+        status="execution_review_ready" if ok else "advance_failed",
+        payload=link_payload,
+    )
+    return {
+        "ok": ok,
+        "status": "execution_review_ready" if ok else str(advanced.get("status") or "advance_failed"),
+        "patch_generation_task_id": patch_generation_task_id,
+        "source_execution_task_id": (validation.get("validation") or {}).get("source_execution_task_id"),
+        "candidate_task_id": (validation.get("validation") or {}).get("candidate_task_id"),
+        "github_diff_review_task_id": diff_task_id,
+        "patch_task_id": advanced.get("patch_task_id"),
+        "execution_task_id": advanced.get("execution_task_id"),
+        "steps": steps,
+        "step_count": len(steps),
+        "event": event.to_dict(),
+        "raw_diff_stored": False,
+        "diff_text_included": False,
+        "raw_outputs_stored": False,
+        "patch_applied": False,
+        "commands_executed": False,
+        "execute_automatically": False,
+        "commit_created": False,
+        "pushed": False,
+        "pr_created": False,
     }
 
 def create_github_diff_review_from_patch_generation(

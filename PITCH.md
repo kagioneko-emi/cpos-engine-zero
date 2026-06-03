@@ -34,15 +34,15 @@ CPOS does not try to win by giving an agent unrestricted write power. The goal i
 
 ## 4. The Demo: "Safe Autonomy Loop"
 ### Scenario A: Review-gated repair loop
-1.  **Diff Draft**: CPOS proposes the next diff-review payload shape from failure metadata and an Auto Fix Candidate.
+1.  **Diff Draft / Patch Generation Review**: CPOS proposes the next diff-review payload shape from failure metadata and an Auto Fix Candidate. For generated patches, a review-gated validation harness can run `git apply --check` in an ephemeral workspace while storing only hashes and counters.
 2.  **GitHub Diff Review**: A human/agent supplies raw diff text transiently; CPOS stores only hashes, sizes, counters, changed files, and validation commands.
-3.  **Sandbox Execution Review**: The approved diff is promoted into a sandbox plan and execution review. The live repository is not patched.
+3.  **Sandbox Execution Review**: The approved diff, or a validated generated patch, is promoted into a sandbox plan and execution review. The live repository is not patched.
 4.  **Supplied-diff Run**: Only after explicit approval, CPOS runs the patch in an ephemeral sandbox workspace and stores result metadata only.
 5.  **Failure-to-Replan**: Failures become retry reviews, replan templates, diff intakes, and new draft candidates—not blind automatic reruns.
 6.  **Flow Graph + Demo Snapshot**: The dashboard and report show the whole lineage and safety flags in one view.
 
 ### Scenario B: Audit-ready operator view
-*   **Dashboard**: Human Escalation Queue, GitHub Diff Reviews, Sandbox Execution Reviews, Execution Scoreboard, Sandbox Flow Graph, and Autonomy Loop Demo Panel.
+*   **Dashboard**: Human Escalation Queue, Patch Generation Reviews, GitHub Diff Reviews, Sandbox Execution Reviews, Execution Scoreboard, Sandbox Flow Graph, and Autonomy Loop Demo Panel.
 *   **Report**: Autonomy Loop Demo Snapshot plus safety/integrity summaries for external review.
 
 ---

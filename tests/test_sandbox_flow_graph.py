@@ -117,6 +117,27 @@ def _append_flow_events(store):
         },
     )
     store.append_event(
+        task_id="task_patch_generation",
+        event="sandbox_patch_generation_advanced_to_execution_review",
+        target="sandbox://patch-generation/task_patch_generation/execution-review/task_execution_review_from_patch",
+        status="execution_review_ready",
+        payload={
+            "review_type": "sandbox_patch_generation_safe_advance",
+            "patch_generation_task_id": "task_patch_generation",
+            "source_execution_task_id": "task_exec",
+            "candidate_task_id": "task_candidate",
+            "github_diff_review_task_id": "task_github_diff_from_patch_generation",
+            "patch_task_id": "task_patch_plan_from_patch_generation",
+            "execution_task_id": "task_execution_review_from_patch",
+            "step_count": 6,
+            "raw_diff_stored": False,
+            "raw_outputs_stored": False,
+            "patch_applied": False,
+            "commands_executed": False,
+            "execute_automatically": False,
+        },
+    )
+    store.append_event(
         task_id="task_github_diff_from_patch_generation",
         event="sandbox_patch_generation_linked_to_github_diff_review",
         target="sandbox://patch-generation/task_patch_generation/github-diff-review/task_github_diff_from_patch_generation",
@@ -181,8 +202,8 @@ def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
     assert graph["raw_diff_stored"] is False
     assert graph["raw_outputs_stored"] is False
     assert graph["execute_automatically"] is False
-    assert graph["counts"]["nodes"] == 10
-    assert graph["counts"]["edges"] == 9
+    assert graph["counts"]["nodes"] == 12
+    assert graph["counts"]["edges"] == 11
     assert graph["counts"]["sandbox_execution"] == 1
     assert graph["counts"]["retry_review"] == 1
     assert graph["counts"]["replan_template"] == 1
@@ -191,6 +212,8 @@ def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
     assert graph["counts"]["diff_review_draft"] == 1
     assert graph["counts"]["patch_generation_review"] == 1
     assert graph["counts"]["patch_generation_validation"] == 1
+    assert graph["counts"]["patch_generation_safe_advance"] == 1
+    assert graph["counts"]["sandbox_execution_review"] == 1
     assert graph["counts"]["github_diff_review"] == 2
     assert {node["kind"] for node in graph["nodes"]} == {
         "sandbox_execution",
@@ -200,6 +223,8 @@ def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
         "auto_fix_candidate",
         "patch_generation_review",
         "patch_generation_validation",
+        "patch_generation_safe_advance",
+        "sandbox_execution_review",
         "diff_review_draft",
         "github_diff_review",
     }
@@ -213,6 +238,12 @@ def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
         (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
     }
     assert ("task_patch_generation", "task_patch_generation:validation", "validates_generated_patch") in {
+        (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
+    }
+    assert ("task_patch_generation", "task_patch_generation:safe-advance", "advances_to_execution_review") in {
+        (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
+    }
+    assert ("task_patch_generation:safe-advance", "task_execution_review_from_patch", "creates_execution_review") in {
         (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
     }
     assert ("task_patch_generation", "task_github_diff_from_patch_generation", "creates_github_diff_review") in {
