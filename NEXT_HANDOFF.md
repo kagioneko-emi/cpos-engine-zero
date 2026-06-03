@@ -1,5 +1,185 @@
 # Latest Handoff — Context Clean Checkpoint
 
+Generated: `2026-06-04T00:00:00+09:00`
+Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
+Working directory: `/home/mayutama/cpos_defensive_agent`
+Branch: `main`
+Remote status at handoff after committing this memo: `main...origin/main [ahead 1]`
+Latest pushed commit: `fb0debc Add patch generation safe advance`
+Latest local-only memo commit: see `git log -1` after this handoff commit.
+Release/tag status: **v0.1 tag has NOT been created yet**.
+
+## Absolute first steps next session
+
+Run these before continuing:
+
+```bash
+cd /home/mayutama/cpos_defensive_agent
+git status --short --branch
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+```
+
+Expected clean result at handoff after the memo commit:
+
+- `git status --short --branch`: `## main...origin/main [ahead 1]`
+- `prepublish_check`: `ok=true`
+- Secret scan: `ok=true count=0`
+- Working tree: clean
+
+## Latest pushed commits in this session
+
+Pushed to `origin main`:
+
+1. `36005e0 Add demo capture guide`
+2. `4cb6650 Add review-gated patch generation`
+3. `a1932bb Add patch generation validation harness`
+4. `fb0debc Add patch generation safe advance`
+
+## What changed most recently
+
+### Review-Gated Patch Generator
+
+Added `cpos/patch_generation_review.py` and connected it to API/dashboard/report/flow graph.
+
+Core behavior:
+
+- Auto Fix Candidate -> Patch Generation Review -> human approval gate.
+- Persisted metadata only: hashes, sizes, counters, task IDs, lineage, status flags.
+- Raw generated diff text is transient input only.
+- No live repo patch, no command execution, no commit, no push, no PR creation.
+
+Key APIs:
+
+- `GET /sandbox/patch-generations`
+- `POST /sandbox/fix-candidates/<task_id>/create-patch-generation`
+- `POST /sandbox/patch-generations/<task_id>/approve`
+- `POST /sandbox/patch-generations/<task_id>/reject`
+- `POST /sandbox/patch-generations/<task_id>/create-github-diff-review`
+
+Dashboard:
+
+- Added `Patch Generation Reviews` section.
+- Auto Fix Candidate cards now expose `Create Patch Generation Review`.
+- Patch Generation cards support approve/reject and routing transient generated diff into GitHub Diff Review.
+
+Report / graph:
+
+- Report renders `Patch Generation Reviews`.
+- Sandbox Flow Graph now includes `patch_generation_review` and generated-diff -> GitHub Diff Review lineage.
+
+### Patch Generation Validation Harness
+
+Added a safe pre-review harness for generated patches:
+
+- API: `POST /sandbox/patch-generations/<task_id>/validate-output`
+- Runs `git apply --check` in an ephemeral copied workspace only.
+- Validation commands are policy-checked but **not executed** by this harness.
+- Does not apply the patch, mutate live repo, commit, push, create PRs, or store raw diff/output.
+- Stores only diff hash/size, command hashes, apply-check exit/status/output hashes, counters, and lineage.
+
+Dashboard:
+
+- Added `Validate Generated Diff` button.
+
+Report / graph:
+
+- Report shows `Validation Harness Runs`.
+- Sandbox Flow Graph includes `patch_generation_validation` nodes.
+
+### Patch Generation Safe Advance
+
+Added one-click safe route from approved Patch Generation Review to pending Sandbox Execution Review:
+
+- API: `POST /sandbox/patch-generations/<task_id>/advance-to-execution-review`
+- Requires `confirm=true`.
+- Steps:
+  1. validate generated diff with the validation harness
+  2. create GitHub Diff Review from transient diff
+  3. approve GitHub Diff Review metadata-only gate
+  4. create Sandbox Patch Plan
+  5. approve Sandbox Patch Plan metadata-only gate
+  6. create pending Sandbox Execution Review
+- Still does **not** approve execution, run commands, patch live repo, commit, push, create PRs, or store raw diff/output.
+
+Dashboard:
+
+- Added `Advance to Execution Review` button.
+
+Report / graph:
+
+- Report shows `Safe Advances`.
+- Sandbox Flow Graph includes `patch_generation_safe_advance` and `sandbox_execution_review` nodes.
+
+### Docs
+
+Updated:
+
+- `README.md`
+  - Documents Patch Generation Reviews, validation harness, and safe advance curl flow.
+- `PITCH.md`
+  - Demo path now includes Diff Draft / Patch Generation Review and generated patch validation harness.
+- `docs/DEMO_CAPTURE_GUIDE.md`
+  - Added earlier demo capture guide commit.
+
+## Verification at handoff
+
+Latest verified commands:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m py_compile cpos/patch_generation_review.py cpos/sandbox_flow_graph.py server.py generate_report.py
+PYTHONPATH=. .venv/bin/python -m pytest tests/test_patch_generation_review.py tests/test_sandbox_patch_api.py::test_sandbox_patch_generation_api_flow tests/test_sandbox_patch_api.py::test_sandbox_patch_generation_scope_mapping tests/test_dashboard.py::test_dashboard_contains_patch_generation_review_ui tests/test_sandbox_flow_graph.py::test_sandbox_flow_graph_links_failure_to_draft tests/test_sandbox_flow_graph.py::test_sandbox_flow_graph_filters_by_source_execution tests/test_report.py::test_generate_report_renders_patch_generation_reviews -q
+PYTHONPATH=. .venv/bin/python -m pytest tests/test_patch_generation_review.py tests/test_sandbox_patch_api.py tests/test_dashboard.py tests/test_sandbox_flow_graph.py tests/test_report.py -q
+PYTHONPATH=. .venv/bin/python -m pytest tests -q
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+```
+
+Results:
+
+- Targeted safe-advance tests: `13 passed`
+- Related tests: `84 passed`
+- Full test suite: `301 passed`
+- `prepublish_check`: `ok=true`
+- Secret scan: `ok=true count=0`
+- After feature push: `main...origin/main` was synced and clean. This handoff memo commit is intentionally local-only unless user asks to push it.
+
+## Safety / publishing rules to preserve
+
+- Secrets/API keys/tokens/SSH keys stay in Vault; never hardcode, log, or push.
+- Do not stage/publish `.env`, secret files, cert/key files, `.venv`, pycache, pytest cache, runtime `*.jsonl`, generated local reports, or workspace artifacts.
+- Raw diff text, raw stdout/stderr, request bodies, checkpoint contents, and raw handoff bodies must not be persisted in Task Tape/dashboard/report. Store hashes, sizes, exit codes, status flags, and metadata only.
+- `authorized_keys` changes are forbidden.
+- User creation/deletion requiresねこさん confirmation.
+- `rm -rf`, destructive overwrite, and systemd stop/delete require confirmation.
+- Port opening requires explicit approval, 15-minute auto-close, and Discord notification.
+- GitHub publish/push is Human Escalation. The latest push was explicitly approved in this session and completed.
+- Correct remote is `origin https://github.com/kagioneko/cpos-engine-zero.git`.
+
+## Recommended next steps
+
+1. **Do not tag v0.1 yet unless user explicitly says so.** User said “まだv0.1にはせずに”.
+2. Next execution-power improvement: add a dashboard/report “ready-to-run execution review” helper after safe advance, but keep run approval separate and transient-diff-only.
+3. Add docs/release note polish for Patch Generation + Safe Advance if preparing v0.1.
+4. Consider demo script path:
+   - failed sandbox result
+   - retry/replan
+   - auto fix candidate
+   - patch generation review
+   - validation harness
+   - safe advance to execution review
+   - explicit approve+run in ephemeral sandbox
+   - result / flow graph / report
+5. If new commits are made, run full tests + `prepublish_check --json`; ask before push unless user gives clear push instruction.
+
+## Honest product assessment
+
+CPOS now has a materially strong safe execution loop: failure metadata can become a review-gated generated-patch path, generated patches can be checked in an ephemeral harness, and validated generated patches can be promoted to a pending sandbox execution review without live repo mutation or raw diff persistence. This is much closer to Hermes/OpenClaw/Claude Code-style execution power, while retaining stronger audit/safety constraints. Still avoid claiming definitive superiority until there is a crisp demo and real-world run evidence.
+
+---
+
+# Previous handoff history
+
+# Latest Handoff — Context Clean Checkpoint
+
 Generated: `2026-05-31T00:00:00+09:00`
 Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Branch: `main`
