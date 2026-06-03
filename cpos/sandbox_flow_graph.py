@@ -89,6 +89,22 @@ def build_sandbox_flow_graph(store: TaskTapeStore, *, source_execution_task_id: 
             add_node(_node(task_id, "auto_fix_candidate", status=event.get("status"), label="Auto Fix Candidate", metadata={"failure_kind": candidate.get("failure_kind"), "strategy": candidate.get("candidate_strategy"), "confidence": candidate.get("confidence"), "raw_diff_stored": False, "raw_outputs_stored": False}))
             add_edge(_edge(candidate.get("replan_task_id"), task_id, "creates_auto_fix_candidate"))
 
+        elif name == "review_required" and payload.get("review_type") == "sandbox_patch_generation":
+            plan = payload.get("plan") or {}
+            source = plan.get("source_execution_task_id")
+            if source_execution_task_id and source != source_execution_task_id:
+                continue
+            add_node(_node(task_id, "patch_generation_review", status=event.get("status"), label="Patch Generation Review", metadata={"failure_kind": plan.get("failure_kind"), "strategy": plan.get("candidate_strategy"), "confidence": plan.get("confidence"), "raw_diff_stored": False, "execute_automatically": False}))
+            add_edge(_edge(plan.get("candidate_task_id"), task_id, "creates_patch_generation_review"))
+
+        elif name == "sandbox_patch_generation_linked_to_github_diff_review":
+            source = payload.get("source_execution_task_id")
+            if source_execution_task_id and source != source_execution_task_id:
+                continue
+            github_task_id = payload.get("github_diff_review_task_id") or task_id
+            add_node(_node(github_task_id, "github_diff_review", status=event.get("status"), label="GitHub Diff Review", metadata={"failure_kind": payload.get("failure_kind"), "source_task_id": payload.get("source_task_id"), "diff_size_bytes": payload.get("diff_size_bytes"), "changed_file_count": payload.get("changed_file_count"), "raw_diff_stored": False, "execute_automatically": False}))
+            add_edge(_edge(payload.get("patch_generation_task_id"), github_task_id, "creates_github_diff_review"))
+
         elif name == "sandbox_diff_review_draft_created":
             draft = payload.get("draft") or {}
             source = draft.get("source_execution_task_id")

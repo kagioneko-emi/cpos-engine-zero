@@ -630,3 +630,75 @@ def test_sandbox_diff_review_draft_scope_mapping():
         assert server.required_scope_for_request() == "read:sandbox"
     with server.app.test_request_context("/sandbox/fix-candidates/task/create-diff-draft", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
+
+
+def test_sandbox_patch_generation_api_flow(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    pr = client.post("/github/pr-dry-runs", json={"repo": "kagioneko/cpos-engine-zero", "title": "Patch gen", "files": ["README.md"], "summary": "ctx"})
+    source_task_id = pr.get_json()["task_id"]
+    assert client.post(f"/github/pr-dry-runs/{source_task_id}/approve", json={"confirm": True}).status_code == 200
+    candidate_task_id = "task_candidate_patch_gen_api"
+    server.agent.task_tape.append_event(
+        task_id=candidate_task_id,
+        event="sandbox_auto_fix_candidate_created",
+        target="sandbox://auto-fix-candidate/task_replan",
+        status="candidate_created",
+        payload={
+            "review_type": "sandbox_auto_fix_candidate",
+            "candidate": {
+                "replan_task_id": "task_replan",
+                "source_execution_task_id": "task_exec_api",
+                "failure_kind": "validation_command",
+                "candidate_strategy": "target_failed_validation_metadata",
+                "confidence": 0.68,
+                "candidate_steps": ["modify smallest related code path"],
+                "raw_diff_stored": False,
+                "execute_automatically": False,
+            },
+        },
+    )
+
+    created = client.post(f"/sandbox/fix-candidates/{candidate_task_id}/create-patch-generation", json={"reason": "api"})
+    assert created.status_code == 200
+    payload = created.get_json()
+    assert payload["ok"] is True
+    assert payload["plan"]["raw_diff_stored"] is False
+    assert payload["plan"]["execute_automatically"] is False
+    task_id = payload["task_id"]
+
+    listed = client.get("/sandbox/patch-generations")
+    assert listed.status_code == 200
+    assert listed.get_json()["count"] == 1
+
+    missing_confirm = client.post(f"/sandbox/patch-generations/{task_id}/approve", json={})
+    assert missing_confirm.status_code == 400
+    assert missing_confirm.get_json()["error"] == "confirm_required"
+
+    approved = client.post(f"/sandbox/patch-generations/{task_id}/approve", json={"confirm": True})
+    assert approved.status_code == 200
+
+    routed = client.post(f"/sandbox/patch-generations/{task_id}/create-github-diff-review", json={
+        "source_task_id": source_task_id,
+        "diff_text": "diff --git a/README.md b/README.md\n@@\n-old\n+new\n",
+        "changed_files": ["README.md"],
+        "validation_commands": ["pytest -q tests/test_report.py"],
+        "reason": "api",
+    })
+    assert routed.status_code == 200
+    routed_payload = routed.get_json()
+    assert routed_payload["ok"] is True
+    assert routed_payload["raw_diff_stored"] is False
+    assert routed_payload["diff_text_included"] is False
+    assert "diff --git" not in str(routed_payload["patch_generation_link"])
+
+
+def test_sandbox_patch_generation_scope_mapping():
+    with server.app.test_request_context("/sandbox/patch-generations", method="GET"):
+        assert server.required_scope_for_request() == "read:sandbox"
+    with server.app.test_request_context("/sandbox/fix-candidates/task/create-patch-generation", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"
+    with server.app.test_request_context("/sandbox/patch-generations/task/approve", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"
+    with server.app.test_request_context("/sandbox/patch-generations/task/create-github-diff-review", method="POST"):
+        assert server.required_scope_for_request() == "write:sandbox"

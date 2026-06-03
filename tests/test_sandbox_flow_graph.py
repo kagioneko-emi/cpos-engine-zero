@@ -78,6 +78,42 @@ def _append_flow_events(store):
         },
     )
     store.append_event(
+        task_id="task_patch_generation",
+        event="review_required",
+        target="sandbox://patch-generation/task_candidate",
+        status="pending_review",
+        payload={
+            "review_type": "sandbox_patch_generation",
+            "plan": {
+                "candidate_task_id": "task_candidate",
+                "source_execution_task_id": "task_exec",
+                "failure_kind": "validation_command",
+                "candidate_strategy": "target_failed_validation_metadata",
+                "confidence": 0.68,
+                "raw_diff_stored": False,
+                "execute_automatically": False,
+            },
+        },
+    )
+    store.append_event(
+        task_id="task_github_diff_from_patch_generation",
+        event="sandbox_patch_generation_linked_to_github_diff_review",
+        target="sandbox://patch-generation/task_patch_generation/github-diff-review/task_github_diff_from_patch_generation",
+        status="linked_metadata_only",
+        payload={
+            "review_type": "sandbox_patch_generation_to_github_diff_review",
+            "patch_generation_task_id": "task_patch_generation",
+            "github_diff_review_task_id": "task_github_diff_from_patch_generation",
+            "source_task_id": "task_pr",
+            "source_execution_task_id": "task_exec",
+            "failure_kind": "validation_command",
+            "diff_size_bytes": 43,
+            "changed_file_count": 1,
+            "raw_diff_stored": False,
+            "execute_automatically": False,
+        },
+    )
+    store.append_event(
         task_id="task_draft",
         event="sandbox_diff_review_draft_created",
         target="sandbox://diff-review-draft/task_candidate",
@@ -124,21 +160,23 @@ def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
     assert graph["raw_diff_stored"] is False
     assert graph["raw_outputs_stored"] is False
     assert graph["execute_automatically"] is False
-    assert graph["counts"]["nodes"] == 7
-    assert graph["counts"]["edges"] == 6
+    assert graph["counts"]["nodes"] == 9
+    assert graph["counts"]["edges"] == 8
     assert graph["counts"]["sandbox_execution"] == 1
     assert graph["counts"]["retry_review"] == 1
     assert graph["counts"]["replan_template"] == 1
     assert graph["counts"]["diff_intake"] == 1
     assert graph["counts"]["auto_fix_candidate"] == 1
     assert graph["counts"]["diff_review_draft"] == 1
-    assert graph["counts"]["github_diff_review"] == 1
+    assert graph["counts"]["patch_generation_review"] == 1
+    assert graph["counts"]["github_diff_review"] == 2
     assert {node["kind"] for node in graph["nodes"]} == {
         "sandbox_execution",
         "retry_review",
         "replan_template",
         "diff_intake",
         "auto_fix_candidate",
+        "patch_generation_review",
         "diff_review_draft",
         "github_diff_review",
     }
@@ -146,6 +184,12 @@ def test_sandbox_flow_graph_links_failure_to_draft(tmp_path):
         (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
     }
     assert ("task_candidate", "task_draft", "creates_diff_review_draft") in {
+        (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
+    }
+    assert ("task_candidate", "task_patch_generation", "creates_patch_generation_review") in {
+        (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
+    }
+    assert ("task_patch_generation", "task_github_diff_from_patch_generation", "creates_github_diff_review") in {
         (edge["source"], edge["target"], edge["relation"]) for edge in graph["edges"]
     }
     assert ("task_draft", "task_github_diff", "creates_github_diff_review") in {

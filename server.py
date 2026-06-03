@@ -46,6 +46,7 @@ from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed
 from cpos.auto_fix_candidate import create_auto_fix_candidate, pending_auto_fix_candidates
 from cpos.diff_review_draft import create_diff_review_draft, create_github_diff_review_from_draft, pending_diff_review_drafts
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
+from cpos.patch_generation_review import create_patch_generation_review, pending_patch_generation_reviews, approve_patch_generation_review, reject_patch_generation_review, create_github_diff_review_from_patch_generation
 
 apply_security_profile_defaults()
 
@@ -1073,6 +1074,12 @@ def sandbox_diff_review_drafts_list():
     return jsonify({'ok': True, 'count': len(drafts), 'drafts': drafts, 'metadata_only': True}), 200
 
 
+@app.route('/sandbox/patch-generations', methods=['GET'])
+def sandbox_patch_generation_reviews_list():
+    reviews = pending_patch_generation_reviews(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews, 'metadata_only': True}), 200
+
+
 @app.route('/sandbox/flow-graph', methods=['GET'])
 def sandbox_flow_graph():
     source_execution_task_id = request.args.get('source_execution_task_id') or None
@@ -1086,6 +1093,56 @@ def sandbox_flow_graph():
         limit=max(1, min(limit, 500)),
     )
     return jsonify(graph), 200
+
+
+@app.route('/sandbox/fix-candidates/<task_id>/create-patch-generation', methods=['POST'])
+def sandbox_patch_generation_create(task_id):
+    data = request.get_json(silent=True) or {}
+    result = create_patch_generation_review(
+        agent.task_tape,
+        candidate_task_id=task_id,
+        actor=request_actor(),
+        reason=data.get('reason'),
+    )
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'auto_fix_candidate_required' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_generation_created' if result.get('ok') else result.get('error', 'sandbox_patch_generation_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'candidate_task_id': task_id})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/patch-generations/<task_id>/approve', methods=['POST'])
+def sandbox_patch_generation_approve(task_id):
+    data = request.get_json(silent=True) or {}
+    result = approve_patch_generation_review(agent.task_tape, task_id, approver=request_actor(), reason=data.get('reason'), confirm=data.get('confirm') is True)
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'pending_patch_generation_review_not_found' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_generation_approved' if result.get('ok') else result.get('error', 'sandbox_patch_generation_approve_denied'), status, required_scope_for_request(), {'task_id': task_id})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/patch-generations/<task_id>/reject', methods=['POST'])
+def sandbox_patch_generation_reject(task_id):
+    data = request.get_json(silent=True) or {}
+    result = reject_patch_generation_review(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
+    status = 200 if result.get('ok') else 404
+    audit_security_event('security_mutation', 'sandbox_patch_generation_rejected' if result.get('ok') else result.get('error', 'sandbox_patch_generation_reject_denied'), status, required_scope_for_request(), {'task_id': task_id, 'reason': data.get('reason')})
+    return jsonify(result), status
+
+
+@app.route('/sandbox/patch-generations/<task_id>/create-github-diff-review', methods=['POST'])
+def sandbox_patch_generation_to_github_diff_review(task_id):
+    data = request.get_json(silent=True) or {}
+    result = create_github_diff_review_from_patch_generation(
+        agent.task_tape,
+        patch_generation_task_id=task_id,
+        source_task_id=data.get('source_task_id'),
+        diff_text=data.get('diff_text'),
+        changed_files=data.get('changed_files') if isinstance(data.get('changed_files'), list) else [],
+        validation_commands=data.get('validation_commands') if isinstance(data.get('validation_commands'), list) else [],
+        actor=request_actor(),
+        reason=data.get('reason'),
+    )
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'approved_patch_generation_review_required' else 400)
+    audit_security_event('security_mutation', 'sandbox_patch_generation_to_github_diff_review' if result.get('ok') else result.get('error', 'sandbox_patch_generation_route_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'patch_generation_task_id': task_id, 'source_task_id': data.get('source_task_id')})
+    return jsonify(result), status
 
 
 @app.route('/sandbox/fix-candidates/<task_id>/create-diff-draft', methods=['POST'])

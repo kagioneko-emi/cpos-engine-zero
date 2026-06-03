@@ -496,6 +496,12 @@
             <div id="sandbox-fix-candidate-summary" class="muted" style="margin-bottom: 12px;">Loading auto fix candidates...</div>
             <div id="sandbox-fix-candidate-container"></div>
         </div>
+        <div id="sandbox-patch-generation-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Patch Generation Reviews</h2>
+            <p class="muted">Review-gated patch generation: generated diff text is transient input only; persisted lineage stores hashes, sizes, counters, and task IDs.</p>
+            <div id="sandbox-patch-generation-summary" class="muted" style="margin-bottom: 12px;">Loading patch generation reviews...</div>
+            <div id="sandbox-patch-generation-container"></div>
+        </div>
         <div id="sandbox-diff-draft-section" class="card" style="display: none; border-color: var(--accent-blue); margin-bottom: 30px;">
             <h2>Diff Review Drafts</h2>
             <p class="muted">Metadata-only draft payload shape for the next diff review. It never stores raw diff text or executes automatically.</p>
@@ -640,6 +646,8 @@
                 const sandboxDiffIntakeData = sandboxDiffIntakeRes.ok ? await sandboxDiffIntakeRes.json() : {ok: false, count: 0, intakes: []};
                 const sandboxFixCandidateRes = await fetch('/sandbox/fix-candidates');
                 const sandboxFixCandidateData = sandboxFixCandidateRes.ok ? await sandboxFixCandidateRes.json() : {ok: false, count: 0, candidates: []};
+                const sandboxPatchGenerationRes = await fetch('/sandbox/patch-generations');
+                const sandboxPatchGenerationData = sandboxPatchGenerationRes.ok ? await sandboxPatchGenerationRes.json() : {ok: false, count: 0, reviews: []};
                 const sandboxDiffDraftRes = await fetch('/sandbox/diff-drafts');
                 const sandboxDiffDraftData = sandboxDiffDraftRes.ok ? await sandboxDiffDraftRes.json() : {ok: false, count: 0, drafts: []};
                 const sandboxFlowSource = document.getElementById('sandbox-flow-source-filter')?.value || '';
@@ -664,6 +672,7 @@
                 renderSandboxPatchExecutionRetries(sandboxRetryData);
                 renderSandboxPatchReplanTemplates(sandboxReplanData);
                 renderSandboxAutoFixCandidates(sandboxFixCandidateData);
+                renderSandboxPatchGenerationReviews(sandboxPatchGenerationData);
                 renderSandboxDiffReviewDrafts(sandboxDiffDraftData);
                 renderSandboxReplanDiffIntakes(sandboxDiffIntakeData);
                 renderAutonomyLoopDemo({
@@ -676,6 +685,7 @@
                     sandboxReplanData,
                     sandboxDiffIntakeData,
                     sandboxFixCandidateData,
+                    sandboxPatchGenerationData,
                     sandboxDiffDraftData,
                     sandboxFlowData,
                     sandboxScoreboardData,
@@ -911,6 +921,7 @@
                     const replans = (data.sandboxReplanData && data.sandboxReplanData.count) || 0;
                     const intakes = (data.sandboxDiffIntakeData && data.sandboxDiffIntakeData.count) || 0;
                     const candidates = (data.sandboxFixCandidateData && data.sandboxFixCandidateData.count) || 0;
+                    const patchGenerations = (data.sandboxPatchGenerationData && data.sandboxPatchGenerationData.count) || 0;
                     const flowNodes = ((data.sandboxFlowData && data.sandboxFlowData.counts) || {}).nodes || 0;
                     const successRate = (data.sandboxScoreboardData && data.sandboxScoreboardData.success_rate) || 0;
                     const stages = [
@@ -918,7 +929,7 @@
                         {name: 'GitHub Diff Review', count: githubDiffs, next: 'Approve → Sandbox Execution Review'},
                         {name: 'Sandbox Execution Review', count: pendingExecutions, next: 'Approve + Run with Supplied Diff'},
                         {name: 'Execution Result', count: completedExecutions, next: failedExecutions ? 'Retry/Replan failed run' : 'Inspect success path'},
-                        {name: 'Retry/Replan', count: retries + replans + intakes + candidates, next: 'Candidate/Draft next diff'},
+                        {name: 'Retry/Replan', count: retries + replans + intakes + candidates + patchGenerations, next: 'Candidate/Patch Generation/Draft next diff'},
                         {name: 'Flow Graph', count: flowNodes, next: 'Show lineage'},
                     ];
                     const totalActive = stages.reduce((sum, stage) => sum + stage.count, 0);
@@ -1283,7 +1294,48 @@
                                 <span class="muted">raw_diff_stored=${candidate.raw_diff_stored} / raw_outputs_stored=${candidate.raw_outputs_stored} / execute_automatically=${candidate.execute_automatically}</span>
                                 <div style="margin-top: 8px;"><strong>Candidate steps</strong><br>${steps}</div>
                                 <div style="margin-top: 8px;"><strong>Required human inputs</strong><br>${inputs}</div>
-                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;"><button class="btn btn-primary" onclick="createDiffReviewDraft('${row.task_id}')">Create Diff Review Draft</button></div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                                    <button class="btn btn-warning" onclick="createPatchGenerationReview('${row.task_id}')">Create Patch Generation Review</button>
+                                    <button class="btn btn-primary" onclick="createDiffReviewDraft('${row.task_id}')">Create Diff Review Draft</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderSandboxPatchGenerationReviews(patchGenerationData) {
+                    const section = document.getElementById('sandbox-patch-generation-section');
+                    const summary = document.getElementById('sandbox-patch-generation-summary');
+                    const container = document.getElementById('sandbox-patch-generation-container');
+                    const reviews = (patchGenerationData && patchGenerationData.reviews) || [];
+                    if (!reviews.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `pending_reviews=${reviews.length}, raw_diff_stored=false, diff_text_included=false, execute_automatically=false`;
+                    container.innerHTML = '';
+                    reviews.slice(-5).reverse().forEach(review => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-orange)';
+                        const plan = (review.payload || {}).plan || {};
+                        const hints = (plan.generation_hints || []).map(item => `<span class="pill">${item}</span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div>
+                                <strong style="color: var(--accent-orange);">[PATCH GENERATION REVIEW]</strong> <code>${review.task_id}</code><br>
+                                <span class="muted">candidate=${plan.candidate_task_id || '-'} / failure=${plan.failure_kind || '-'} / strategy=${plan.candidate_strategy || '-'}</span><br>
+                                <span class="muted">plan_sha256=${plan.patch_generation_plan_sha256 || '-'}</span><br>
+                                <span class="muted">raw_diff_stored=${plan.raw_diff_stored} / diff_text_included=${plan.diff_text_included} / execute_automatically=${plan.execute_automatically}</span>
+                                <div style="margin-top: 8px;"><strong>Generation hints</strong><br>${hints}</div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                                    <button class="btn btn-success" onclick="approvePatchGenerationReview('${review.task_id}')">Approve Patch Generation</button>
+                                    <button class="btn btn-danger" onclick="rejectPatchGenerationReview('${review.task_id}')">Reject</button>
+                                    <button class="btn btn-warning" onclick="createGithubDiffReviewFromPatchGeneration('${review.task_id}')">Create GitHub Diff Review from Generated Diff</button>
+                                </div>
                             </div>
                         `;
                         container.appendChild(div);
@@ -1760,6 +1812,43 @@
         async function createAutoFixCandidate(taskId) {
             if (!confirm(`Create metadata-only auto fix candidate for replan template ${taskId}? This will not create a diff, patch, commit, push, or PR.`)) return;
             await postJson(`/sandbox/replan-templates/${taskId}/create-fix-candidate`, {reason: 'dashboard_auto_fix_candidate'});
+        }
+
+        async function createPatchGenerationReview(taskId) {
+            if (!confirm(`Create review-gated patch generation plan for auto fix candidate ${taskId}? This will not generate, store, apply, commit, push, or create a PR.`)) return;
+            await postJson(`/sandbox/fix-candidates/${taskId}/create-patch-generation`, {reason: 'dashboard_patch_generation_review'});
+        }
+
+        async function approvePatchGenerationReview(taskId) {
+            if (!confirm(`Approve patch generation review ${taskId}? This authorizes transient generated diff input only and still will not apply patches.`)) return;
+            await postJson(`/sandbox/patch-generations/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve_patch_generation'});
+        }
+
+        async function rejectPatchGenerationReview(taskId) {
+            const reason = prompt('Reject patch generation review reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/sandbox/patch-generations/${taskId}/reject`, {reason: reason});
+        }
+
+        async function createGithubDiffReviewFromPatchGeneration(taskId) {
+            const sourceTaskId = prompt('Approved GitHub PR dry-run task id for this generated diff review:');
+            if (!sourceTaskId) return;
+            const diffText = prompt('Paste generated raw diff text. It will be sent transiently and only hash/size/counters are stored:');
+            if (!diffText) return;
+            const changedFilesText = prompt('Changed files, comma-separated:', 'README.md');
+            if (changedFilesText === null) return;
+            const validationCommandsText = prompt('Validation commands, one per line:', 'pytest -q tests');
+            if (validationCommandsText === null) return;
+            const changedFiles = changedFilesText.split(',').map(item => item.trim()).filter(Boolean);
+            const validationCommands = validationCommandsText.split('\n').map(item => item.trim()).filter(Boolean);
+            if (!confirm(`Create GitHub Diff Review from approved patch generation ${taskId}? Raw diff text is not stored; no patch, commit, push, or PR will be created.`)) return;
+            await postJson(`/sandbox/patch-generations/${taskId}/create-github-diff-review`, {
+                source_task_id: sourceTaskId.trim(),
+                diff_text: diffText,
+                changed_files: changedFiles,
+                validation_commands: validationCommands,
+                reason: 'dashboard_create_github_diff_review_from_patch_generation'
+            });
         }
 
         async function createDiffReviewDraft(taskId) {

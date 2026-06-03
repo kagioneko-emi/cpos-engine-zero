@@ -21,6 +21,7 @@ from cpos.execution_driver import build_execution_scoreboard
 from cpos.auto_fix_candidate import pending_auto_fix_candidates
 from cpos.diff_review_draft import pending_diff_review_drafts
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
+from cpos.patch_generation_review import pending_patch_generation_reviews
 
 
 def load_jsonl(path):
@@ -895,6 +896,49 @@ def render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path):
     return html
 
 
+def render_patch_generation_review_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    reviews = pending_patch_generation_reviews(store)
+    linked = [event.to_dict() for event in store.events() if event.event == 'sandbox_patch_generation_linked_to_github_diff_review']
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Patch Generation Reviews</div>
+            <h2>Review-Gated Patch Generator</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(reviews)}</strong><span>Pending Reviews</span></div>
+                <div class="metric"><strong>{len(linked)}</strong><span>Diff Reviews Linked</span></div>
+                <div class="metric"><strong>no</strong><span>Raw Diff</span></div>
+                <div class="metric"><strong>no</strong><span>Auto Execute</span></div>
+            </div>
+            <p class="muted">Patch generation reviews authorize a transient patch-generation attempt only. Generated diff text is routed into GitHub Diff Review as transient input; Task Tape stores hashes, sizes, counters, and lineage metadata only.</p>
+    """
+    if not reviews and not linked:
+        html += '<p class="muted">No patch generation reviews yet.</p></div>'
+        return html
+    if reviews:
+        html += '<table><thead><tr><th>Review</th><th>Candidate</th><th>Failure</th><th>Hints</th></tr></thead><tbody>'
+        for row in reviews[-10:]:
+            plan = (row.get('payload') or {}).get('plan') or {}
+            hints = ''.join(f'<span class="pill">{escape(str(item))}</span>' for item in plan.get('generation_hints', [])) or '<span class="muted">none</span>'
+            html += f"""
+                <tr>
+                    <td><code>{escape(str(row.get('task_id') or '-'))}</code></td>
+                    <td><code>{escape(str(plan.get('candidate_task_id') or '-'))}</code></td>
+                    <td>{escape(str(plan.get('failure_kind') or '-'))}</td>
+                    <td>{hints}</td>
+                </tr>
+            """
+        html += '</tbody></table>'
+    if linked:
+        html += '<div class="step-label">Linked GitHub Diff Reviews</div><ul>'
+        for row in linked[-10:]:
+            payload = row.get('payload') or {}
+            html += f"<li><code>{escape(str(payload.get('patch_generation_task_id') or '-'))}</code> → <code>{escape(str(payload.get('github_diff_review_task_id') or '-'))}</code> <span class=\"muted\">raw_diff_stored={escape(str(payload.get('raw_diff_stored')))} execute_automatically={escape(str(payload.get('execute_automatically')))}</span></li>"
+        html += '</ul>'
+    html += '</div>'
+    return html
+
+
 def render_diff_review_draft_summary(task_tape_path, task_checkpoint_path):
     store = TaskTapeStore(task_tape_path, task_checkpoint_path)
     drafts = pending_diff_review_drafts(store)
@@ -954,7 +998,7 @@ def render_autonomy_loop_demo_snapshot(task_tape_path, task_checkpoint_path):
         ('GitHub Diff Review', len(github_diff_reviews), 'Approve -> Sandbox Execution Review'),
         ('Sandbox Execution Review', len(pending_executions), 'Approve + Run with Supplied Diff'),
         ('Execution Result', len(completed_executions), 'Retry/Replan failed run' if failed_executions else 'Inspect success path'),
-        ('Retry/Replan', retry_replan_count, 'Candidate/Draft next diff'),
+        ('Retry/Replan', retry_replan_count, 'Candidate/Patch Generation/Draft next diff'),
         ('Flow Graph', (graph.get('counts') or {}).get('nodes', 0), 'Show lineage'),
     ]
     active_total = sum(count for _, count, _ in stages)
@@ -1015,7 +1059,7 @@ def render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path):
         html += '<p class="muted">No sandbox autonomy flow nodes yet.</p></div>'
         return html
     html += '<div class="step-label">Node Kinds</div><p>'
-    for kind in ['sandbox_execution', 'retry_review', 'replan_template', 'diff_intake', 'auto_fix_candidate', 'diff_review_draft', 'github_diff_review']:
+    for kind in ['sandbox_execution', 'retry_review', 'replan_template', 'diff_intake', 'auto_fix_candidate', 'patch_generation_review', 'diff_review_draft', 'github_diff_review']:
         if counts.get(kind):
             html += f'<span class="pill">{escape(kind)}: {counts.get(kind)}</span>'
     html += '</p>'
@@ -1243,6 +1287,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_sandbox_patch_execution_results(task_tape_path, task_checkpoint_path)
     html += render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path)
     html += render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path)
+    html += render_patch_generation_review_summary(task_tape_path, task_checkpoint_path)
     html += render_diff_review_draft_summary(task_tape_path, task_checkpoint_path)
     html += render_autonomy_loop_demo_snapshot(task_tape_path, task_checkpoint_path)
     html += render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path)

@@ -299,7 +299,28 @@ def test_dashboard_contains_auto_fix_candidate_ui():
     assert 'createAutoFixCandidate' in html
     assert 'AUTO FIX CANDIDATE' in html
     assert 'Create Auto Fix Candidate' in html
+    assert 'Create Patch Generation Review' in html
+    assert 'createPatchGenerationReview' in html
     assert 'no raw diff text' in html
+
+
+
+
+def test_dashboard_contains_patch_generation_review_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'sandbox-patch-generation-section' in html
+    assert 'sandbox-patch-generation-summary' in html
+    assert 'sandbox-patch-generation-container' in html
+    assert '/sandbox/patch-generations' in html
+    assert 'renderSandboxPatchGenerationReviews' in html
+    assert 'approvePatchGenerationReview' in html
+    assert 'rejectPatchGenerationReview' in html
+    assert 'createGithubDiffReviewFromPatchGeneration' in html
+    assert 'PATCH GENERATION REVIEW' in html
+    assert 'transient generated diff input only' in html
 
 
 def test_dashboard_contains_diff_review_draft_ui():
