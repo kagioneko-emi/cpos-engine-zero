@@ -48,6 +48,7 @@ The loop stores hashes, sizes, counters, statuses, task IDs, failure kinds, and 
 
 - Autonomy Loop Demo Panel in the dashboard
 - Autonomy Loop Demo Snapshot in generated reports
+- Screenshot/GIF capture guidance in `docs/DEMO_CAPTURE_GUIDE.md`
 - Sandbox Autonomy Flow Graph linking failed execution → retry/replan → candidate → diff draft → GitHub diff review
 - Execution Scoreboard with completed/success/failure counts, success rate, failure kinds, and recent failure metadata
 - Human Escalation Queue with owning pipeline, stage, endpoint hints, and flow hints

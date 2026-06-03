@@ -147,6 +147,8 @@ safety flags as the underlying pipeline: `metadata_only=true`,
 `raw_diff_stored=false`, `raw_outputs_stored=false`, `live_repo_patch=false`,
 `commit_created=false`, `pushed=false`, and `pr_created=false`.
 
+For release screenshots or GIFs, follow `docs/DEMO_CAPTURE_GUIDE.md` so captured assets stay metadata-only and secret-free.
+
 ## Human Escalation Queue
 
 Risky review stages now attach a metadata-only Human Escalation decision to their
