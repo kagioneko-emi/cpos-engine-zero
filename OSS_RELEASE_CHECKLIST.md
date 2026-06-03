@@ -5,8 +5,8 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 ## Must pass
 
 - [ ] Confirm this is the correct repo: `git remote -v` shows `https://github.com/kagioneko/cpos-engine-zero.git`.
-- [ ] Review `git status --short` line-by-line before staging.
-- [ ] Run all tests: `PYTHONPATH=. .venv/bin/pytest -q tests`.
+- [ ] Review `git status --short` line-by-line before staging; final push state should be `## main...origin/main`.
+- [ ] Run all tests: `PYTHONPATH=. .venv/bin/python -m pytest tests -q` and record the current pass count (latest verified: `290 passed`).
 - [ ] Run secret scan:
 
   ```bash
@@ -40,8 +40,14 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 - [ ] No raw stdout/stderr, raw diff text, request bodies, checkpoint contents, raw handoff bodies, or proposed code blobs persisted in docs, ledgers, reports, or tests.
 - [ ] If using an AI skill/MCP wrapper for publishing, confirm it follows `docs/GITHUB_PUBLISH_SAFETY_SPEC.md` and performs no staging/commit/push/delete operations by itself.
 - [ ] README includes `Safe Autonomy Demo Flow` and clearly states current MCP limitation: dry-run/governance only, no real tool execution by default.
+- [ ] README documents the Autonomy Loop Demo Panel and Diff Review Draft -> GitHub Diff Review routing with transient diff input only.
+- [ ] PITCH.md positions CPOS as `safer-by-design execution power` versus unrestricted write-power agents; avoid unsupported claims that CPOS has fully surpassed Hermes/OpenClaw/Claude Code.
+- [ ] Dashboard includes the Autonomy Loop Demo Panel with stage counts and safety flags: `metadata_only=true`, `raw_diff_stored=false`, `raw_outputs_stored=false`, `live_repo_patch=false`, `commit_created=false`, `pushed=false`, `pr_created=false`.
+- [ ] Generated report includes the Autonomy Loop Demo Snapshot with the same metadata-only safety flags.
+- [ ] Sandbox Flow Graph shows failed execution -> retry/replan -> candidate -> diff draft -> GitHub diff review lineage without raw diffs or raw outputs.
+- [ ] Execution Scoreboard shows completed/success/failure counts and recent failure metadata only.
 - [ ] README and `docs/HUMAN_ESCALATION_PROTOCOL.md` document `/human-escalations`, dashboard queue routing, and metadata-only persistence.
-- [ ] Dashboard/report Human Escalation summaries show review type, severity, reasons, and endpoint hints only; no raw request bodies, raw diffs, stdout/stderr, checkpoint contents, or secret values.
+- [ ] Dashboard/report Human Escalation summaries show review type, severity, reasons, owning pipeline, endpoint hints, and flow hints only; no raw request bodies, raw diffs, stdout/stderr, checkpoint contents, or secret values.
 - [ ] SECURITY.md includes `Data We Never Persist`.
 - [ ] LICENSE present.
 
@@ -55,13 +61,15 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 
 ## Recommended polish
 
-- [ ] Add screenshots or a short demo GIF of the dashboard
-- [ ] Add architecture diagram for Context Pointer OS / Task Tape / MCP Governance
-- [ ] Add minimal quickstart with local-only dev settings
-- [ ] Tag initial release as `v0.1.0`
+- [ ] Add screenshots or a short demo GIF of the Autonomy Loop Demo Panel and Sandbox Flow Graph.
+- [ ] Add architecture diagram for Context Pointer OS / Task Tape / Human Escalation / Sandbox Flow Graph.
+- [ ] Add minimal quickstart with local-only dev settings.
+- [ ] Add release notes for the safe execution loop: execution driver, retry/replan, auto fix candidates, diff review drafts, flow graph, demo panel, and report snapshot.
+- [ ] Tag initial release as `v0.1.0` only after final push-state, test, prepublish, and secret scan checks are clean.
 
 ## Suggested positioning
 
 > CPOS Engine-Zero is a defensive, memory-governed agent runtime: Context Pointer OS,
-> append-only Task Tape, hash-chained audits, approval-gated remediation, and
-> governance-first MCP integration.
+> append-only Task Tape, hash-chained audits, Human Escalation, sandbox-first
+> execution, metadata-only failure-to-replan lineage, and safer-by-design
+> autonomy loop demos in dashboard/report form.
