@@ -3,8 +3,8 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state at handoff: `main...origin/main` after pushing this memo, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `318 passed`.
-5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `840ee62 Update release docs test count`.
+4. Expected state at handoff: `main...origin/main` after pushing this memo, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `320 passed`.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `9e31015 Highlight external agent result readiness`.
 6. **Do not create final v0.1.0 tag yet** unlessねこさん explicitly says so. Existing remote/local RC tag: `v0.1.0-rc1` -> `0f1e585` from 2026-05-29.
 7. Latest pushed work: External Agent Adapter MVP, adapter dashboard queue, Human Escalation integration, adapter demo readiness/fixture integration, plus prior Competitive Demo Readiness / Ready-to-Run / Patch Generation / tape-memory MCP review work.
 8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`, `cpos_release_tag_audit`; MCP review pending: `mcp_review_cca928799d599640`.
@@ -20,7 +20,7 @@ Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
 Remote status before this memo commit: `main...origin/main`
-Latest pushed commit: `840ee62 Update release docs test count`
+Latest pushed commit: `9e31015 Highlight external agent result readiness`
 Release/tag status: final **v0.1.0** tag has NOT been created yet. Existing remote/local release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
 
 ## Absolute first steps next session
@@ -39,7 +39,7 @@ Expected after this memo is committed and pushed:
 - `prepublish_check`: `ok=true`
 - Secret scan: `ok=true count=0`
 - Working tree: clean
-- Full tests last verified: `318 passed`
+- Full tests last verified: `320 passed`
 
 ## Latest pushed commits
 
@@ -49,12 +49,31 @@ Pushed to `origin main`:
 2. `4ee3d2e Add agent adapter to demo readiness`
 3. `5d27190 Update handoff after agent adapter`
 4. `840ee62 Update release docs test count`
+5. `238bc3d Add external agent result scoreboard`
+6. `9e31015 Highlight external agent result readiness`
 
 Previous pushed handoff/tag status commit:
 
 - `e7d641b Clarify v0.1 release tag status`
 
-Release docs now record latest full test count: `318 passed`.
+Release docs now record latest full test count: `320 passed`.
+
+## Completion/readiness assessment
+
+Current completion feel is **very strong for a v0.1 defensive agent runtime / safety layer**:
+
+- Defensive agent runtime / governance layer: roughly **90%+ v0.1-ready**.
+- Fully autonomous coding agent brain: still separate future work, but now CPOS can govern native and external agent actions.
+- Strategic positioning is solid: CPOS is both **CPOS Agent** and **CPOS for Agents**.
+- Main proof chain is connected: adapter intake → Human Escalation → dashboard/report → demo readiness → metadata-only fixture → release docs.
+
+Latest pushed capabilities:
+
+- External Agent Adapter accepts action contracts and `execution_result` reports.
+- External agent result scoreboard is available at `/agent-adapter/execution-results`.
+- Dashboard and generated report surface external agent contracts/results prominently.
+- Competitive Demo Readiness now highlights External Agent Adapter + Result Scoreboard in the main demo path.
+- Full test count is now `320 passed`; prepublish and secret scan are clean.
 
 ## What changed most recently
 
@@ -106,22 +125,46 @@ Tests:
 - Added `tests/test_agent_adapter.py`.
 - Covers metadata-only storage, no raw diff persistence, Human Escalation integration, approve confirm gate, and API roundtrip.
 
+### External Agent Result Scoreboard
+
+Added metadata-only external-agent execution result reporting.
+
+Key API:
+
+- `GET /agent-adapter/execution-results`
+
+Behavior:
+
+- External agents can submit `event_type=execution_result` through `/agent-adapter/intake`.
+- CPOS stores only result hash/size, success flag, exit code, failure kind, duration, task IDs, and safety flags.
+- Raw stdout/stderr and raw execution bodies are not persisted.
+- Scoreboard reports completed/success/failure counts, success rate, failure kinds, and recent metadata-only results.
+- Execution-result reports are evidence/scoreboard inputs only; they do not trigger command execution.
+
+Dashboard/report/readiness:
+
+- Dashboard External Agent Adapter Queue shows result scoreboard.
+- Generated report has `External Agent Adapter` result scoreboard.
+- Competitive Demo Readiness now foregrounds `external_agent_actions` and `external_agent_results`.
+- Demo path now includes `External Agent Adapter → External Agent Result Scoreboard`.
+
 ### Demo Readiness / Fixture Integration
 
 `build_competitive_demo_readiness()` now includes:
 
 - stage: `External Agent Adapter`
-- count: `external_agent_actions`
-- posture flag: `external_agent_adapter_available=true`
-- next demo path includes `External Agent Adapter`
+- count: `external_agent_actions` and `external_agent_results`
+- posture flags: `external_agent_adapter_available=true`, `external_agent_result_scoreboard_available=true`
+- next demo path includes `External Agent Adapter` and `External Agent Result Scoreboard`
 
-`create_competitive_demo_fixture()` now seeds one metadata-only `command_request` adapter review:
+`create_competitive_demo_fixture()` now seeds one metadata-only `command_request` adapter review plus one metadata-only `execution_result` report:
 
 - agent: `demo-external-agent`
 - command metadata: hashed only
 - changed file: `README.md`
 - `requires_human_approval=true`
 - no command execution, no raw output storage
+- execution result metadata uses redacted/status-only payloads; raw stdout/stderr are not persisted
 
 Updated tests in `tests/test_demo_readiness.py` assert the adapter appears in readiness and fixture output.
 
@@ -142,7 +185,7 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_agent_adapter.py tests/test_d
 # 46 passed
 
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 318 passed
+# 320 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan ok=true count=0
@@ -160,10 +203,10 @@ PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 
 ## Demo capture verification — 2026-06-05
 
-Metadata-only demo path was exercised through the local Flask test client after pushing `840ee62`:
+Metadata-only demo path was exercised through the local Flask test client after pushing `840ee62`; after later adapter-result work, fixture/readiness includes `external_agent_results` as well:
 
 - `POST /demo/fixture` with `confirm=true`: `200 OK`, `ok=true`
-- Fixture `step_count`: `15`
+- Fixture `step_count`: `16` after adapter result scoreboard work
 - `GET /demo/readiness`: `ready=true`, `ready_count=9`, `stage_count=9`
 - Safety flags confirmed:
   - `metadata_only=true`
@@ -176,6 +219,7 @@ Metadata-only demo path was exercised through the local Flask test client after 
 Readiness counts after fixture:
 
 - `external_agent_actions`: `1`
+- `external_agent_results`: `1`
 - `human_escalations`: `5`
 - `ready_to_run_reviews`: `2`
 - `patch_generation_reviews`: `2`
@@ -191,7 +235,7 @@ Report check:
 - `generate_report.py` generated `hackathon_report.html` locally.
 - Report contains all capture targets:
   - `Competitive Demo Readiness`
-  - `External Agent Adapter`
+  - `External Agent Adapter` / result scoreboard
   - `Human Escalation`
   - `Ready-to-Run`
   - `Sandbox Autonomy Flow Graph`
@@ -205,9 +249,9 @@ Recommended next session path:
 1. Verify `git status --short --branch` and `prepublish_check`.
 2. If this handoff memo is not pushed yet, push the memo commit after explicit approval.
 3. Then choose one:
-   - **Dashboard capture path**: open dashboard and capture Competitive Demo Readiness + External Agent Adapter Queue + Human Escalation + Ready-to-Run + Flow Graph; backend fixture/readiness/report are already verified.
+   - **Dashboard capture path**: open dashboard and capture Competitive Demo Readiness + External Agent Adapter Queue/result scoreboard + Human Escalation + Ready-to-Run + Flow Graph; backend fixture/readiness/report are already verified.
    - **Release path**: prepare final `v0.1.0` only ifねこさん explicitly says so.
-   - **Adapter expansion path**: add external-agent “execution_result” reporting to sandbox scoreboard/report.
+   - **Polish path**: optional visual screenshots/GIF assets, or final v0.1 packaging notes.
 
 Recommended strategic framing:
 
