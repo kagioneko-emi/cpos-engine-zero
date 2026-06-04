@@ -4,7 +4,7 @@
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
 4. Expected state at handoff: `main...origin/main` after pushing this memo, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `320 passed`.
-5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `9e31015 Highlight external agent result readiness`.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `cce2855 Add demo evidence assets to README`.
 6. **Do not create final v0.1.0 tag yet** unlessねこさん explicitly says so. Existing remote/local RC tag: `v0.1.0-rc1` -> `0f1e585` from 2026-05-29.
 7. Latest pushed work: External Agent Adapter MVP, adapter dashboard queue, Human Escalation integration, adapter demo readiness/fixture integration, plus prior Competitive Demo Readiness / Ready-to-Run / Patch Generation / tape-memory MCP review work.
 8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`, `cpos_release_tag_audit`; MCP review pending: `mcp_review_cca928799d599640`.
@@ -20,7 +20,7 @@ Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
 Remote status before this memo commit: `main...origin/main`
-Latest pushed commit: `9e31015 Highlight external agent result readiness`
+Latest pushed commit: `cce2855 Add demo evidence assets to README`
 Release/tag status: final **v0.1.0** tag has NOT been created yet. Existing remote/local release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
 
 ## Absolute first steps next session
@@ -51,6 +51,9 @@ Pushed to `origin main`:
 4. `840ee62 Update release docs test count`
 5. `238bc3d Add external agent result scoreboard`
 6. `9e31015 Highlight external agent result readiness`
+7. `6371bc1 Update handoff with result scoreboard readiness`
+8. `4121591 Add metadata-only demo capture assets`
+9. `cce2855 Add demo evidence assets to README`
 
 Previous pushed handoff/tag status commit:
 
@@ -65,7 +68,7 @@ Current completion feel is **very strong for a v0.1 defensive agent runtime / sa
 - Defensive agent runtime / governance layer: roughly **90%+ v0.1-ready**.
 - Fully autonomous coding agent brain: still separate future work, but now CPOS can govern native and external agent actions.
 - Strategic positioning is solid: CPOS is both **CPOS Agent** and **CPOS for Agents**.
-- Main proof chain is connected: adapter intake → Human Escalation → dashboard/report → demo readiness → metadata-only fixture → release docs.
+- Main proof chain is connected: adapter intake → Human Escalation → dashboard/report → demo readiness → metadata-only fixture → demo assets → README → release docs.
 
 Latest pushed capabilities:
 
@@ -73,6 +76,7 @@ Latest pushed capabilities:
 - External agent result scoreboard is available at `/agent-adapter/execution-results`.
 - Dashboard and generated report surface external agent contracts/results prominently.
 - Competitive Demo Readiness now highlights External Agent Adapter + Result Scoreboard in the main demo path.
+- Metadata-only demo capture assets are committed under `docs/assets/demo/` and linked from README.
 - Full test count is now `320 passed`; prepublish and secret scan are clean.
 
 ## What changed most recently
@@ -168,13 +172,25 @@ Dashboard/report/readiness:
 
 Updated tests in `tests/test_demo_readiness.py` assert the adapter appears in readiness and fixture output.
 
-### Docs
+### Docs / Demo Assets
 
-`README.md` now has **External Agent Adapter MVP** with a minimal curl example:
+`README.md` now has **External Agent Adapter MVP** with minimal curl examples:
 
 - `POST /agent-adapter/intake`
 - `GET /agent-adapter/actions`
+- `GET /agent-adapter/execution-results`
 - `GET /human-escalations`
+
+README also links metadata-only demo assets:
+
+- `docs/assets/demo/competitive-demo-readiness.png`
+- `docs/assets/demo/external-agent-adapter-queue.png`
+- `docs/assets/demo/human-escalation-queue.png`
+- `docs/assets/demo/ready-to-run-gate.png`
+- `docs/assets/demo/sandbox-flow-graph.png`
+- `docs/assets/demo/report-demo-readiness.png`
+
+These panels show hashes, counts, endpoint hints, statuses, and safety flags only. Asset secret scan was `ok=true count=0`.
 
 ## Verification at handoff
 
@@ -242,6 +258,20 @@ Report check:
 
 Important: demo fixture writes metadata-only Task Tape events; they are ignored runtime data and were not committed. Git status remained `main...origin/main` after demo/report checks.
 
+## Feature recommendation / remaining work
+
+No urgent core feature is missing for v0.1. The project is in a good "ship/demo" state.
+
+Optional additions ifねこさん wants more polish:
+
+1. **Tiny adapter client examples**: `examples/agent_adapter_client.py` or curl snippets for Hermes/OpenClaw/Codex-style callers. Good for adoption, low risk.
+2. **README badges/diagram polish**: add a small architecture diagram or link directly to demo assets. Mostly presentation.
+3. **Final v0.1.0 release packaging**: only if explicitly instructed; create final tag/release after final checks.
+4. **Real browser screenshots/GIF**: only if local browser tooling is available; current metadata-only panels are already safe and committed.
+5. **Adapter SDK schema docs**: JSON schema for action contracts/result reports. Nice-to-have if external integrations become the focus.
+
+Recommendation: do not add large new features before v0.1 unless there is a concrete target integration. Prefer release/demo polish and final handoff.
+
 ## Current recommended next action
 
 Recommended next session path:
@@ -249,9 +279,9 @@ Recommended next session path:
 1. Verify `git status --short --branch` and `prepublish_check`.
 2. If this handoff memo is not pushed yet, push the memo commit after explicit approval.
 3. Then choose one:
-   - **Dashboard capture path**: open dashboard and capture Competitive Demo Readiness + External Agent Adapter Queue/result scoreboard + Human Escalation + Ready-to-Run + Flow Graph; backend fixture/readiness/report are already verified.
    - **Release path**: prepare final `v0.1.0` only ifねこさん explicitly says so.
-   - **Polish path**: optional visual screenshots/GIF assets, or final v0.1 packaging notes.
+   - **Polish path**: optional adapter client examples / schema docs / final v0.1 packaging notes.
+   - **Dashboard capture path**: backend fixture/readiness/report verified; README already has metadata-only demo panels.
 
 Recommended strategic framing:
 
