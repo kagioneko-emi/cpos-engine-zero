@@ -83,7 +83,7 @@ Latest local validation before this release candidate:
 
 ```text
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-316 passed
+318 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.secret_scan ... --json
 ok=true count=0
