@@ -154,6 +154,8 @@ def test_readme_release_notes_and_checklist_include_competitive_demo_updates():
     checklist = open('OSS_RELEASE_CHECKLIST.md', encoding='utf-8').read()
 
     assert 'Quick Competitive Demo' in readme
+    assert 'docs/AGENT_ADAPTER_INTEGRATION.md' in readme
+    assert 'examples/agent_adapter_client.py' in readme
     assert '/demo/readiness' in readme
     assert '/demo/fixture' in readme
     assert 'Ready-to-Run Execution' in readme
