@@ -3,11 +3,11 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state at handoff: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`.
+4. Expected state at handoff: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `316 passed`.
 5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit: `363d500 Update quick demo release docs`.
-6. **Do not tag v0.1 yet** unlessねこさん explicitly says so.
+6. **Do not create final v0.1.0 tag yet** unlessねこさん explicitly says so. Existing remote/local RC tag: `v0.1.0-rc1` -> `0f1e585` from 2026-05-29.
 7. Latest pushed work: Competitive Demo Readiness, metadata-only demo fixture, tape-memory MCP review definition/cache, Ready-to-Run Gate, Human Escalation hints, PITCH/demo guide/README/release docs polish.
-8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`; MCP review pending: `mcp_review_cca928799d599640`; demo endpoints: `GET /demo/readiness`, `POST /demo/fixture` with `confirm=true`.
+8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`, `cpos_release_tag_audit`; MCP review pending: `mcp_review_cca928799d599640`; demo endpoints: `GET /demo/readiness`, `POST /demo/fixture` with `confirm=true`.
 9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoints, handoff bodies, and secrets must not be persisted; store metadata/hashes/counters only.
 10. GitHub push/publish is Human Escalation; ask before pushing.
 
@@ -21,7 +21,7 @@ Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
 Remote status at handoff after latest push: `main...origin/main`
 Latest pushed commit: `363d500 Update quick demo release docs`
-Release/tag status: **v0.1 tag has NOT been created yet**.
+Release/tag status: final **v0.1.0** tag has NOT been created yet. Existing remote/local release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
 
 ## Absolute first steps next session
 
