@@ -189,6 +189,27 @@ only: it never approves reviews, executes tools, applies patches, commits, pushe
 creates PRs, or stores raw diffs, raw stdout/stderr, request bodies, checkpoints,
 handoff bodies, tokens, or secret values.
 
+
+## External Agent Adapter MVP
+
+CPOS can also sit beside another agent as a defensive runtime/safety layer.
+External agents submit metadata-rich action contracts; CPOS stores only hashes,
+sizes, counters, and review status, then routes risky actions into the existing
+Human Escalation queue.
+
+```bash
+curl -X POST https://<host>/agent-adapter/intake \
+  -d '{"agent_name":"codex-or-hermes","event_type":"command_request","commands":["pytest tests -q"],"changed_files":["README.md"],"metadata":{"risk":"medium"}}'
+
+curl https://<host>/agent-adapter/actions
+curl https://<host>/human-escalations
+```
+
+Adapter safety defaults: no raw request body persistence, no raw diff
+persistence, no raw stdout/stderr persistence, no secret values, and no automatic
+execution. Approval records the contract only; execution remains a separately
+gated pipeline decision.
+
 ## Human Escalation Queue
 
 Risky review stages now attach a metadata-only Human Escalation decision to their

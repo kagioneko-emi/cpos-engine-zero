@@ -49,6 +49,7 @@ from cpos.demo_readiness import build_competitive_demo_readiness
 from cpos.competitive_demo_fixture import create_competitive_demo_fixture
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 from cpos.patch_generation_review import create_patch_generation_review, pending_patch_generation_reviews, approve_patch_generation_review, reject_patch_generation_review, validate_patch_generation_output, advance_patch_generation_to_execution_review, create_github_diff_review_from_patch_generation
+from cpos.agent_adapter import intake_external_agent_action, pending_external_agent_actions, approve_external_agent_action, reject_external_agent_action
 
 apply_security_profile_defaults()
 
@@ -189,7 +190,7 @@ def load_api_scopes():
 
 
 def protected_request_path():
-    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/demo', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
+    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/agent-adapter', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/demo', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
 
 
 def client_ip():
@@ -471,7 +472,7 @@ def request_needs_api_auth():
     # Health stays unauthenticated for load balancers / Cloud Run probes.
     if request.path == '/health':
         return False
-    return request.path.startswith(('/pointers', '/tasks', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/demo', '/footprint', '/webhook', '/integrity', '/security-profile'))
+    return request.path.startswith(('/pointers', '/tasks', '/agent-adapter', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/demo', '/footprint', '/webhook', '/integrity', '/security-profile'))
 
 
 def required_scope_for_request():
@@ -742,6 +743,51 @@ def pointer_policy_from_request():
     )
 
 
+
+
+@app.route('/agent-adapter/actions', methods=['GET'])
+def external_agent_action_reviews():
+    reviews = pending_external_agent_actions(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews, 'metadata_only': True, 'execute_automatically': False}), 200
+
+
+@app.route('/agent-adapter/intake', methods=['POST'])
+def external_agent_action_intake():
+    data = request.get_json(silent=True) or {}
+    result = intake_external_agent_action(
+        agent.task_tape,
+        agent_name=data.get('agent_name') or 'external-agent',
+        event_type=data.get('event_type') or 'proposed_action',
+        intent=data.get('intent'),
+        proposed_action=data.get('proposed_action'),
+        proposed_diff=data.get('proposed_diff'),
+        commands=data.get('commands'),
+        execution_result=data.get('execution_result'),
+        changed_files=data.get('changed_files'),
+        metadata=data.get('metadata') if isinstance(data.get('metadata'), dict) else {},
+        actor=request_actor(),
+    )
+    status = 200 if result.get('ok') else 400
+    audit_security_event('security_mutation', 'external_agent_action_intake' if result.get('ok') else result.get('error', 'external_agent_action_denied'), status, required_scope_for_request(), {'task_id': result.get('task_id'), 'event_type': data.get('event_type'), 'metadata_only': True})
+    return jsonify(result), status
+
+
+@app.route('/agent-adapter/actions/<task_id>/approve', methods=['POST'])
+def external_agent_action_approve(task_id):
+    data = request.get_json(silent=True) or {}
+    result = approve_external_agent_action(agent.task_tape, task_id, approver=request_actor(), reason=data.get('reason'), confirm=data.get('confirm') is True)
+    status = 200 if result.get('ok') else (404 if result.get('error') == 'pending_external_agent_action_not_found' else 400)
+    audit_security_event('security_mutation', 'external_agent_action_approved' if result.get('ok') else result.get('error', 'external_agent_action_approve_denied'), status, required_scope_for_request(), {'task_id': task_id})
+    return jsonify(result), status
+
+
+@app.route('/agent-adapter/actions/<task_id>/reject', methods=['POST'])
+def external_agent_action_reject(task_id):
+    data = request.get_json(silent=True) or {}
+    result = reject_external_agent_action(agent.task_tape, task_id, reason=data.get('reason') or 'manual_reject')
+    status = 200 if result.get('ok') else 404
+    audit_security_event('security_mutation', 'external_agent_action_rejected' if result.get('ok') else result.get('error', 'external_agent_action_reject_denied'), status, required_scope_for_request(), {'task_id': task_id})
+    return jsonify(result), status
 
 @app.route('/human-escalations', methods=['GET'])
 def human_escalation_reviews():

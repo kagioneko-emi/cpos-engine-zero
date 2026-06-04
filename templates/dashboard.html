@@ -435,6 +435,14 @@
             <div id="mcp-review-container"></div>
         </div>
 
+
+        <div id="agent-adapter-section" class="card" style="display: none; border-color: var(--accent-green); margin-bottom: 30px;">
+            <h2>External Agent Adapter Queue</h2>
+            <p class="muted">Ingress gate for Codex/Hermes/OpenClaw-style agents. Stores contract metadata and hashes only; no raw requests, raw diffs, command output, secrets, or automatic execution.</p>
+            <div id="agent-adapter-summary" class="muted" style="margin-bottom: 12px;">Loading external agent actions...</div>
+            <div id="agent-adapter-container"></div>
+        </div>
+
         <div id="human-escalation-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
             <h2>Human Escalation Queue</h2>
             <p class="muted">Assisted autonomy gate across review pipelines. Metadata-only: no secrets, raw request bodies, raw diffs, stdout/stderr, or checkpoint contents are persisted.</p>
@@ -632,6 +640,10 @@
                 const approvalMcp = mcpConnectors.filter(c => c.requires_human_approval).length;
                 document.getElementById('mcp-connector-detail').innerText = mcpConnectors.length === 0 && !pendingMcpTotal ? 'No MCP connectors registered' : `active=${activeMcp}, approval_required=${approvalMcp}, connector_reviews=${mcpReviewsData.count || 0}, execution_reviews=${mcpExecutionData.count || 0}`;
                 renderMcpReview(mcpData, mcpReviewsData, mcpExecutionData);
+
+                const agentAdapterRes = await fetch('/agent-adapter/actions');
+                const agentAdapterData = agentAdapterRes.ok ? await agentAdapterRes.json() : {ok: false, count: 0, reviews: []};
+                renderExternalAgentActions(agentAdapterData);
 
                 const humanEscalationRes = await fetch('/human-escalations');
                 const humanEscalationData = humanEscalationRes.ok ? await humanEscalationRes.json() : {ok: false, count: 0, escalations: []};
@@ -1105,6 +1117,47 @@
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
                                     <button class="btn btn-success" onclick="approveSandboxPatchPlan('${review.task_id}')">Approve Plan</button>
                                     <button class="btn btn-danger" onclick="rejectSandboxPatchPlan('${review.task_id}')">Reject</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+
+                function renderExternalAgentActions(agentAdapterData) {
+                    const section = document.getElementById('agent-adapter-section');
+                    const summary = document.getElementById('agent-adapter-summary');
+                    const container = document.getElementById('agent-adapter-container');
+                    const reviews = (agentAdapterData && agentAdapterData.reviews) || [];
+                    if (!reviews.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `pending_actions=${reviews.length}, metadata_only=true, raw_request_stored=false, raw_diff_stored=false, raw_outputs_stored=false, auto_execute=false`;
+                    container.innerHTML = '';
+                    reviews.slice(-8).reverse().forEach(review => {
+                        const contract = review.contract || {};
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-green)';
+                        const files = (contract.changed_files || []).map(f => `<span class="pill"><code>${f}</code></span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div>
+                                    <strong style="color: var(--accent-green);">[EXTERNAL AGENT ACTION]</strong> <code>${review.task_id}</code><br>
+                                    <span class="muted">agent=${contract.agent_name || '-'} / event=${contract.event_type || '-'} / decision=${contract.adapter_decision || '-'}</span><br>
+                                    <span class="muted">risk=${contract.risk || '-'} / commands=${contract.command_count || 0} / files=${contract.changed_file_count || 0}</span><br>
+                                    <span class="muted">contract_sha256=${contract.contract_sha256 || '-'}</span><br>
+                                    <span class="muted">metadata_only=${review.metadata_only} / raw_request_stored=${contract.raw_request_stored} / raw_diff_stored=${contract.raw_diff_stored} / raw_outputs_stored=${contract.raw_outputs_stored} / execute_automatically=${contract.execute_automatically}</span>
+                                    <div style="margin-top: 8px;"><strong>Changed files</strong><br>${files}</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button class="btn btn-success" onclick="approveExternalAgentAction('${review.task_id}')">Approve Contract Only</button>
+                                    <button class="btn btn-danger" onclick="rejectExternalAgentAction('${review.task_id}')">Reject</button>
                                 </div>
                             </div>
                         `;
@@ -1820,6 +1873,18 @@
 
         function focusSandboxFlowFromEscalation(sourceExecutionTaskId) {
             focusSandboxFlow(sourceExecutionTaskId);
+        }
+
+
+        async function approveExternalAgentAction(taskId) {
+            if (!confirm(`Approve external agent action ${taskId}? This approves the metadata contract only and will not execute commands.`)) return;
+            await postJson(`/agent-adapter/actions/${taskId}/approve`, {confirm: true, reason: 'dashboard_approve'});
+        }
+
+        async function rejectExternalAgentAction(taskId) {
+            const reason = prompt('Reject external agent action reason:', 'dashboard_reject');
+            if (reason === null) return;
+            await postJson(`/agent-adapter/actions/${taskId}/reject`, {reason: reason});
         }
 
         async function approveHumanEscalation(taskId, endpoint) {

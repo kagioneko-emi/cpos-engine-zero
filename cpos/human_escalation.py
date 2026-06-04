@@ -198,6 +198,7 @@ def pending_human_escalations(store: Any) -> list[dict[str, Any]]:
         'sandbox_patch_generation': {'sandbox_patch_generation_approved', 'sandbox_patch_generation_rejected'},
         'mcp_tool_execution': {'mcp_execution_approved', 'mcp_execution_rejected', 'mcp_execution_dry_run_ready'},
         'mcp_capability_probe': {'mcp_probe_approved', 'mcp_probe_rejected', 'mcp_probe_dry_run_ready'},
+        'external_agent_action': {'external_agent_action_approved', 'external_agent_action_rejected'},
     }
     terminal_task_ids: set[str] = set()
     events = store.events()
@@ -247,6 +248,7 @@ def _owning_pipeline_hint(review_type: str | None) -> str:
         'sandbox_patch_generation': 'sandbox_failure_recovery',
         'mcp_tool_execution': 'mcp_execution',
         'mcp_capability_probe': 'mcp_probe',
+        'external_agent_action': 'external_agent_adapter',
     }
     return mapping.get(review_type, 'unknown')
 
@@ -261,6 +263,7 @@ def _pipeline_stage_hint(review_type: str | None) -> str:
         'sandbox_patch_generation': 'patch_generation_gate',
         'mcp_tool_execution': 'mcp_tool_execution_gate',
         'mcp_capability_probe': 'mcp_capability_probe_gate',
+        'external_agent_action': 'external_agent_review_gate',
     }
     return mapping.get(review_type, 'unknown')
 
@@ -292,6 +295,7 @@ def _review_endpoint_hint(review_type: str | None) -> str | None:
         'sandbox_patch_generation': '/sandbox/patch-generations',
         'mcp_tool_execution': '/mcp/executions',
         'mcp_capability_probe': '/mcp/probes',
+        'external_agent_action': '/agent-adapter/actions',
     }
     return mapping.get(review_type)
 
@@ -306,6 +310,7 @@ def _approval_endpoint_hint(review_type: str | None, task_id: str) -> str | None
         'sandbox_patch_generation': f'/sandbox/patch-generations/{task_id}/approve',
         'mcp_tool_execution': f'/mcp/executions/{task_id}/approve',
         'mcp_capability_probe': f'/mcp/probes/{task_id}/approve',
+        'external_agent_action': f'/agent-adapter/actions/{task_id}/approve',
     }
     return mapping.get(review_type)
 
