@@ -1075,13 +1075,15 @@ def render_competitive_demo_readiness_summary(task_tape_path, task_checkpoint_pa
             <h2>Fast Resume + Safe Execution Loop</h2>
             <div class="metrics">
                 <div class="metric"><strong>{escape(str(readiness.get('ready_count')))} / {escape(str(readiness.get('stage_count')))}</strong><span>Ready Stages</span></div>
-                <div class="metric"><strong>{escape(str(counts.get('fast_resume_keys', 0)))}</strong><span>Resume Keys</span></div>
+                <div class="metric"><strong>{escape(str(counts.get('external_agent_actions', 0)))} / {escape(str(counts.get('external_agent_results', 0)))}</strong><span>Agent Contracts / Results</span></div>
                 <div class="metric"><strong>{escape(str(counts.get('patch_generation_reviews', 0)))}</strong><span>Patch Gen Reviews</span></div>
                 <div class="metric"><strong>{escape(str(counts.get('ready_to_run_reviews', 0)))}</strong><span>Ready-to-Run</span></div>
             </div>
-            <p class="muted">Competitive demo path: Fast Resume → Human Escalation → Patch Generation → Validation Harness → Safe Advance → Ready-to-Run Gate → Explicit Supplied-Diff Run → Flow Graph → Report Snapshot.</p>
+            <p class="muted">Competitive demo path: Fast Resume → External Agent Adapter → Result Scoreboard → Human Escalation → Patch Generation → Validation Harness → Safe Advance → Ready-to-Run Gate → Explicit Supplied-Diff Run → Flow Graph → Report Snapshot.</p>
             <p>
                 <span class="pill">metadata_only={escape(str(flags.get('metadata_only')))}</span>
+                <span class="pill">external_agent_adapter={escape(str(posture.get('external_agent_adapter_available')))}</span>
+                <span class="pill">agent_result_scoreboard={escape(str(posture.get('external_agent_result_scoreboard_available')))}</span>
                 <span class="pill">human_escalation_first_class={escape(str(posture.get('human_escalation_first_class')))}</span>
                 <span class="pill">approval_separated={escape(str(posture.get('approval_separated_from_execution')))}</span>
                 <span class="pill">raw_diff_stored={escape(str(flags.get('raw_diff_stored')))}</span>

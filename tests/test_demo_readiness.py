@@ -35,6 +35,7 @@ def test_competitive_demo_readiness_uses_tape_cache_and_safety_flags(tmp_path):
     assert result["counts"]["fast_resume_keys"] == 4
     assert result["counts"]["pending_tape_memory_reviews"] == 1
     assert result["competitive_posture"]["external_agent_adapter_available"] is True
+    assert result["competitive_posture"]["external_agent_result_scoreboard_available"] is True
     assert result["competitive_posture"]["human_escalation_first_class"] is True
     assert result["competitive_posture"]["approval_separated_from_execution"] is True
     assert result["safety_flags"]["metadata_only"] is True
@@ -42,6 +43,7 @@ def test_competitive_demo_readiness_uses_tape_cache_and_safety_flags(tmp_path):
     assert result["safety_flags"]["raw_outputs_stored"] is False
     assert result["safety_flags"]["execute_automatically"] is False
     assert "External Agent Adapter" in result["next_demo_path"]
+    assert "External Agent Result Scoreboard" in result["next_demo_path"]
     assert "Ready-to-Run Gate" in result["next_demo_path"]
 
 
@@ -96,11 +98,13 @@ def test_competitive_demo_fixture_creates_metadata_only_readiness_chain(tmp_path
     assert result["step_count"] >= 12
     step_names = {step["name"] for step in result["steps"]}
     assert "create_external_agent_adapter_review" in step_names
+    assert "record_external_agent_execution_result" in step_names
     assert "create_ready_to_run_execution_review" in step_names
     assert "create_patch_generation_review" in step_names
     assert "create_diff_review_draft" in step_names
     readiness = build_competitive_demo_readiness(store, mcp_registry=_FakeMCPRegistry(), tape_store_path=tape_root)
     assert readiness["counts"]["external_agent_actions"] >= 1
+    assert readiness["counts"]["external_agent_results"] >= 1
     assert readiness["counts"]["ready_to_run_reviews"] >= 1
     assert readiness["counts"]["patch_generation_reviews"] >= 1
     assert readiness["counts"]["diff_drafts"] >= 1
@@ -129,6 +133,7 @@ def test_demo_fixture_api_creates_readiness_chain(tmp_path):
     assert payload["raw_diff_stored"] is False
     assert payload["raw_outputs_stored"] is False
     assert payload["readiness"]["counts"]["external_agent_actions"] >= 1
+    assert payload["readiness"]["counts"]["external_agent_results"] >= 1
     assert payload["readiness"]["counts"]["ready_to_run_reviews"] >= 1
     assert payload["readiness"]["counts"]["patch_generation_reviews"] >= 1
     assert payload["readiness"]["safety_flags"]["execute_automatically"] is False

@@ -1261,7 +1261,7 @@ def test_generate_report_renders_competitive_demo_readiness(tmp_path):
     html = output_path.read_text(encoding="utf-8")
     assert "Competitive Demo Readiness" in html
     assert "Fast Resume + Safe Execution Loop" in html
-    assert "Fast Resume → Human Escalation → Patch Generation" in html
+    assert "Fast Resume → External Agent Adapter → Result Scoreboard → Human Escalation → Patch Generation" in html
     assert "approval_separated=True" in html
     assert "raw_diff_stored=False" in html
     assert "execute_automatically=False" in html

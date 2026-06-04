@@ -959,11 +959,11 @@
                     section.style.display = 'block';
                     const flags = data.safety_flags || {};
                     const counts = data.counts || {};
-                    summary.innerText = `ready=${data.ready}, stages=${data.ready_count || 0}/${data.stage_count || 0}, fast_resume_keys=${counts.fast_resume_keys || 0}, human_escalations=${counts.human_escalations || 0}, ready_to_run=${counts.ready_to_run_reviews || 0}, raw_diff_stored=${flags.raw_diff_stored}, raw_outputs_stored=${flags.raw_outputs_stored}, auto_execute=${flags.execute_automatically}`;
+                    summary.innerText = `ready=${data.ready}, stages=${data.ready_count || 0}/${data.stage_count || 0}, external_agent_contracts=${counts.external_agent_actions || 0}, external_agent_results=${counts.external_agent_results || 0}, human_escalations=${counts.human_escalations || 0}, ready_to_run=${counts.ready_to_run_reviews || 0}, raw_outputs_stored=${flags.raw_outputs_stored}, auto_execute=${flags.execute_automatically}`;
                     const metrics = `
                         <div class="metrics">
                             <div class="metric"><strong>${data.ready_count || 0}/${data.stage_count || 0}</strong><span>Ready Stages</span></div>
-                            <div class="metric"><strong>${counts.fast_resume_keys || 0}</strong><span>Resume Keys</span></div>
+                            <div class="metric"><strong>${counts.external_agent_actions || 0}/${counts.external_agent_results || 0}</strong><span>Agent Contracts/Results</span></div>
                             <div class="metric"><strong>${counts.patch_generation_reviews || 0}</strong><span>Patch Gen Reviews</span></div>
                             <div class="metric"><strong>${counts.ready_to_run_reviews || 0}</strong><span>Ready-to-Run</span></div>
                         </div>
@@ -981,6 +981,8 @@
                         ${metrics}
                         <p>
                             <span class="pill">metadata_only=${flags.metadata_only}</span>
+                            <span class="pill">external_agent_adapter=${(data.competitive_posture || {}).external_agent_adapter_available}</span>
+                            <span class="pill">agent_result_scoreboard=${(data.competitive_posture || {}).external_agent_result_scoreboard_available}</span>
                             <span class="pill">human_escalation_first_class=${(data.competitive_posture || {}).human_escalation_first_class}</span>
                             <span class="pill">approval_separated=${(data.competitive_posture || {}).approval_separated_from_execution}</span>
                             <span class="pill">raw_diff_stored=${flags.raw_diff_stored}</span>

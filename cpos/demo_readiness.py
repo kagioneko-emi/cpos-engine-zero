@@ -108,6 +108,15 @@ def build_competitive_demo_readiness(
             "count": len(external_agent_actions),
             "next_action": "Review external agent contracts before action execution",
             "endpoint": "/agent-adapter/actions",
+            "evidence": {
+                "pending_contracts": len(external_agent_actions),
+                "result_reports": external_agent_scoreboard.get("completed_results", 0),
+                "result_success_rate": external_agent_scoreboard.get("success_rate", 0),
+                "scoreboard_endpoint": "/agent-adapter/execution-results",
+                "metadata_only": True,
+                "raw_outputs_stored": False,
+                "execute_automatically": False,
+            },
         },
         {
             "name": "Human Escalation Queue",
@@ -175,6 +184,7 @@ def build_competitive_demo_readiness(
             "flow_nodes": int(graph_counts.get("nodes", 0) or 0),
             "success_rate": scoreboard.get("success_rate", 0),
         },
+        "external_agent_result_scoreboard": external_agent_scoreboard,
         "competitive_posture": {
             "fast_resume_available": bool(tape["ok"]),
             "external_agent_adapter_available": True,
@@ -204,6 +214,7 @@ def build_competitive_demo_readiness(
         "next_demo_path": [
             "Fast Resume Cache",
             "External Agent Adapter",
+            "External Agent Result Scoreboard",
             "Human Escalation Queue",
             "Patch Generation Review",
             "Validation Harness",
