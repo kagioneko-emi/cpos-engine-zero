@@ -202,13 +202,19 @@ curl -X POST https://<host>/agent-adapter/intake \
   -d '{"agent_name":"codex-or-hermes","event_type":"command_request","commands":["pytest tests -q"],"changed_files":["README.md"],"metadata":{"risk":"medium"}}'
 
 curl https://<host>/agent-adapter/actions
+
+# External agents can also report execution results as metadata-only summaries.
+curl -X POST https://<host>/agent-adapter/intake \
+  -d '{"agent_name":"codex-or-hermes","event_type":"execution_result","execution_result":{"status":"failed","output_redacted":true},"metadata":{"success":false,"exit_code":1,"failure_kind":"validation_command"}}'
+curl https://<host>/agent-adapter/execution-results
 curl https://<host>/human-escalations
 ```
 
 Adapter safety defaults: no raw request body persistence, no raw diff
 persistence, no raw stdout/stderr persistence, no secret values, and no automatic
 execution. Approval records the contract only; execution remains a separately
-gated pipeline decision.
+gated pipeline decision. Execution-result reports are scoreboard inputs only and
+still store no raw stdout/stderr.
 
 ## Human Escalation Queue
 

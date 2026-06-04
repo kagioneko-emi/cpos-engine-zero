@@ -643,7 +643,9 @@
 
                 const agentAdapterRes = await fetch('/agent-adapter/actions');
                 const agentAdapterData = agentAdapterRes.ok ? await agentAdapterRes.json() : {ok: false, count: 0, reviews: []};
-                renderExternalAgentActions(agentAdapterData);
+                const agentResultRes = await fetch('/agent-adapter/execution-results');
+                const agentResultData = agentResultRes.ok ? await agentResultRes.json() : {ok: false, completed_results: 0, success_results: 0, failure_results: 0, recent_results: []};
+                renderExternalAgentActions(agentAdapterData, agentResultData);
 
                 const humanEscalationRes = await fetch('/human-escalations');
                 const humanEscalationData = humanEscalationRes.ok ? await humanEscalationRes.json() : {ok: false, count: 0, escalations: []};
@@ -1125,18 +1127,34 @@
                 }
 
 
-                function renderExternalAgentActions(agentAdapterData) {
+                function renderExternalAgentActions(agentAdapterData, agentResultData) {
                     const section = document.getElementById('agent-adapter-section');
                     const summary = document.getElementById('agent-adapter-summary');
                     const container = document.getElementById('agent-adapter-container');
                     const reviews = (agentAdapterData && agentAdapterData.reviews) || [];
-                    if (!reviews.length) {
+                    const results = (agentResultData && agentResultData.recent_results) || [];
+                    if (!reviews.length && !results.length) {
                         section.style.display = 'none';
                         return;
                     }
                     section.style.display = 'block';
-                    summary.innerText = `pending_actions=${reviews.length}, metadata_only=true, raw_request_stored=false, raw_diff_stored=false, raw_outputs_stored=false, auto_execute=false`;
+                    summary.innerText = `pending_actions=${reviews.length}, completed_results=${agentResultData.completed_results || 0}, success_rate=${agentResultData.success_rate || 0}%, metadata_only=true, raw_request_stored=false, raw_diff_stored=false, raw_outputs_stored=false, auto_execute=false`;
                     container.innerHTML = '';
+                    if (results.length) {
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'card';
+                        resultDiv.style.marginBottom = '10px';
+                        resultDiv.style.background = '#161b22';
+                        resultDiv.style.borderColor = 'var(--accent-green)';
+                        const recent = results.slice(-5).reverse().map(item => `<li><code>${item.task_id || '-'}</code> agent=${item.agent_name || '-'} success=${item.success} exit=${item.exit_code ?? '-'} failure=${item.failure_kind || '-'} raw_outputs_stored=${item.raw_outputs_stored}</li>`).join('');
+                        resultDiv.innerHTML = `
+                            <strong style="color: var(--accent-green);">[EXTERNAL AGENT EXECUTION RESULTS]</strong><br>
+                            <span class="muted">completed=${agentResultData.completed_results || 0} / success=${agentResultData.success_results || 0} / failure=${agentResultData.failure_results || 0} / success_rate=${agentResultData.success_rate || 0}%</span><br>
+                            <span class="muted">metadata_only=${agentResultData.metadata_only} / raw_outputs_stored=${agentResultData.raw_outputs_stored} / execute_automatically=${agentResultData.execute_automatically}</span>
+                            <ul>${recent}</ul>
+                        `;
+                        container.appendChild(resultDiv);
+                    }
                     reviews.slice(-8).reverse().forEach(review => {
                         const contract = review.contract || {};
                         const div = document.createElement('div');

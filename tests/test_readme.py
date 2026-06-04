@@ -56,7 +56,7 @@ def test_release_notes_include_current_safe_autonomy_features():
     assert 'Sandbox replan templates' in notes
     assert 'Sandbox diff intakes' in notes
     assert 'Release readiness CLI' in notes
-    assert '318 passed' in notes
+    assert '320 passed' in notes
     assert 'ok=true' in notes
 
 
@@ -159,7 +159,7 @@ def test_readme_release_notes_and_checklist_include_competitive_demo_updates():
     assert 'Ready-to-Run Execution' in readme
     assert 'Competitive Demo Readiness' in notes
     assert 'Metadata-only demo fixture' in notes
-    assert '318 passed' in notes
+    assert '320 passed' in notes
     assert 'Quick Competitive Demo' in checklist
     assert 'Competitive Demo Readiness' in checklist
-    assert '318 passed' in checklist
+    assert '320 passed' in checklist

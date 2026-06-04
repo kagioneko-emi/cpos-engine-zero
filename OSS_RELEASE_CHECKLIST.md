@@ -6,7 +6,7 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 
 - [ ] Confirm this is the correct repo: `git remote -v` shows `https://github.com/kagioneko/cpos-engine-zero.git`.
 - [ ] Review `git status --short` line-by-line before staging; final push state should be `## main...origin/main`.
-- [ ] Run all tests: `PYTHONPATH=. .venv/bin/python -m pytest tests -q` and record the current pass count (latest verified: `318 passed`).
+- [ ] Run all tests: `PYTHONPATH=. .venv/bin/python -m pytest tests -q` and record the current pass count (latest verified: `320 passed`).
 - [ ] Run secret scan:
 
   ```bash

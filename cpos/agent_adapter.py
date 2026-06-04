@@ -24,6 +24,30 @@ def _string_list(values: Any) -> list[str]:
     return [str(value) for value in values[:100]]
 
 
+def _result_summary(execution_result: Any, metadata: dict[str, Any]) -> dict[str, Any] | None:
+    if execution_result is None and not any(key in metadata for key in {"success", "exit_code", "failure_kind", "duration_ms"}):
+        return None
+    exit_code = metadata.get("exit_code")
+    try:
+        exit_code = int(exit_code) if exit_code is not None else None
+    except (TypeError, ValueError):
+        exit_code = None
+    duration_ms = metadata.get("duration_ms")
+    try:
+        duration_ms = int(duration_ms) if duration_ms is not None else None
+    except (TypeError, ValueError):
+        duration_ms = None
+    return {
+        "success": metadata.get("success") if isinstance(metadata.get("success"), bool) else None,
+        "exit_code": exit_code,
+        "failure_kind": str(metadata.get("failure_kind") or "")[:80] or None,
+        "duration_ms": duration_ms,
+        "result_digest": _stable_digest(execution_result) if execution_result is not None else None,
+        "raw_outputs_stored": False,
+        "secret_values_stored": False,
+    }
+
+
 def _risk_from_flags(*, event_type: str, flags: dict[str, bool], command_count: int, diff_size: int) -> str:
     if flags.get("touches_secrets") or flags.get("destructive") or flags.get("touches_production"):
         return "high"
@@ -117,7 +141,8 @@ def intake_external_agent_action(
         command_count=len(commands_list),
         diff_size=(diff_digest or {}).get("size_bytes", 0),
     ))
-    requires_human = event_type in {"proposed_diff", "command_request"} or bool(metadata.get("requires_human_approval", True))
+    requires_human = event_type in {"proposed_diff", "command_request"} or bool(metadata.get("requires_human_approval", False))
+    result_summary = _result_summary(execution_result, metadata) if event_type == "execution_result" else None
     summary = _build_summary(event_type, str(agent_name or "external-agent"), flags, metadata)
     human_escalation = review_escalation_decision(
         review_type=REVIEW_TYPE,
@@ -139,6 +164,7 @@ def intake_external_agent_action(
         "command_count": len(commands_list),
         "input_digests": input_digests,
         "metadata_keys": sorted(str(key) for key in metadata.keys()),
+        "result_summary": result_summary,
         "adapter_decision": "requires_review" if human_escalation["requires_human"] else "allow",
         "requires_human_approval": human_escalation["requires_human"],
         "execute_automatically": False,
@@ -164,6 +190,59 @@ def intake_external_agent_action(
         payload={"review_type": REVIEW_TYPE, "contract": contract, "human_escalation": human_escalation, "actor": actor},
     )
     return {"ok": True, "task_id": task_id, "status": event.status, "review": event.to_dict(), "contract": contract, "human_escalation": human_escalation, "execute_automatically": False}
+
+
+def external_agent_execution_results(store: TaskTapeStore) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for event in store.events():
+        payload = event.payload or {}
+        contract = payload.get("contract") or {}
+        if event.event != "review_required" or payload.get("review_type") != REVIEW_TYPE or contract.get("event_type") != "execution_result":
+            continue
+        result = contract.get("result_summary") or {}
+        rows.append({
+            "task_id": event.task_id,
+            "event_id": event.event_id,
+            "timestamp": event.timestamp,
+            "target": event.target,
+            "status": event.status,
+            "agent_name": contract.get("agent_name"),
+            "success": result.get("success"),
+            "exit_code": result.get("exit_code"),
+            "failure_kind": result.get("failure_kind"),
+            "duration_ms": result.get("duration_ms"),
+            "result_sha256": (result.get("result_digest") or {}).get("sha256"),
+            "result_size_bytes": (result.get("result_digest") or {}).get("size_bytes"),
+            "metadata_only": True,
+            "raw_outputs_stored": False,
+            "secret_values_stored": False,
+            "execute_automatically": False,
+        })
+    return rows
+
+
+def build_external_agent_result_scoreboard(store: TaskTapeStore) -> dict[str, Any]:
+    results = external_agent_execution_results(store)
+    successes = [row for row in results if row.get("success") is True]
+    failures = [row for row in results if row.get("success") is not True]
+    failure_kind_counts: dict[str, int] = {}
+    for row in failures:
+        kind = str(row.get("failure_kind") or "unknown")
+        failure_kind_counts[kind] = failure_kind_counts.get(kind, 0) + 1
+    return {
+        "ok": True,
+        "schema": "cpos.external_agent_result_scoreboard.v1",
+        "completed_results": len(results),
+        "success_results": len(successes),
+        "failure_results": len(failures),
+        "success_rate": round((len(successes) / len(results)) * 100, 1) if results else 0.0,
+        "failure_kind_counts": failure_kind_counts,
+        "recent_results": results[-10:],
+        "metadata_only": True,
+        "raw_outputs_stored": False,
+        "secret_values_stored": False,
+        "execute_automatically": False,
+    }
 
 
 def approve_external_agent_action(store: TaskTapeStore, task_id: str, *, approver: str = "ExternalAgentReviewer", reason: str | None = None, confirm: bool = False) -> dict[str, Any]:

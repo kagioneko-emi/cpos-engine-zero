@@ -137,6 +137,18 @@ def create_competitive_demo_fixture(
     )
     steps.append(_step("create_external_agent_adapter_review", agent_action))
 
+    agent_result = intake_external_agent_action(
+        store,
+        agent_name="demo-external-agent",
+        event_type="execution_result",
+        execution_result={"status": "failed", "output_redacted": True},
+        commands=validation_commands,
+        changed_files=["README.md"],
+        metadata={"success": False, "exit_code": 1, "failure_kind": "validation_command", "duration_ms": 1200, "demo_fixture": True},
+        actor=actor,
+    )
+    steps.append(_step("record_external_agent_execution_result", agent_result))
+
     pr = create_github_pr_dry_run(
         store,
         repo="kagioneko/cpos-engine-zero",

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .agent_adapter import pending_external_agent_actions
+from .agent_adapter import build_external_agent_result_scoreboard, pending_external_agent_actions
 from .auto_fix_candidate import pending_auto_fix_candidates
 from .diff_review_draft import pending_diff_review_drafts
 from .execution_driver import build_execution_scoreboard
@@ -75,6 +75,7 @@ def build_competitive_demo_readiness(
     tape = _tape_memory_snapshot(tape_store_path)
     tape_reviews = _pending_tape_memory_reviews(mcp_registry)
     external_agent_actions = pending_external_agent_actions(store)
+    external_agent_scoreboard = build_external_agent_result_scoreboard(store)
     human_escalations = pending_human_escalations(store)
     patch_generations = pending_patch_generation_reviews(store)
     ready_runs = ready_to_run_sandbox_patch_executions(store)
@@ -163,6 +164,7 @@ def build_competitive_demo_readiness(
             "fast_resume_keys": len(tape["keys"]),
             "pending_tape_memory_reviews": len(tape_reviews),
             "external_agent_actions": len(external_agent_actions),
+            "external_agent_results": external_agent_scoreboard.get("completed_results", 0),
             "human_escalations": len(human_escalations),
             "github_diff_reviews": len(github_diffs),
             "diff_drafts": len(drafts),
@@ -176,6 +178,7 @@ def build_competitive_demo_readiness(
         "competitive_posture": {
             "fast_resume_available": bool(tape["ok"]),
             "external_agent_adapter_available": True,
+            "external_agent_result_scoreboard_available": True,
             "human_escalation_first_class": True,
             "patch_generation_review_gated": True,
             "validation_harness_available": True,

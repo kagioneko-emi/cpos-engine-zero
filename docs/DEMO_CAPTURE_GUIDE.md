@@ -10,7 +10,7 @@ Capture in this order so the viewer immediately understands why CPOS is differen
    - Show `ready=true`, ready stages, safety flags, and demo path.
    - This is the strongest opening shot.
 2. **External Agent Adapter Queue**
-   - Show external agent contract metadata, risk, command/file counts, contract hash, and `execute_automatically=false`.
+   - Show external agent contract metadata, result scoreboard, risk, command/file counts, contract hash, and `execute_automatically=false`.
    - This proves CPOS can act as a defensive runtime/safety layer for Codex/Hermes/OpenClaw-style agents.
 3. **Human Escalation Queue**
    - Show owning pipeline, stage, approve/reject endpoint hints, and flow hints.
@@ -123,13 +123,14 @@ Last verified on 2026-06-05 after `POST /demo/fixture`:
 
 - readiness: `ready=true`, `ready_count=9`, `stage_count=9`
 - `external_agent_actions=1`
+- `external_agent_results=1` after the latest fixture path
 - `human_escalations=5`
 - `ready_to_run_reviews=2`
 - `patch_generation_reviews=2`
 - `flow_nodes=12`
 - `fast_resume_keys=13`
 - safety flags: `metadata_only=true`, `raw_diff_stored=false`, `raw_outputs_stored=false`, `raw_request_stored=false`, `secret_values_stored=false`, `execute_automatically=false`
-- generated report contains: Competitive Demo Readiness, External Agent Adapter, Human Escalation, Ready-to-Run, Sandbox Autonomy Flow Graph
+- generated report contains: Competitive Demo Readiness, External Agent Adapter result scoreboard, Human Escalation, Ready-to-Run, Sandbox Autonomy Flow Graph
 
 ## Caption template
 

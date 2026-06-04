@@ -49,7 +49,7 @@ from cpos.demo_readiness import build_competitive_demo_readiness
 from cpos.competitive_demo_fixture import create_competitive_demo_fixture
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 from cpos.patch_generation_review import create_patch_generation_review, pending_patch_generation_reviews, approve_patch_generation_review, reject_patch_generation_review, validate_patch_generation_output, advance_patch_generation_to_execution_review, create_github_diff_review_from_patch_generation
-from cpos.agent_adapter import intake_external_agent_action, pending_external_agent_actions, approve_external_agent_action, reject_external_agent_action
+from cpos.agent_adapter import intake_external_agent_action, pending_external_agent_actions, approve_external_agent_action, reject_external_agent_action, build_external_agent_result_scoreboard
 
 apply_security_profile_defaults()
 
@@ -749,6 +749,12 @@ def pointer_policy_from_request():
 def external_agent_action_reviews():
     reviews = pending_external_agent_actions(agent.task_tape)
     return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews, 'metadata_only': True, 'execute_automatically': False}), 200
+
+
+@app.route('/agent-adapter/execution-results', methods=['GET'])
+def external_agent_execution_results():
+    scoreboard = build_external_agent_result_scoreboard(agent.task_tape)
+    return jsonify(scoreboard), 200
 
 
 @app.route('/agent-adapter/intake', methods=['POST'])

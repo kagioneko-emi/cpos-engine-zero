@@ -23,6 +23,7 @@ from cpos.diff_review_draft import pending_diff_review_drafts
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 from cpos.patch_generation_review import pending_patch_generation_reviews
 from cpos.demo_readiness import build_competitive_demo_readiness
+from cpos.agent_adapter import pending_external_agent_actions, build_external_agent_result_scoreboard
 
 
 def load_jsonl(path):
@@ -556,6 +557,42 @@ def render_mcp_connector_summary(registry_path, mcp_audit_path, mcp_review_path=
     return html
 
 
+
+
+def render_external_agent_adapter_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    actions = pending_external_agent_actions(store)
+    scoreboard = build_external_agent_result_scoreboard(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">External Agent Adapter</div>
+            <h2>Agent Contract & Result Scoreboard</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(actions)}</strong><span>Pending Contracts</span></div>
+                <div class="metric"><strong>{scoreboard.get('completed_results', 0)}</strong><span>Result Reports</span></div>
+                <div class="metric"><strong>{scoreboard.get('success_rate', 0):.1f}%</strong><span>Result Success</span></div>
+                <div class="metric"><strong>no</strong><span>Raw Outputs</span></div>
+            </div>
+            <p class="muted">External agents can report action contracts and execution results as metadata-only records. CPOS stores hashes, counters, statuses, and failure kinds; raw requests, diffs, stdout/stderr, and secrets stay out of persistent storage.</p>
+    """
+    results = scoreboard.get('recent_results') or []
+    if results:
+        html += '<div class="step-label">Recent External Agent Results</div><table><thead><tr><th>Task</th><th>Agent</th><th>Status</th><th>Failure</th><th>Safety</th></tr></thead><tbody>'
+        for row in results[-10:]:
+            html += f"""
+                <tr>
+                    <td><code>{escape(str(row.get('task_id') or '-'))}</code></td>
+                    <td>{escape(str(row.get('agent_name') or '-'))}</td>
+                    <td>success={escape(str(row.get('success')))}<br><span class="muted">exit={escape(str(row.get('exit_code') if row.get('exit_code') is not None else '-'))}</span></td>
+                    <td>{escape(str(row.get('failure_kind') or '-'))}</td>
+                    <td>metadata_only={escape(str(row.get('metadata_only')))}<br><span class="muted">raw_outputs_stored={escape(str(row.get('raw_outputs_stored')))} / execute_automatically={escape(str(row.get('execute_automatically')))}</span></td>
+                </tr>
+            """
+        html += '</tbody></table>'
+    else:
+        html += '<p class="muted">No external agent execution results yet.</p>'
+    html += '</div>'
+    return html
 
 def render_mcp_execution_summary(task_tape_path, task_checkpoint_path):
     store = TaskTapeStore(task_tape_path, task_checkpoint_path)
@@ -1375,6 +1412,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_handoff_queue_summary(queue)
     html += render_handoff_graph_report(pointer_path, task_tape_path, task_checkpoint_path)
     html += render_mcp_connector_summary(mcp_registry_path, mcp_audit_path, mcp_review_path)
+    html += render_external_agent_adapter_summary(task_tape_path, task_checkpoint_path)
     html += render_human_escalation_summary(task_tape_path, task_checkpoint_path)
     html += render_mcp_execution_summary(task_tape_path, task_checkpoint_path)
     html += render_github_pr_dry_run_summary(task_tape_path, task_checkpoint_path)
