@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from .agent_adapter import intake_external_agent_action
 from .auto_fix_candidate import create_auto_fix_candidate
 from .demo_readiness import build_competitive_demo_readiness
 from .diff_review_draft import create_diff_review_draft
@@ -124,6 +125,17 @@ def create_competitive_demo_fixture(
     steps: list[dict[str, Any]] = []
     validation_commands = ["pytest -q tests/test_demo_readiness.py"]
     transient_diff = "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@\n-demo readiness placeholder\n+demo readiness placeholder\n"
+
+    agent_action = intake_external_agent_action(
+        store,
+        agent_name="demo-external-agent",
+        event_type="command_request",
+        commands=validation_commands,
+        changed_files=["README.md"],
+        metadata={"risk": "medium", "requires_human_approval": True, "demo_fixture": True},
+        actor=actor,
+    )
+    steps.append(_step("create_external_agent_adapter_review", agent_action))
 
     pr = create_github_pr_dry_run(
         store,
