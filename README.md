@@ -226,7 +226,7 @@ Adapter safety defaults: no raw request body persistence, no raw diff
 persistence, no raw stdout/stderr persistence, no secret values, and no automatic
 execution. Approval records the contract only; execution remains a separately
 gated pipeline decision. Execution-result reports are scoreboard inputs only and
-still store no raw stdout/stderr. See `docs/AGENT_ADAPTER_INTEGRATION.md` and
+still store no raw stdout/stderr. See `docs/AGENT_ADAPTER_INTEGRATION.md`, `docs/AGENT_ADAPTER_SCHEMA.md`, and
 `examples/agent_adapter_client.py` for integration details.
 
 ## Human Escalation Queue

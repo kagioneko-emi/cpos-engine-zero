@@ -4,6 +4,10 @@ CPOS can be used as a defensive runtime/safety layer for external agents such as
 
 The adapter is intentionally metadata-only. It accepts action contracts and result reports, then records hashes, counters, statuses, endpoint hints, and Human Escalation decisions in Task Tape. It does not execute commands for the caller.
 
+## Schema reference
+
+See `docs/AGENT_ADAPTER_SCHEMA.md` for field-level request/response examples and safety flags.
+
 ## Endpoints
 
 - `POST /agent-adapter/intake` — submit an action contract or result report.
