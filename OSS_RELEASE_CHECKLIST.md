@@ -6,7 +6,7 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 
 - [ ] Confirm this is the correct repo: `git remote -v` shows `https://github.com/kagioneko/cpos-engine-zero.git`.
 - [ ] Review `git status --short` line-by-line before staging; final push state should be `## main...origin/main`.
-- [ ] Run all tests: `PYTHONPATH=. .venv/bin/python -m pytest tests -q` and record the current pass count (latest verified: `290 passed`).
+- [ ] Run all tests: `PYTHONPATH=. .venv/bin/python -m pytest tests -q` and record the current pass count (latest verified: `316 passed`).
 - [ ] Run secret scan:
 
   ```bash
@@ -40,10 +40,10 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 - [ ] No raw stdout/stderr, raw diff text, request bodies, checkpoint contents, raw handoff bodies, or proposed code blobs persisted in docs, ledgers, reports, or tests.
 - [ ] If using an AI skill/MCP wrapper for publishing, confirm it follows `docs/GITHUB_PUBLISH_SAFETY_SPEC.md` and performs no staging/commit/push/delete operations by itself.
 - [ ] README includes `Safe Autonomy Demo Flow` and clearly states current MCP limitation: dry-run/governance only, no real tool execution by default.
-- [ ] README documents the Autonomy Loop Demo Panel and Diff Review Draft -> GitHub Diff Review routing with transient diff input only.
+- [ ] README documents Quick Competitive Demo, `/demo/readiness`, `/demo/fixture`, Autonomy Loop Demo Panel, and Diff Review Draft -> GitHub Diff Review routing with transient diff input only.
 - [ ] PITCH.md positions CPOS as `safer-by-design execution power` versus unrestricted write-power agents; avoid unsupported claims that CPOS has fully surpassed Hermes/OpenClaw/Claude Code.
-- [ ] Dashboard includes the Autonomy Loop Demo Panel with stage counts and safety flags: `metadata_only=true`, `raw_diff_stored=false`, `raw_outputs_stored=false`, `live_repo_patch=false`, `commit_created=false`, `pushed=false`, `pr_created=false`.
-- [ ] Generated report includes the Autonomy Loop Demo Snapshot with the same metadata-only safety flags.
+- [ ] Dashboard includes Competitive Demo Readiness and the Autonomy Loop Demo Panel with stage counts and safety flags: `metadata_only=true`, `raw_diff_stored=false`, `raw_outputs_stored=false`, `live_repo_patch=false`, `commit_created=false`, `pushed=false`, `pr_created=false`.
+- [ ] Generated report includes Competitive Demo Readiness and the Autonomy Loop Demo Snapshot with the same metadata-only safety flags.
 - [ ] Sandbox Flow Graph shows failed execution -> retry/replan -> candidate -> diff draft -> GitHub diff review lineage without raw diffs or raw outputs.
 - [ ] Execution Scoreboard shows completed/success/failure counts and recent failure metadata only.
 - [ ] README and `docs/HUMAN_ESCALATION_PROTOCOL.md` document `/human-escalations`, dashboard queue routing, and metadata-only persistence.
@@ -61,10 +61,10 @@ Use this before pushing CPOS Engine-Zero to a public GitHub repository.
 
 ## Recommended polish
 
-- [ ] Add screenshots or a short demo GIF of the Autonomy Loop Demo Panel and Sandbox Flow Graph.
+- [ ] Add screenshots or a short demo GIF of Competitive Demo Readiness, Human Escalation Queue, Ready-to-Run Gate, and Sandbox Flow Graph.
 - [ ] Add architecture diagram for Context Pointer OS / Task Tape / Human Escalation / Sandbox Flow Graph.
 - [ ] Add minimal quickstart with local-only dev settings.
-- [ ] Add release notes for the safe execution loop: execution driver, retry/replan, auto fix candidates, diff review drafts, flow graph, demo panel, and report snapshot.
+- [ ] Add release notes for the safe execution loop: execution driver, retry/replan, auto fix candidates, patch generation review, validation harness, ready-to-run gate, demo fixture, competitive demo readiness, flow graph, and report snapshot.
 - [ ] Tag initial release as `v0.1.0` only after final push-state, test, prepublish, and secret scan checks are clean.
 
 ## Suggested positioning

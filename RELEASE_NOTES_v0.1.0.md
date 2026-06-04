@@ -15,7 +15,7 @@ Core idea:
 - Human approval gates before sensitive actions
 - Hash-chained audit logs for tamper-evident operation
 - Governance-first MCP integration
-- Safe autonomy loop: dry-run planning -> diff review -> sandbox execution -> retry/replan -> auto fix candidate -> diff review draft -> flow graph/demo snapshot
+- Safe autonomy loop: fast resume -> human escalation -> patch generation review -> validation harness -> ready-to-run gate -> sandbox execution -> retry/replan -> flow graph/demo readiness
 
 ## Highlights
 
@@ -43,15 +43,22 @@ Core idea:
 - Auto Fix Candidates: metadata-only repair strategies from replan templates with confidence, required inputs, and no raw diff/output storage
 - Diff Review Drafts: metadata-only next-review payload shape from Auto Fix Candidates; diff_text remains an external required input
 - Diff Review Draft -> GitHub Diff Review routing: transient diff input only; persisted lineage stores hashes, sizes, counters, and task IDs, not raw diff text
+- Patch Generation Reviews: review-gated generated-patch path from Auto Fix Candidates; generated diff text remains transient input only
+- Patch Generation Validation Harness: `git apply --check` in ephemeral copied workspaces with hashes/counters/status only
+- Safe Advance: validated generated patches can be promoted to a pending Sandbox Execution Review without approving execution or mutating the live repo
+- Ready-to-Run Execution Reviews: final human run gate showing approve/run/reject endpoints while keeping approval separated from execution
+- Tape Memory MCP fast resume cache: local review-gated connector definition for token-light resume indexing; CPOS Task Tape remains source of truth
+- Competitive Demo Readiness: `/demo/readiness` API plus dashboard/report section showing Fast Resume, Human Escalation, Patch Generation, Validation Harness, Ready-to-Run Gate, Flow Graph, and Report readiness
+- Metadata-only demo fixture: `/demo/fixture` creates safe screenshot/demo Task Tape data without tool execution, patch apply, live repo mutation, commit, push, PR, or raw diff/output storage
 - Sandbox Autonomy Flow Graph: links failed execution -> retry review -> replan template -> diff intake -> auto fix candidate -> diff review draft -> GitHub diff review
 - Human Escalation pipeline hints: queue rows include owning pipeline, stage, endpoint hints, and flow graph hints without duplicating approval authority
-- Autonomy Loop Demo Panel: dashboard one-screen view of Diff Draft, GitHub Diff Review, Sandbox Execution Review, Execution Result, Retry/Replan, and Flow Graph with safety flags
-- Autonomy Loop Demo Snapshot: generated report version of the same safe execution loop for demos and audits
+- Autonomy Loop Demo Panel and Competitive Demo Readiness: dashboard one-screen views of the safe execution loop, fast resume, patch generation, ready-to-run gate, and safety flags
+- Competitive Demo Readiness and Autonomy Loop Demo Snapshot: generated report evidence for demos and audits
 - Execution Scoreboard: completed/success/failure counts, success rate, failure kinds, retry/replan/intake load, and recent failure metadata
 - Failure classification: `patch_apply`, `validation_command`, `sandbox_unavailable`, and `policy_rejected`
 - Dashboard safe return actions: diff review can be approved back into sandbox execution review; execution reviews can be approved and run only with supplied transient diff input
 - Release readiness CLI: non-destructive checks for remote, clean tree, tracked bad artifacts, and required files
-- README/PITCH architecture overview, safer-by-design positioning, and safe autonomy demo flow
+- README/PITCH/demo capture guide architecture overview, safer-by-design positioning, quick competitive demo flow, and screenshot safety rules
 
 ## Security posture
 
@@ -76,7 +83,7 @@ Latest local validation before this release candidate:
 
 ```text
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-290 passed
+316 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.secret_scan ... --json
 ok=true count=0

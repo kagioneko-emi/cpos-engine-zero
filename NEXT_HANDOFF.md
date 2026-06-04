@@ -3,11 +3,11 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state after this update is committed: `main...origin/main [ahead 8]`, clean tree, `prepublish_check ok=true`, secret scan `count=0`.
+4. Expected state after this update is committed: `main...origin/main [ahead 9]`, clean tree, `prepublish_check ok=true`, secret scan `count=0`.
 5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`
 6. **Do not tag v0.1 yet** unlessねこさん explicitly says so.
-7. Latest feature work: PITCH.md + docs/DEMO_CAPTURE_GUIDE.md polished for Competitive Demo Readiness, demo fixture, tape-memory fast resume, and Ready-to-Run Gate.
-8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`; MCP review pending: `mcp_review_cca928799d599640`; demo readiness endpoint: `GET /demo/readiness`; demo fixture endpoint: `POST /demo/fixture` with `confirm=true`; docs polished in `PITCH.md` and `docs/DEMO_CAPTURE_GUIDE.md`.
+7. Latest feature work: README Quick Competitive Demo plus RELEASE_NOTES_v0.1.0.md and OSS_RELEASE_CHECKLIST.md updated for demo readiness/fixture and 316 passed.
+8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`; MCP review pending: `mcp_review_cca928799d599640`; demo readiness endpoint: `GET /demo/readiness`; demo fixture endpoint: `POST /demo/fixture` with `confirm=true`; docs polished in `PITCH.md`, `docs/DEMO_CAPTURE_GUIDE.md`, README, release notes, and OSS checklist.
 9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoints, handoff bodies, and secrets must not be persisted; store metadata/hashes/counters only.
 10. GitHub push/publish is Human Escalation; ask before pushing.
 

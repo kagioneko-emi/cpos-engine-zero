@@ -21,6 +21,24 @@ execution is not enabled by default.
 
 See `SECURITY.md` and `OSS_RELEASE_CHECKLIST.md` before publishing or deploying.
 
+## Quick Competitive Demo
+
+For a local, metadata-only demo path, seed safe fixture data and inspect readiness:
+
+```bash
+# Create demo Task Tape events only; no tool execution, patch apply, commit, push, PR, or raw output storage.
+curl -X POST https://<host>/demo/fixture -d '{"confirm":true,"reason":"demo_capture"}'
+
+# Inspect Fast Resume + Human Escalation + Patch Generation + Ready-to-Run + Flow Graph readiness.
+curl https://<host>/demo/readiness
+```
+
+Then open the dashboard and capture **Competitive Demo Readiness**, **Human
+Escalation Queue**, **Patch Generation Reviews**, **Ready-to-Run Execution
+Reviews**, and **Sandbox Autonomy Flow Graph**. The same evidence appears in the
+generated report. For capture order and safety rules, see
+`docs/DEMO_CAPTURE_GUIDE.md`.
+
 ## Core Capabilities
 - Context Pointer OS for lightweight memory references and retrieval governance
 - Append-only Task Tape with checkpoints and rollback support

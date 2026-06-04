@@ -56,7 +56,7 @@ def test_release_notes_include_current_safe_autonomy_features():
     assert 'Sandbox replan templates' in notes
     assert 'Sandbox diff intakes' in notes
     assert 'Release readiness CLI' in notes
-    assert '290 passed' in notes
+    assert '316 passed' in notes
     assert 'ok=true' in notes
 
 
@@ -146,3 +146,20 @@ def test_demo_capture_guide_documents_current_competitive_flow():
     assert 'raw_diff_stored=false' in guide
     assert 'raw_outputs_stored=false' in guide
     assert 'does not execute tools, apply patches, mutate the live repo, commit, push, create PRs' in guide
+
+
+def test_readme_release_notes_and_checklist_include_competitive_demo_updates():
+    readme = open('README.md', encoding='utf-8').read()
+    notes = open('RELEASE_NOTES_v0.1.0.md', encoding='utf-8').read()
+    checklist = open('OSS_RELEASE_CHECKLIST.md', encoding='utf-8').read()
+
+    assert 'Quick Competitive Demo' in readme
+    assert '/demo/readiness' in readme
+    assert '/demo/fixture' in readme
+    assert 'Ready-to-Run Execution' in readme
+    assert 'Competitive Demo Readiness' in notes
+    assert 'Metadata-only demo fixture' in notes
+    assert '316 passed' in notes
+    assert 'Quick Competitive Demo' in checklist
+    assert 'Competitive Demo Readiness' in checklist
+    assert '316 passed' in checklist
