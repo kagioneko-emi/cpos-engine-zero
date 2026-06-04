@@ -1,0 +1,34 @@
+{
+  "connector_id": "mcp://tape-memory/cpos-resume",
+  "name": "Tape Memory MCP - CPOS Fast Resume Cache",
+  "transport": "stdio",
+  "command": [
+    "env",
+    "TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos",
+    "python3",
+    "/home/mayutama/tape-memory-mcp-oss/server.py"
+  ],
+  "url": null,
+  "allowed_tools": [
+    "load_tape",
+    "store_tape",
+    "inspect_dictionary"
+  ],
+  "blocked_tools": [
+    "extend_dictionary"
+  ],
+  "sensitivity_level": "internal",
+  "requires_human_approval": true,
+  "env_secret_files": {},
+  "status": "active",
+  "metadata": {
+    "purpose": "CPOS fast resume cache for token-light handoff indexing",
+    "storage_root": "/home/mayutama/.tape-memory-mcp-cpos",
+    "storage_env": "TAPE_MEMORY_DIR",
+    "stores_raw_secrets": false,
+    "stores_raw_diffs": false,
+    "stores_raw_outputs": false,
+    "audit_authority": "CPOS Task Tape remains source of truth; tape-memory is a resume cache only",
+    "review_policy": "submit through MCP review queue and require human approval before tool execution"
+  }
+}

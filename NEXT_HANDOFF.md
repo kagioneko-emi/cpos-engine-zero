@@ -3,11 +3,11 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state after this update is committed: `main...origin/main [ahead 4]`, clean tree, `prepublish_check ok=true`, secret scan `count=0`.
+4. Expected state after this update is committed: `main...origin/main [ahead 5]`, clean tree, `prepublish_check ok=true`, secret scan `count=0`.
 5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`
 6. **Do not tag v0.1 yet** unlessねこさん explicitly says so.
-7. Latest feature work: Ready-to-Run Execution Reviews helper for final human run gate after safe advance.
-8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`.
+7. Latest feature work: Tape Memory MCP connector definition + pending MCP review for fast resume cache; Ready-to-Run Execution Reviews helper is in previous local commit.
+8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`; MCP review pending: `mcp_review_cca928799d599640`.
 9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoints, handoff bodies, and secrets must not be persisted; store metadata/hashes/counters only.
 10. GitHub push/publish is Human Escalation; ask before pushing.
 

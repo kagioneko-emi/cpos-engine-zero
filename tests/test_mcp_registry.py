@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from cpos.hash_chain import verify_hash_chain
 from cpos.mcp_registry import MCPRegistry, check_connector_definition
@@ -145,3 +146,23 @@ def test_mcp_review_queue_rejects_pending_review(tmp_path):
     assert rejected["ok"] is True
     assert registry.reviews(status="rejected")[0]["reason"] == "not needed"
     assert registry.load() == []
+
+
+def test_tape_memory_mcp_definition_is_review_gated_and_secret_free():
+    data = json.loads(Path("config/mcp/tape_memory_mcp.json").read_text(encoding="utf-8"))
+
+    result = check_connector_definition(data)
+
+    assert result["ok"] is True
+    assert result["findings"] == []
+    connector = result["connector"]
+    assert connector["connector_id"] == "mcp://tape-memory/cpos-resume"
+    assert connector["transport"] == "stdio"
+    assert connector["command"][:2] == ["env", "TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos"]
+    assert connector["requires_human_approval"] is True
+    assert connector["env_secret_files"] == {}
+    assert connector["allowed_tools"] == ["load_tape", "store_tape", "inspect_dictionary"]
+    assert "extend_dictionary" in connector["blocked_tools"]
+    assert connector["metadata"]["stores_raw_secrets"] is False
+    assert connector["metadata"]["stores_raw_diffs"] is False
+    assert connector["metadata"]["stores_raw_outputs"] is False

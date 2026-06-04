@@ -789,6 +789,25 @@ other blocking findings are rejected and not stored. Approval registers the
 connector; rejection records the reason. The review queue is hash-chained and
 included in `/integrity`.
 
+### Tape Memory MCP Fast Resume Cache
+
+A safe stdio connector definition for the local Tape Memory MCP resume cache is
+included at `config/mcp/tape_memory_mcp.json`. It is intended for token-light
+resume indexing only; CPOS Task Tape remains the source of truth.
+
+```bash
+python3 -m cpos.mcp_cli check-definition config/mcp/tape_memory_mcp.json --json
+python3 -m cpos.mcp_cli submit-review config/mcp/tape_memory_mcp.json --json
+python3 -m cpos.mcp_cli reviews --status pending --json
+```
+
+The definition runs the local MCP server with
+`TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, allowlists only
+`load_tape`, `store_tape`, and `inspect_dictionary`, blocks
+`extend_dictionary`, requires human approval, and contains no raw secrets. The
+cache must store resume hints only: no raw diffs, raw stdout/stderr, request
+bodies, checkpoints, handoff bodies, tokens, or secret values.
+
 ## MCP Execution Adapter: Dry-run / Metadata-only
 
 MCP execution requests now pass through a dry-run adapter before any real tool
