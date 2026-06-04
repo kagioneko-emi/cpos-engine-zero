@@ -753,3 +753,40 @@ def test_sandbox_patch_generation_scope_mapping():
         assert server.required_scope_for_request() == "write:sandbox"
     with server.app.test_request_context("/sandbox/patch-generations/task/create-github-diff-review", method="POST"):
         assert server.required_scope_for_request() == "write:sandbox"
+
+
+def test_sandbox_ready_to_run_execution_api_flow(tmp_path):
+    configure(tmp_path)
+    client = server.app.test_client()
+    diff_task_id = create_approved_diff(client)
+
+    created_plan = client.post(f"/github/diff-reviews/{diff_task_id}/create-sandbox-plan", json={})
+    assert created_plan.status_code == 200
+    patch_task_id = created_plan.get_json()["task_id"]
+    approved_plan = client.post(f"/sandbox/patch-plans/{patch_task_id}/approve", json={"confirm": True})
+    assert approved_plan.status_code == 200
+    created_exec = client.post(f"/sandbox/patch-plans/{patch_task_id}/create-execution-review", json={})
+    assert created_exec.status_code == 200
+    exec_task_id = created_exec.get_json()["task_id"]
+
+    ready = client.get("/sandbox/executions/ready-to-run")
+    assert ready.status_code == 200
+    payload = ready.get_json()
+    assert payload["ok"] is True
+    assert payload["metadata_only"] is True
+    assert payload["execute_automatically"] is False
+    assert payload["count"] == 1
+    row = payload["reviews"][0]
+    assert row["task_id"] == exec_task_id
+    assert row["approval_endpoint"] == f"/sandbox/executions/{exec_task_id}/approve"
+    assert row["run_endpoint"] == f"/sandbox/executions/{exec_task_id}/run"
+    assert row["raw_diff_stored"] is False
+    assert row["raw_outputs_stored"] is False
+    assert row["workspace_copied"] is False
+    assert row["commands_executed"] is False
+    assert row["requires_transient_diff_text"] is True
+    assert "+hello" not in str(payload)
+
+    approved_exec = client.post(f"/sandbox/executions/{exec_task_id}/approve", json={"confirm": True})
+    assert approved_exec.status_code == 200
+    assert client.get("/sandbox/executions/ready-to-run").get_json()["count"] == 0

@@ -180,6 +180,25 @@ def test_dashboard_contains_sandbox_patch_execution_ui():
     assert 'Isolated Runner Readiness' in html
 
 
+def test_dashboard_contains_ready_to_run_execution_review_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'ready-to-run-execution-section' in html
+    assert 'ready-to-run-execution-summary' in html
+    assert 'ready-to-run-execution-container' in html
+    assert '/sandbox/executions/ready-to-run' in html
+    assert 'renderReadyToRunExecutions' in html
+    assert 'READY-TO-RUN EXECUTION REVIEW' in html
+    assert 'Ready-to-Run Execution Reviews' in html
+    assert 'Final human run gate' in html
+    assert 'transient_diff_required=true' in html
+    assert 'Approve Execution Plan Only' in html
+    assert 'Approve + Run with Supplied Diff' in html
+    assert 'auto_execute=false' in html
+
+
 def test_dashboard_contains_sandbox_patch_execution_results_ui():
     client = server.app.test_client()
     res = client.get('/dashboard')

@@ -11,6 +11,7 @@ from cpos.sandbox_patch_runner import (
     create_sandbox_patch_execution,
     execute_sandbox_patch_run,
     pending_sandbox_patch_executions,
+    ready_to_run_sandbox_patch_executions,
     reject_sandbox_patch_execution,
 )
 from cpos.task_tape import TaskTapeStore
@@ -225,3 +226,36 @@ def test_sandbox_patch_execution_run_rejects_validation_mismatch(tmp_path):
 
     assert result["ok"] is False
     assert result["error"] == "validation_commands_mismatch"
+
+
+def test_ready_to_run_sandbox_patch_executions_are_metadata_only(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    diff_task_id = approved_diff_task(store)
+    patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff_task_id)
+    approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
+    execution = create_sandbox_patch_execution(store, patch_task_id=patch_plan["task_id"])
+
+    rows = ready_to_run_sandbox_patch_executions(store)
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["schema"] == "cpos.sandbox_ready_to_run_execution_review.v1"
+    assert row["task_id"] == execution["task_id"]
+    assert row["approval_endpoint"].endswith("/approve")
+    assert row["run_endpoint"].endswith("/run")
+    assert row["rejection_endpoint"].endswith("/reject")
+    assert row["requires_explicit_approval"] is True
+    assert row["requires_transient_diff_text"] is True
+    assert row["validation_values_stored"] is False
+    assert row["workspace_copied"] is False
+    assert row["patch_applied"] is False
+    assert row["commands_executed"] is False
+    assert row["raw_diff_stored"] is False
+    assert row["raw_outputs_stored"] is False
+    assert row["execute_automatically"] is False
+    assert row["commit_created"] is False
+    assert row["pushed"] is False
+    assert row["pr_created"] is False
+    assert "old" not in str(row)
+
+    approve_sandbox_patch_execution(store, execution["task_id"], confirm=True)
+    assert ready_to_run_sandbox_patch_executions(store) == []

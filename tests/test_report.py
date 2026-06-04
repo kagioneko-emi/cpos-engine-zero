@@ -1191,3 +1191,45 @@ def test_generate_report_renders_autonomy_loop_demo_snapshot(tmp_path):
     assert 'live_repo_patch=false' in html
     assert 'auto_execute=false' in html
     assert 'Retry/Replan failed run' in html
+
+
+def test_generate_report_renders_ready_to_run_execution_summary(tmp_path):
+    audit_path = tmp_path / "audit.jsonl"
+    pointer_path = tmp_path / "pointers.jsonl"
+    tape_path = tmp_path / "tasks.jsonl"
+    checkpoint_path = tmp_path / "checkpoints.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.write_text('', encoding="utf-8")
+    pointer_path.write_text('', encoding="utf-8")
+
+    from cpos.github_diff_review import approve_github_diff_review, create_github_diff_review
+    from cpos.github_pr_flow import approve_github_pr_dry_run, create_github_pr_dry_run
+    from cpos.sandbox_patch_plan import approve_sandbox_patch_plan, create_sandbox_patch_plan
+    from cpos.sandbox_patch_runner import create_sandbox_patch_execution
+    from cpos.task_tape import TaskTapeStore
+
+    store = TaskTapeStore(tape_path, checkpoint_path)
+    pr = create_github_pr_dry_run(store, repo="kagioneko/cpos-engine-zero", title="Fix ready run", files=["README.md"], summary="ctx")
+    approve_github_pr_dry_run(store, pr["task_id"], confirm=True)
+    diff = create_github_diff_review(store, source_task_id=pr["task_id"], diff_text="+hello\n", changed_files=["README.md"], validation_commands=["pytest -q tests/test_report.py"])
+    approve_github_diff_review(store, diff["task_id"], confirm=True)
+    patch_plan = create_sandbox_patch_plan(store, diff_task_id=diff["task_id"])
+    approve_sandbox_patch_plan(store, patch_plan["task_id"], confirm=True)
+    execution = create_sandbox_patch_execution(store, patch_task_id=patch_plan["task_id"])
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Ready-to-Run Execution Reviews" in html
+    assert "Final Human Run Gate" in html
+    assert execution["task_id"] in html
+    assert "/sandbox/executions/" in html
+    assert "transient_diff_required=True" in html
+    assert "execute_automatically=False" in html
+    assert "+hello" not in html

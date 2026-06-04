@@ -41,7 +41,7 @@ from cpos.github_pr_flow import create_github_pr_dry_run, pending_github_pr_revi
 from cpos.github_diff_review import create_github_diff_review, pending_github_diff_reviews, approve_github_diff_review, reject_github_diff_review
 from cpos.human_escalation import pending_human_escalations
 from cpos.sandbox_patch_plan import create_sandbox_patch_plan, pending_sandbox_patch_plans, approve_sandbox_patch_plan, reject_sandbox_patch_plan
-from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry, create_sandbox_patch_replan_template, sandbox_patch_replan_templates, create_sandbox_replan_diff_intake, sandbox_replan_diff_intakes
+from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_sandbox_patch_executions, pending_sandbox_patch_executions, ready_to_run_sandbox_patch_executions, approve_sandbox_patch_execution, reject_sandbox_patch_execution, execute_sandbox_patch_run, create_sandbox_patch_execution_retry_review, pending_sandbox_patch_execution_retries, approve_sandbox_patch_execution_retry, reject_sandbox_patch_execution_retry, create_sandbox_patch_replan_template, sandbox_patch_replan_templates, create_sandbox_replan_diff_intake, sandbox_replan_diff_intakes
 from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed_sandbox_replan, build_execution_scoreboard
 from cpos.auto_fix_candidate import create_auto_fix_candidate, pending_auto_fix_candidates
 from cpos.diff_review_draft import create_diff_review_draft, create_github_diff_review_from_draft, pending_diff_review_drafts
@@ -905,6 +905,12 @@ def sandbox_patch_plan_reject(task_id):
 def sandbox_patch_execution_reviews():
     reviews = pending_sandbox_patch_executions(agent.task_tape)
     return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews}), 200
+
+
+@app.route('/sandbox/executions/ready-to-run', methods=['GET'])
+def sandbox_patch_execution_ready_to_run_reviews():
+    reviews = ready_to_run_sandbox_patch_executions(agent.task_tape)
+    return jsonify({'ok': True, 'count': len(reviews), 'reviews': reviews, 'metadata_only': True, 'execute_automatically': False}), 200
 
 
 @app.route('/sandbox/executions/completed', methods=['GET'])

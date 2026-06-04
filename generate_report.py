@@ -16,7 +16,7 @@ from cpos.mcp_execution import pending_mcp_execution_reviews
 from cpos.github_pr_flow import pending_github_pr_reviews
 from cpos.github_diff_review import pending_github_diff_reviews
 from cpos.sandbox_patch_plan import pending_sandbox_patch_plans
-from cpos.sandbox_patch_runner import pending_sandbox_patch_executions, completed_sandbox_patch_executions
+from cpos.sandbox_patch_runner import pending_sandbox_patch_executions, ready_to_run_sandbox_patch_executions, completed_sandbox_patch_executions
 from cpos.execution_driver import build_execution_scoreboard
 from cpos.auto_fix_candidate import pending_auto_fix_candidates
 from cpos.diff_review_draft import pending_diff_review_drafts
@@ -739,6 +739,40 @@ def render_sandbox_patch_plan_summary(task_tape_path, task_checkpoint_path):
     return html
 
 
+def render_ready_to_run_execution_summary(task_tape_path, task_checkpoint_path):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    reviews = ready_to_run_sandbox_patch_executions(store)
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Ready-to-Run Execution Reviews</div>
+            <h2>Final Human Run Gate</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{len(reviews)}</strong><span>Ready Reviews</span></div>
+                <div class="metric"><strong>yes</strong><span>Explicit Approval Required</span></div>
+                <div class="metric"><strong>transient</strong><span>Diff Input</span></div>
+                <div class="metric"><strong>no</strong><span>Auto Execute</span></div>
+            </div>
+            <p class="muted">Highlights pending Sandbox Execution Reviews that are ready for the final human decision. Approval and run remain separate: no workspace copy, patch apply, command execution, commit, push, PR, raw diff storage, or raw output storage happens here.</p>
+    """
+    if not reviews:
+        html += '<p class="muted">No ready-to-run sandbox execution reviews.</p></div>'
+        return html
+    html += '<table><thead><tr><th>Task</th><th>Repo / Patch</th><th>Run Inputs</th><th>Endpoints</th><th>Safety</th></tr></thead><tbody>'
+    for review in reviews[:10]:
+        files = ''.join(f'<span class="pill"><code>{escape(str(path))}</code></span>' for path in review.get('changed_files', [])) or '<span class="muted">none</span>'
+        html += f"""
+            <tr>
+                <td><code>{escape(str(review.get('task_id')))}</code><br><span class="muted">status={escape(str(review.get('status') or '-'))}</span></td>
+                <td><code>{escape(str(review.get('repo') or '-'))}</code><br><span class="muted">patch={escape(str(review.get('patch_task_id') or '-'))} / diff={escape(str(review.get('diff_task_id') or '-'))}</span><br>{files}</td>
+                <td>runner={escape(str(review.get('runner_mode') or '-'))}<br><span class="muted">validation_commands={escape(str(review.get('validation_command_count', 0)))} / transient_diff_required={escape(str(review.get('requires_transient_diff_text')))}</span></td>
+                <td><code>{escape(str(review.get('approval_endpoint') or '-'))}</code><br><span class="muted">run={escape(str(review.get('run_endpoint') or '-'))}</span><br><span class="muted">reject={escape(str(review.get('rejection_endpoint') or '-'))}</span></td>
+                <td>metadata_only={escape(str(review.get('metadata_only')))}<br><span class="muted">workspace_copied={escape(str(review.get('workspace_copied')))} / patch_applied={escape(str(review.get('patch_applied')))} / commands_executed={escape(str(review.get('commands_executed')))} / execute_automatically={escape(str(review.get('execute_automatically')))}</span></td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+
 def render_sandbox_patch_execution_summary(task_tape_path, task_checkpoint_path):
     store = TaskTapeStore(task_tape_path, task_checkpoint_path)
     reviews = pending_sandbox_patch_executions(store)
@@ -1299,6 +1333,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_github_pr_dry_run_summary(task_tape_path, task_checkpoint_path)
     html += render_github_diff_review_summary(task_tape_path, task_checkpoint_path)
     html += render_sandbox_patch_plan_summary(task_tape_path, task_checkpoint_path)
+    html += render_ready_to_run_execution_summary(task_tape_path, task_checkpoint_path)
     html += render_sandbox_patch_execution_summary(task_tape_path, task_checkpoint_path)
     html += render_sandbox_patch_execution_results(task_tape_path, task_checkpoint_path)
     html += render_execution_scoreboard_summary(task_tape_path, task_checkpoint_path)

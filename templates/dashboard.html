@@ -450,6 +450,12 @@
             <div id="sandbox-patch-summary" class="muted" style="margin-bottom: 12px;">Loading sandbox patch plans...</div>
             <div id="sandbox-patch-container"></div>
         </div>
+        <div id="ready-to-run-execution-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Ready-to-Run Execution Reviews</h2>
+            <p class="muted">Final human run gate after safe advance. Approval and run stay separate; diff text is supplied transiently and raw outputs are never persisted.</p>
+            <div id="ready-to-run-execution-summary" class="muted" style="margin-bottom: 12px;">Loading ready-to-run execution reviews...</div>
+            <div id="ready-to-run-execution-container"></div>
+        </div>
         <div id="sandbox-execution-section" class="card" style="display: none; border-color: var(--accent-purple); margin-bottom: 30px;">
             <h2>Sandbox Patch Executions</h2>
             <p class="muted">Runner preparation only: no workspace copy, no patch apply, and no command execution yet.</p>
@@ -634,6 +640,8 @@
                 renderSandboxPatchPlans(sandboxPatchData);
                 const sandboxExecutionRes = await fetch('/sandbox/executions');
                 const sandboxExecutionData = sandboxExecutionRes.ok ? await sandboxExecutionRes.json() : {ok: false, count: 0, reviews: []};
+                const readyToRunExecutionRes = await fetch('/sandbox/executions/ready-to-run');
+                const readyToRunExecutionData = readyToRunExecutionRes.ok ? await readyToRunExecutionRes.json() : {ok: false, count: 0, reviews: []};
                 const sandboxExecutionResultRes = await fetch('/sandbox/executions/completed');
                 const sandboxExecutionResultData = sandboxExecutionResultRes.ok ? await sandboxExecutionResultRes.json() : {ok: false, count: 0, results: []};
                 const sandboxRetryRes = await fetch('/sandbox/execution-retries');
@@ -665,6 +673,7 @@
                 document.getElementById('sandbox-execution-count').innerText = sandboxDiffIntakes ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}+${sandboxReplanTemplates}+${sandboxDiffIntakes}` : (sandboxReplanTemplates ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}+${sandboxReplanTemplates}` : (pendingSandboxRetries ? `${pendingSandboxExecutions}+${completedSandboxExecutions}+${pendingSandboxRetries}` : (completedSandboxExecutions ? `${pendingSandboxExecutions}+${completedSandboxExecutions}` : pendingSandboxExecutions)));
                 const scoreboardSummary = sandboxScoreboardData && sandboxScoreboardData.ok ? `completed=${sandboxScoreboardData.completed_runs || 0}, success_rate=${sandboxScoreboardData.success_rate || 0}%, pending_retry=${sandboxScoreboardData.pending_retry_reviews || 0}, replan=${sandboxScoreboardData.replan_templates || 0}, intake=${sandboxScoreboardData.diff_intakes || 0}` : `pending=${pendingSandboxExecutions}, completed=${completedSandboxExecutions}, retry=${pendingSandboxRetries}, replan=${sandboxReplanTemplates}, intake=${sandboxDiffIntakes}`;
                 document.getElementById('sandbox-execution-detail').innerText = sandboxExecutionTotal ? scoreboardSummary : 'No sandbox executions yet';
+                renderReadyToRunExecutions(readyToRunExecutionData);
                 renderSandboxPatchExecutions(sandboxExecutionData);
                 renderSandboxPatchExecutionResults(sandboxExecutionResultData);
                 renderSandboxExecutionScoreboard(sandboxScoreboardData);
@@ -680,6 +689,7 @@
                     githubDiffData,
                     sandboxPatchData,
                     sandboxExecutionData,
+                    readyToRunExecutionData,
                     sandboxExecutionResultData,
                     sandboxRetryData,
                     sandboxReplanData,
@@ -917,6 +927,7 @@
                     const diffDrafts = (data.sandboxDiffDraftData && data.sandboxDiffDraftData.count) || 0;
                     const githubDiffs = (data.githubDiffData && data.githubDiffData.count) || 0;
                     const pendingExecutions = (data.sandboxExecutionData && data.sandboxExecutionData.count) || 0;
+                    const readyToRunExecutions = (data.readyToRunExecutionData && data.readyToRunExecutionData.count) || 0;
                     const completedExecutions = (data.sandboxExecutionResultData && data.sandboxExecutionResultData.count) || 0;
                     const failedExecutions = ((data.sandboxExecutionResultData && data.sandboxExecutionResultData.results) || []).filter(row => (row.payload || {}).success === false).length;
                     const retries = (data.sandboxRetryData && data.sandboxRetryData.count) || 0;
@@ -929,7 +940,8 @@
                     const stages = [
                         {name: 'Diff Draft', count: diffDrafts, next: 'Create GitHub Diff Review from Draft'},
                         {name: 'GitHub Diff Review', count: githubDiffs, next: 'Approve → Sandbox Execution Review'},
-                        {name: 'Sandbox Execution Review', count: pendingExecutions, next: 'Approve + Run with Supplied Diff'},
+                        {name: 'Sandbox Execution Review', count: pendingExecutions, next: 'Ready-to-run final gate'},
+                        {name: 'Ready-to-Run Gate', count: readyToRunExecutions, next: 'Approve + Run with Supplied Diff'},
                         {name: 'Execution Result', count: completedExecutions, next: failedExecutions ? 'Retry/Replan failed run' : 'Inspect success path'},
                         {name: 'Retry/Replan', count: retries + replans + intakes + candidates + patchGenerations, next: 'Candidate/Patch Generation/Draft next diff'},
                         {name: 'Flow Graph', count: flowNodes, next: 'Show lineage'},
@@ -1030,6 +1042,47 @@
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
                                     <button class="btn btn-success" onclick="approveSandboxPatchPlan('${review.task_id}')">Approve Plan</button>
                                     <button class="btn btn-danger" onclick="rejectSandboxPatchPlan('${review.task_id}')">Reject</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function renderReadyToRunExecutions(readyToRunExecutionData) {
+                    const section = document.getElementById('ready-to-run-execution-section');
+                    const summary = document.getElementById('ready-to-run-execution-summary');
+                    const container = document.getElementById('ready-to-run-execution-container');
+                    const reviews = (readyToRunExecutionData && readyToRunExecutionData.reviews) || [];
+                    if (!reviews.length) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    summary.innerText = `ready_reviews=${reviews.length}, explicit_approval_required=true, transient_diff_required=true, raw_diff_stored=false, raw_outputs_stored=false, auto_execute=false`;
+                    container.innerHTML = '';
+                    reviews.slice(-5).reverse().forEach(review => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.marginBottom = '10px';
+                        div.style.background = '#161b22';
+                        div.style.borderColor = 'var(--accent-orange)';
+                        const files = (review.changed_files || []).map(f => `<span class="pill"><code>${f}</code></span>`).join(' ') || '<span class="muted">none</span>';
+                        div.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div>
+                                    <strong style="color: var(--accent-orange);">[READY-TO-RUN EXECUTION REVIEW]</strong> <code>${review.task_id}</code><br>
+                                    <span class="muted"><code>${review.repo || '-'}</code> / patch_plan=${review.patch_task_id || '-'} / diff=${review.diff_task_id || '-'}</span><br>
+                                    <span class="muted">runner=${review.runner_mode || '-'} / validation_commands=${review.validation_command_count || 0} / next=${review.next_step || '-'}</span><br>
+                                    <span class="muted">approval=${review.approval_endpoint || '-'} / run=${review.run_endpoint || '-'}</span><br>
+                                    <span class="muted">workspace_copied=${review.workspace_copied} / patch_applied=${review.patch_applied} / commands_executed=${review.commands_executed} / execute_automatically=${review.execute_automatically}</span><br>
+                                    <span class="muted">metadata_only=${review.metadata_only} / raw_diff_stored=${review.raw_diff_stored} / raw_outputs_stored=${review.raw_outputs_stored}</span>
+                                    <div style="margin-top: 8px;"><strong>Changed files</strong><br>${files}</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button class="btn btn-success" onclick="approveSandboxPatchExecution('${review.task_id}')">Approve Execution Plan Only</button>
+                                    <button class="btn btn-warning" onclick="approveSandboxPatchExecutionAndRun('${review.task_id}')">Approve + Run with Supplied Diff</button>
+                                    <button class="btn btn-danger" onclick="rejectSandboxPatchExecution('${review.task_id}')">Reject</button>
                                 </div>
                             </div>
                         `;

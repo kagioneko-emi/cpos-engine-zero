@@ -157,6 +157,61 @@ def pending_sandbox_patch_executions(store: TaskTapeStore) -> list[dict[str, Any
     ]
 
 
+def ready_to_run_sandbox_patch_executions(store: TaskTapeStore) -> list[dict[str, Any]]:
+    """Return pending execution reviews as a metadata-only ready-to-run queue.
+
+    This helper does not approve reviews, copy workspaces, apply patches, run
+    commands, or persist raw diff/output values. It only makes the final human
+    gate easy to find after safe-advance flows create pending execution reviews.
+    """
+    rows: list[dict[str, Any]] = []
+    for review in pending_sandbox_patch_executions(store):
+        payload = review.get("payload") or {}
+        plan = payload.get("plan") or {}
+        task_id = str(review.get("task_id") or "")
+        rows.append({
+            "schema": "cpos.sandbox_ready_to_run_execution_review.v1",
+            "task_id": task_id,
+            "review_type": REVIEW_TYPE,
+            "status": review.get("status"),
+            "timestamp": review.get("timestamp"),
+            "target": review.get("target"),
+            "repo": plan.get("repo"),
+            "patch_task_id": plan.get("patch_task_id"),
+            "diff_task_id": plan.get("diff_task_id"),
+            "source_task_id": plan.get("source_task_id"),
+            "changed_files": list(plan.get("changed_files", [])),
+            "changed_file_count": len(plan.get("changed_files", [])),
+            "validation_command_count": int(plan.get("validation_command_count", 0) or 0),
+            "validation_command_hashes": list(plan.get("validation_command_hashes", [])),
+            "validation_values_stored": False,
+            "runner_mode": plan.get("runner_mode") or "strict",
+            "sandbox_execution_sha256": plan.get("sandbox_execution_sha256"),
+            "human_escalation": payload.get("human_escalation"),
+            "next_step": "explicit_approve_then_transient_diff_run",
+            "approval_endpoint": f"/sandbox/executions/{task_id}/approve",
+            "run_endpoint": f"/sandbox/executions/{task_id}/run",
+            "rejection_endpoint": f"/sandbox/executions/{task_id}/reject",
+            "requires_explicit_approval": True,
+            "requires_transient_diff_text": True,
+            "requires_validation_commands": True,
+            "workspace_copied": False,
+            "patch_applied": False,
+            "commands_executed": False,
+            "tests_run": False,
+            "raw_diff_stored": False,
+            "raw_outputs_stored": False,
+            "command_outputs_stored": False,
+            "execute_automatically": False,
+            "live_repo_patch": False,
+            "commit_created": False,
+            "pushed": False,
+            "pr_created": False,
+            "metadata_only": True,
+        })
+    return rows
+
+
 def completed_sandbox_patch_executions(store: TaskTapeStore) -> list[dict[str, Any]]:
     return [event.to_dict() for event in store.events() if event.event == "sandbox_patch_execution_completed"]
 

@@ -878,6 +878,19 @@ curl -X POST https://<host>/sandbox/executions/<task_id>/reject -d '{"reason":"m
 The Task Tape stores hashes and status flags only. Workspace copy, patch apply,
 command execution, and test outputs remain deferred to a later isolated executor.
 
+A focused ready-to-run queue highlights the final human run gate after safe
+advance flows create pending execution reviews:
+
+```bash
+curl 'https://<host>/sandbox/executions/ready-to-run'
+```
+
+This queue is metadata-only and mirrors the dashboard/report helper: it shows
+review IDs, changed-file names, validation command counts/hashes, and the owning
+approve/run/reject endpoints. It still does not approve execution, copy
+workspaces, apply patches, run commands, commit, push, create PRs, or store raw
+diff/output values.
+
 
 ## Sandbox Patch Execution Run: Isolated Copy Apply
 
