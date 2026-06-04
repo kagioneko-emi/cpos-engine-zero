@@ -386,6 +386,25 @@ Published release:
 
 Important: after this memo is committed, `main` will advance beyond the released tag by the handoff commit only. That is normal; the release tag remains pinned to `d0c908c`.
 
+
+## Next reconnect note
+
+When this thread is reconnected, prepare a Notion-ready summary of the v0.1.0 release and keep it in two forms:
+
+- short paste-ready version
+- longer structured version
+
+Use the v0.1.0 release draft and current README/adapter docs as the source of truth. The summary should cover:
+
+- what CPOS v0.1.0 is
+- what it can and cannot do
+- External Agent Adapter overview
+- demo/readiness story
+- safety / metadata-only invariants
+- the next step after v0.1.0
+
+Treat this as the next post-release documentation task when the user says "つないだらやる".
+
 ## Current recommended next action
 
 Recommended next session path:
