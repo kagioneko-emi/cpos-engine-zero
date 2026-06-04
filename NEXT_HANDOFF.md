@@ -3,11 +3,11 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state after this update is committed: `main...origin/main [ahead 9]`, clean tree, `prepublish_check ok=true`, secret scan `count=0`.
-5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`
+4. Expected state at handoff: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit: `363d500 Update quick demo release docs`.
 6. **Do not tag v0.1 yet** unlessねこさん explicitly says so.
-7. Latest feature work: README Quick Competitive Demo plus RELEASE_NOTES_v0.1.0.md and OSS_RELEASE_CHECKLIST.md updated for demo readiness/fixture and 316 passed.
-8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`; MCP review pending: `mcp_review_cca928799d599640`; demo readiness endpoint: `GET /demo/readiness`; demo fixture endpoint: `POST /demo/fixture` with `confirm=true`; docs polished in `PITCH.md`, `docs/DEMO_CAPTURE_GUIDE.md`, README, release notes, and OSS checklist.
+7. Latest pushed work: Competitive Demo Readiness, metadata-only demo fixture, tape-memory MCP review definition/cache, Ready-to-Run Gate, Human Escalation hints, PITCH/demo guide/README/release docs polish.
+8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`; MCP review pending: `mcp_review_cca928799d599640`; demo endpoints: `GET /demo/readiness`, `POST /demo/fixture` with `confirm=true`.
 9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoints, handoff bodies, and secrets must not be persisted; store metadata/hashes/counters only.
 10. GitHub push/publish is Human Escalation; ask before pushing.
 
@@ -19,9 +19,8 @@ Generated: `2026-06-04T00:00:00+09:00`
 Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
-Remote status at handoff after committing this memo: `main...origin/main [ahead 1]`
-Latest pushed commit: `fb0debc Add patch generation safe advance`
-Latest local-only memo commit: see `git log -1` after this handoff commit.
+Remote status at handoff after latest push: `main...origin/main`
+Latest pushed commit: `363d500 Update quick demo release docs`
 Release/tag status: **v0.1 tag has NOT been created yet**.
 
 ## Absolute first steps next session
