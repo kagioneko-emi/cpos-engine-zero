@@ -9,17 +9,20 @@ Capture in this order so the viewer immediately understands why CPOS is differen
 1. **Competitive Demo Readiness**
    - Show `ready=true`, ready stages, safety flags, and demo path.
    - This is the strongest opening shot.
-2. **Human Escalation Queue**
+2. **External Agent Adapter Queue**
+   - Show external agent contract metadata, risk, command/file counts, contract hash, and `execute_automatically=false`.
+   - This proves CPOS can act as a defensive runtime/safety layer for Codex/Hermes/OpenClaw-style agents.
+3. **Human Escalation Queue**
    - Show owning pipeline, stage, approve/reject endpoint hints, and flow hints.
-3. **Patch Generation Reviews**
+4. **Patch Generation Reviews**
    - Show generated-patch review state and metadata-only guardrails.
-4. **Ready-to-Run Execution Reviews**
+5. **Ready-to-Run Execution Reviews**
    - Show that CPOS can prepare execution but still separates final run approval.
-5. **Sandbox Autonomy Flow Graph**
+6. **Sandbox Autonomy Flow Graph**
    - Show failure → retry/replan → auto fix candidate → patch generation/diff draft → ready-to-run lineage.
-6. **Execution Scoreboard**
+7. **Execution Scoreboard**
    - Show completed/success/failure counts, failure kinds, and replay load.
-7. **Generated Report: Competitive Demo Readiness + Autonomy Loop Snapshot**
+8. **Generated Report: Competitive Demo Readiness + Autonomy Loop Snapshot**
    - Use as static audit/release proof.
 
 ## Safety rules before capture
@@ -65,11 +68,12 @@ Before saving or publishing an image/GIF:
    - `raw_diff_stored=false`
    - `raw_outputs_stored=false`
    - `approval_separated_from_execution=true`
-   - nonzero `ready_to_run_reviews`, `patch_generation_reviews`, and `flow_nodes` after fixture creation
+   - nonzero `external_agent_actions`, `human_escalations`, `ready_to_run_reviews`, `patch_generation_reviews`, and `flow_nodes` after fixture creation
 
 4. Open the dashboard and capture:
 
    - `Competitive Demo Readiness`
+   - `External Agent Adapter Queue`
    - `Human Escalation Queue`
    - `Patch Generation Reviews`
    - `Ready-to-Run Execution Reviews`
@@ -81,12 +85,14 @@ Before saving or publishing an image/GIF:
    - `Competitive Demo Readiness`
    - `Autonomy Loop Demo Snapshot`
    - `Sandbox Autonomy Flow Graph`
+   - `External Agent Adapter Queue`
    - `Human Escalation Queue`
 
 6. Store reviewed assets under a reviewed docs path, for example:
 
    ```text
    docs/assets/demo/competitive-demo-readiness.png
+   docs/assets/demo/external-agent-adapter-queue.png
    docs/assets/demo/human-escalation-queue.png
    docs/assets/demo/patch-generation-review.png
    docs/assets/demo/ready-to-run-gate.png
@@ -105,11 +111,26 @@ Before saving or publishing an image/GIF:
 
 1. Start on **Competitive Demo Readiness**: all readiness stages and safety pills visible.
 2. Click **Create Metadata-only Demo Fixture** if showing from a blank state.
-3. Show **Human Escalation Queue**: approval routing is first-class.
-4. Show **Patch Generation Reviews** and **Ready-to-Run Execution Reviews**: generated patch path and final run gate are separate.
-5. Focus **Sandbox Flow Graph**: failure-to-replan lineage is visible.
-6. End on **Generated Report** with safety flags.
+3. Show **External Agent Adapter Queue**: external agent actions become metadata-only contracts.
+4. Show **Human Escalation Queue**: approval routing is first-class.
+5. Show **Patch Generation Reviews** and **Ready-to-Run Execution Reviews**: generated patch path and final run gate are separate.
+6. Focus **Sandbox Flow Graph**: failure-to-replan lineage is visible.
+7. End on **Generated Report** with safety flags.
+
+## Latest verified backend demo counts
+
+Last verified on 2026-06-05 after `POST /demo/fixture`:
+
+- readiness: `ready=true`, `ready_count=9`, `stage_count=9`
+- `external_agent_actions=1`
+- `human_escalations=5`
+- `ready_to_run_reviews=2`
+- `patch_generation_reviews=2`
+- `flow_nodes=12`
+- `fast_resume_keys=13`
+- safety flags: `metadata_only=true`, `raw_diff_stored=false`, `raw_outputs_stored=false`, `raw_request_stored=false`, `secret_values_stored=false`, `execute_automatically=false`
+- generated report contains: Competitive Demo Readiness, External Agent Adapter, Human Escalation, Ready-to-Run, Sandbox Autonomy Flow Graph
 
 ## Caption template
 
-> CPOS Engine-Zero safe autonomy loop: fast-resume, review-gated, sandbox-first, metadata-only, and failure-to-replan aware. Raw diffs, raw stdout/stderr, secrets, live repo patches, commits, pushes, and PR creation are excluded from the automated loop.
+> CPOS Engine-Zero safe autonomy loop: fast-resume, external-agent-ready, review-gated, sandbox-first, metadata-only, and failure-to-replan aware. Raw diffs, raw stdout/stderr, secrets, live repo patches, commits, pushes, and PR creation are excluded from the automated loop.
