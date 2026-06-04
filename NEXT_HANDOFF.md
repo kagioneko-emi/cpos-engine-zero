@@ -5,7 +5,7 @@
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
 4. Expected state at handoff: `main...origin/main` after pushing this memo, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `320 passed`.
 5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `c6c2298 Add external agent adapter integration example`.
-6. **Do not create final v0.1.0 tag yet** unlessねこさん explicitly says so. Existing remote/local RC tag: `v0.1.0-rc1` -> `0f1e585` from 2026-05-29.
+6. Final **v0.1.0** tag and GitHub Release are published. Existing RC tag remains: `v0.1.0-rc1` -> `0f1e585` from 2026-05-29.
 7. Latest pushed work: External Agent Adapter MVP, adapter dashboard queue, Human Escalation integration, adapter demo readiness/fixture integration, plus prior Competitive Demo Readiness / Ready-to-Run / Patch Generation / tape-memory MCP review work.
 8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`, `cpos_release_tag_audit`; MCP review pending: `mcp_review_cca928799d599640`.
 9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoint/handoff bodies, and secrets must not be persisted; store metadata/hashes/counters only.
@@ -21,7 +21,7 @@ Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
 Remote status before this memo commit: `main...origin/main`
 Latest pushed commit: `c6c2298 Add external agent adapter integration example`
-Release/tag status: final **v0.1.0** tag has NOT been created yet. Existing remote/local release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
+Release/tag status: final **v0.1.0** tag has been created and pushed; GitHub Release is published. Existing remote/local release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
 
 ## Absolute first steps next session
 
@@ -343,6 +343,49 @@ Recommendation:
 - Ifねこさん explicitly says to release: rerun `git status`, `prepublish_check`, `release_check`, full tests, confirm remote, then create/push final `v0.1.0` tag.
 - Do not create or push final tag without explicit confirmation.
 
+
+## Final v0.1.0 release — 2026-06-05
+
+ねこさん explicitly approved proceeding with the official final release. Final checks were rerun immediately before tagging.
+
+Final pre-tag checks:
+
+```bash
+git status --short --branch
+# ## main...origin/main
+
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+# ok=true; secret_scan ok=true count=0
+
+PYTHONPATH=. .venv/bin/python -m cpos.release_check --json
+# ok=true
+
+PYTHONPATH=. .venv/bin/python -m pytest tests -q
+# 320 passed
+
+git tag --list 'v0.1.0'
+# no output before final tag creation
+```
+
+Release actions completed:
+
+```bash
+git tag -a v0.1.0 -m "CPOS Engine-Zero v0.1.0"
+git push origin v0.1.0
+gh release create v0.1.0 --repo kagioneko/cpos-engine-zero --title "CPOS Engine-Zero v0.1.0" --notes-file GITHUB_RELEASE_DRAFT_v0.1.0.md --verify-tag
+```
+
+Published release:
+
+- URL: https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.0
+- GitHub Release: `isDraft=false`, `isPrerelease=false`
+- Tag: annotated `v0.1.0`
+- Tag object: `97f5ae94223eabe4f743de74991ee87f3ad24ab0`
+- Peeled commit: `d0c908c6e716888726a896e23ba658628c482cde` (`Record final pre-release audit`)
+- Post-release state: `main...origin/main`, `prepublish_check ok=true`, secret scan `count=0`
+
+Important: after this memo is committed, `main` will advance beyond the released tag by the handoff commit only. That is normal; the release tag remains pinned to `d0c908c`.
+
 ## Current recommended next action
 
 Recommended next session path:
@@ -350,10 +393,9 @@ Recommended next session path:
 1. Verify `git status --short --branch` and `prepublish_check`.
 2. If this handoff memo is not pushed yet, push the memo commit after explicit approval.
 3. Then choose one:
-   - **Release path**: prepare final `v0.1.0` only ifねこさん explicitly says so.
-   - **Schema docs path**: add `docs/AGENT_ADAPTER_SCHEMA.md` and link it from README + integration docs. This was the planned next step when the user asked to pause for handoff.
-   - **Release path**: after schema docs or if skipping them, prepare final `v0.1.0` only with explicit instruction.
-   - **Dashboard capture path**: backend fixture/readiness/report verified; README already has metadata-only demo panels.
+   - **Post-release path**: update any announcement/social copy if needed.
+   - **Patch path**: future fixes should target post-v0.1.0 commits and, if needed, v0.1.1.
+   - **Integration path**: use `docs/AGENT_ADAPTER_INTEGRATION.md`, `docs/AGENT_ADAPTER_SCHEMA.md`, and `examples/agent_adapter_client.py` for external agent demos.
 
 Recommended strategic framing:
 
@@ -368,5 +410,5 @@ Recommended strategic framing:
 - Never edit `authorized_keys`.
 - `rm -rf`, destructive overwrites, systemd stop/delete require prior confirmation.
 - Port opening requires explicit approval, Discord notice, and 15-minute auto-close.
-- GitHub push/publish and final release tagging require explicit human approval.
-- Do not create final `v0.1.0` tag unless explicitly instructed.
+- GitHub push/publish requires explicit human approval.
+- Final `v0.1.0` was explicitly approved, tagged, pushed, and published on 2026-06-05.
