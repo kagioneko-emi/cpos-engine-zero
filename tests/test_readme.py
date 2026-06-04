@@ -118,3 +118,31 @@ def test_readme_documents_human_escalation_protocol():
     assert 'Human escalation is not a weakness' in protocol
     assert 'cpos.human_escalation' in protocol
     assert 'does not stage, commit, push, delete, open ports, or read' in protocol
+
+
+def test_pitch_highlights_competitive_demo_readiness_and_fast_resume():
+    pitch = open('PITCH.md', encoding='utf-8').read()
+    assert 'Competitive Demo Readiness' in pitch
+    assert 'tape-memory-mcp' in pitch
+    assert '/demo/readiness' in pitch
+    assert '/demo/fixture' in pitch
+    assert 'Ready-to-Run Gate' in pitch
+    assert 'approval_separated' not in pitch  # pitch uses human-readable language
+    assert 'Approval separated from execution' in pitch
+    assert 'Hermes / OpenClaw / Claude Code-style agents' in pitch
+    assert 'raw diffs, raw stdout/stderr' in pitch
+
+
+def test_demo_capture_guide_documents_current_competitive_flow():
+    guide = open('docs/DEMO_CAPTURE_GUIDE.md', encoding='utf-8').read()
+    assert 'Competitive Demo Readiness' in guide
+    assert '/demo/fixture' in guide
+    assert '/demo/readiness' in guide
+    assert 'Human Escalation Queue' in guide
+    assert 'Patch Generation Reviews' in guide
+    assert 'Ready-to-Run Execution Reviews' in guide
+    assert 'Sandbox Autonomy Flow Graph' in guide
+    assert 'metadata_only=true' in guide
+    assert 'raw_diff_stored=false' in guide
+    assert 'raw_outputs_stored=false' in guide
+    assert 'does not execute tools, apply patches, mutate the live repo, commit, push, create PRs' in guide
