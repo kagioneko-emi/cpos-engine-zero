@@ -1,3 +1,18 @@
+## Start Here — 10-line Resume Card
+
+1. `cd /home/mayutama/cpos_defensive_agent`
+2. `git status --short --branch`
+3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
+4. Expected state after this memo update: `main...origin/main [ahead 3]`, clean tree, `prepublish_check ok=true`, secret scan `count=0`.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`
+6. **Do not tag v0.1 yet** unlessねこさん explicitly says so.
+7. Latest shipped feature work: Patch Generation Review + validation harness + safe advance to pending Sandbox Execution Review.
+8. Latest local feature commit: `a2991c4 Connect human escalation review hints` — Human Escalation now exposes review/approve/reject endpoint hints and sandbox flow hints in API/dashboard/report.
+9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoints, handoff bodies, and secrets must not be persisted; store metadata/hashes/counters only.
+10. GitHub push/publish is Human Escalation; ask before pushing.
+
+---
+
 # Latest Handoff — Context Clean Checkpoint
 
 Generated: `2026-06-04T00:00:00+09:00`
