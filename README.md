@@ -156,7 +156,13 @@ section that shows the full safe loop in one place:
 
 ```bash
 curl https://<host>/demo/readiness
+curl -X POST https://<host>/demo/fixture -d '{"confirm":true,"reason":"demo_capture"}'
 ```
+
+`/demo/fixture` creates a metadata-only demo chain for screenshots and readiness
+checks. It requires `confirm=true` and writes Task Tape review/result events only;
+it does not execute tools, apply patches, mutate the live repo, commit, push,
+create PRs, or store raw diffs/outputs.
 
 The readiness snapshot covers Fast Resume, MCP-reviewed tape memory, Human
 Escalation, Patch Generation Review, generated-diff validation harness,

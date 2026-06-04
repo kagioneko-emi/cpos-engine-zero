@@ -46,6 +46,7 @@ from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed
 from cpos.auto_fix_candidate import create_auto_fix_candidate, pending_auto_fix_candidates
 from cpos.diff_review_draft import create_diff_review_draft, create_github_diff_review_from_draft, pending_diff_review_drafts
 from cpos.demo_readiness import build_competitive_demo_readiness
+from cpos.competitive_demo_fixture import create_competitive_demo_fixture
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 from cpos.patch_generation_review import create_patch_generation_review, pending_patch_generation_reviews, approve_patch_generation_review, reject_patch_generation_review, validate_patch_generation_output, advance_patch_generation_to_execution_review, create_github_diff_review_from_patch_generation
 
@@ -932,6 +933,21 @@ def sandbox_execution_scoreboard():
 def competitive_demo_readiness():
     result = build_competitive_demo_readiness(agent.task_tape, mcp_registry=mcp_registry())
     return jsonify(result), 200
+
+
+@app.route('/demo/fixture', methods=['POST'])
+def competitive_demo_fixture():
+    data = request.get_json(silent=True) or {}
+    result = create_competitive_demo_fixture(
+        agent.task_tape,
+        actor=request_actor(),
+        reason=data.get('reason') or 'competitive_demo_fixture',
+        confirm=data.get('confirm') is True,
+        mcp_registry=mcp_registry(),
+    )
+    status = 200 if result.get('ok') else 400
+    audit_security_event('security_mutation', 'competitive_demo_fixture_created' if result.get('ok') else result.get('error', 'competitive_demo_fixture_denied'), status, required_scope_for_request(), {'step_count': result.get('step_count'), 'metadata_only': result.get('metadata_only')})
+    return jsonify(result), status
 
 
 @app.route('/sandbox/patch-plans/<patch_task_id>/create-execution-review', methods=['POST'])

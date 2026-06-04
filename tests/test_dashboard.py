@@ -376,7 +376,10 @@ def test_dashboard_contains_competitive_demo_readiness_ui():
     assert 'competitive-demo-readiness-summary' in html
     assert 'competitive-demo-readiness-container' in html
     assert '/demo/readiness' in html
+    assert '/demo/fixture' in html
     assert 'renderCompetitiveDemoReadiness' in html
+    assert 'createCompetitiveDemoFixture' in html
+    assert 'Create Metadata-only Demo Fixture' in html
     assert 'Competitive Demo Readiness' in html
     assert 'Fast resume + Human Escalation' in html
     assert 'approval_separated' in html

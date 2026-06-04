@@ -413,6 +413,9 @@
             <h2>Competitive Demo Readiness</h2>
             <p class="muted">Fast resume + Human Escalation + Patch Generation + Validation Harness + Ready-to-Run Gate + Flow Graph + Report. Metadata-only status for safe competitive demos.</p>
             <div id="competitive-demo-readiness-summary" class="muted" style="margin-bottom: 12px;">Loading competitive demo readiness...</div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+                <button class="btn btn-warning" onclick="createCompetitiveDemoFixture()">Create Metadata-only Demo Fixture</button>
+            </div>
             <div id="competitive-demo-readiness-container"></div>
         </div>
 
@@ -1801,6 +1804,11 @@
             const reason = prompt('Reject resume review reason:', 'dashboard_reject');
             if (reason === null) return;
             await postJson(`/resume-reviews/${taskId}/reject`, {reason: reason});
+        }
+
+        async function createCompetitiveDemoFixture() {
+            if (!confirm('Create metadata-only competitive demo fixture? This writes demo Task Tape events only; it will not run tools, apply patches, commit, push, create PRs, or store raw diffs/outputs.')) return;
+            await postJson('/demo/fixture', {confirm: true, reason: 'dashboard_competitive_demo_fixture'});
         }
 
         function focusSandboxFlow(sourceExecutionTaskId) {
