@@ -45,6 +45,7 @@ from cpos.sandbox_patch_runner import create_sandbox_patch_execution, completed_
 from cpos.execution_driver import advance_sandbox_patch_pipeline, advance_failed_sandbox_replan, build_execution_scoreboard
 from cpos.auto_fix_candidate import create_auto_fix_candidate, pending_auto_fix_candidates
 from cpos.diff_review_draft import create_diff_review_draft, create_github_diff_review_from_draft, pending_diff_review_drafts
+from cpos.demo_readiness import build_competitive_demo_readiness
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 from cpos.patch_generation_review import create_patch_generation_review, pending_patch_generation_reviews, approve_patch_generation_review, reject_patch_generation_review, validate_patch_generation_output, advance_patch_generation_to_execution_review, create_github_diff_review_from_patch_generation
 
@@ -187,7 +188,7 @@ def load_api_scopes():
 
 
 def protected_request_path():
-    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
+    return request.path != '/health' and request.path.startswith(('/pointers', '/tasks', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/demo', '/footprint', '/webhook', '/integrity', '/security-profile', '/dashboard'))
 
 
 def client_ip():
@@ -469,7 +470,7 @@ def request_needs_api_auth():
     # Health stays unauthenticated for load balancers / Cloud Run probes.
     if request.path == '/health':
         return False
-    return request.path.startswith(('/pointers', '/tasks', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/footprint', '/webhook', '/integrity', '/security-profile'))
+    return request.path.startswith(('/pointers', '/tasks', '/human-escalations', '/handoff-inbox', '/handoff-graph', '/handoff-executions', '/resume-reviews', '/mcp', '/github', '/sandbox', '/demo', '/footprint', '/webhook', '/integrity', '/security-profile'))
 
 
 def required_scope_for_request():
@@ -485,6 +486,8 @@ def required_scope_for_request():
         return 'read:github' if request.method == 'GET' else 'write:github'
     if request.path.startswith('/sandbox'):
         return 'read:sandbox' if request.method == 'GET' else 'write:sandbox'
+    if request.path.startswith('/demo'):
+        return 'read:demo' if request.method == 'GET' else 'write:demo'
     if request.path.startswith('/human-escalations'):
         return 'read:reviews' if request.method == 'GET' else 'write:reviews'
     if request.path.startswith('/handoff-inbox') or request.path.startswith('/handoff-graph') or request.path.startswith('/handoff-executions') or request.path.startswith('/resume-reviews'):
@@ -923,6 +926,12 @@ def sandbox_patch_execution_completed_results():
 def sandbox_execution_scoreboard():
     scoreboard = build_execution_scoreboard(agent.task_tape)
     return jsonify(scoreboard), 200
+
+
+@app.route('/demo/readiness', methods=['GET'])
+def competitive_demo_readiness():
+    result = build_competitive_demo_readiness(agent.task_tape, mcp_registry=mcp_registry())
+    return jsonify(result), 200
 
 
 @app.route('/sandbox/patch-plans/<patch_task_id>/create-execution-review', methods=['POST'])

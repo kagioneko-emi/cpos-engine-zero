@@ -149,6 +149,22 @@ safety flags as the underlying pipeline: `metadata_only=true`,
 
 For release screenshots or GIFs, follow `docs/DEMO_CAPTURE_GUIDE.md` so captured assets stay metadata-only and secret-free.
 
+### Competitive Demo Readiness
+
+CPOS exposes a metadata-only competitive demo readiness endpoint and dashboard/report
+section that shows the full safe loop in one place:
+
+```bash
+curl https://<host>/demo/readiness
+```
+
+The readiness snapshot covers Fast Resume, MCP-reviewed tape memory, Human
+Escalation, Patch Generation Review, generated-diff validation harness,
+Ready-to-Run Gate, Sandbox Flow Graph, and report evidence. It is presentation
+only: it never approves reviews, executes tools, applies patches, commits, pushes,
+creates PRs, or stores raw diffs, raw stdout/stderr, request bodies, checkpoints,
+handoff bodies, tokens, or secret values.
+
 ## Human Escalation Queue
 
 Risky review stages now attach a metadata-only Human Escalation decision to their

@@ -365,3 +365,20 @@ def test_dashboard_contains_diff_review_draft_ui():
     assert 'createGithubDiffReviewFromDraft' in html
     assert '/sandbox/diff-drafts/${taskId}/create-github-diff-review' in html
     assert 'never stores raw diff text' in html
+
+
+def test_dashboard_contains_competitive_demo_readiness_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'competitive-demo-readiness-section' in html
+    assert 'competitive-demo-readiness-summary' in html
+    assert 'competitive-demo-readiness-container' in html
+    assert '/demo/readiness' in html
+    assert 'renderCompetitiveDemoReadiness' in html
+    assert 'Competitive Demo Readiness' in html
+    assert 'Fast resume + Human Escalation' in html
+    assert 'approval_separated' in html
+    assert 'raw_diff_stored' in html
+    assert 'Ready-to-Run Gate' in html

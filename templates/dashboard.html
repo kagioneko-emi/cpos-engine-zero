@@ -409,6 +409,13 @@
             <p class="muted" style="margin-top: 10px; font-size: 0.75rem;">Interactive visualization of files (blue), pointers (purple), and rule-findings (red).</p>
         </div>
 
+        <div id="competitive-demo-readiness-section" class="card" style="border-color: var(--accent-orange); margin-bottom: 30px;">
+            <h2>Competitive Demo Readiness</h2>
+            <p class="muted">Fast resume + Human Escalation + Patch Generation + Validation Harness + Ready-to-Run Gate + Flow Graph + Report. Metadata-only status for safe competitive demos.</p>
+            <div id="competitive-demo-readiness-summary" class="muted" style="margin-bottom: 12px;">Loading competitive demo readiness...</div>
+            <div id="competitive-demo-readiness-container"></div>
+        </div>
+
         <div id="autonomy-loop-demo-section" class="card" style="border-color: var(--accent-green); margin-bottom: 30px;">
             <h2>Autonomy Loop Demo Panel</h2>
             <p class="muted">One-screen safe execution loop: Diff Draft → GitHub Diff Review → Sandbox Execution → Result → Retry/Replan → Flow Graph. Metadata-only by default; raw diffs and raw outputs are never persisted.</p>
@@ -594,6 +601,10 @@
                 const reviewsRes = await fetch('/tasks/reviews');
                 const reviewsData = await reviewsRes.json();
                 document.getElementById('review-count').innerText = reviewsData.count;
+
+                const demoReadinessRes = await fetch('/demo/readiness');
+                const demoReadinessData = demoReadinessRes.ok ? await demoReadinessRes.json() : {ok: false, ready: false, stages: [], counts: {}, safety_flags: {}};
+                renderCompetitiveDemoReadiness(demoReadinessData);
 
                 const footprintRes = await fetch('/footprint');
                 if (footprintRes.ok) {
@@ -917,6 +928,55 @@
                         `;
                         container.appendChild(div);
                     });
+                }
+
+                function renderCompetitiveDemoReadiness(data) {
+                    const section = document.getElementById('competitive-demo-readiness-section');
+                    const summary = document.getElementById('competitive-demo-readiness-summary');
+                    const container = document.getElementById('competitive-demo-readiness-container');
+                    if (!section || !summary || !container) return;
+                    if (!data || data.ok === false) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    const flags = data.safety_flags || {};
+                    const counts = data.counts || {};
+                    summary.innerText = `ready=${data.ready}, stages=${data.ready_count || 0}/${data.stage_count || 0}, fast_resume_keys=${counts.fast_resume_keys || 0}, human_escalations=${counts.human_escalations || 0}, ready_to_run=${counts.ready_to_run_reviews || 0}, raw_diff_stored=${flags.raw_diff_stored}, raw_outputs_stored=${flags.raw_outputs_stored}, auto_execute=${flags.execute_automatically}`;
+                    const metrics = `
+                        <div class="metrics">
+                            <div class="metric"><strong>${data.ready_count || 0}/${data.stage_count || 0}</strong><span>Ready Stages</span></div>
+                            <div class="metric"><strong>${counts.fast_resume_keys || 0}</strong><span>Resume Keys</span></div>
+                            <div class="metric"><strong>${counts.patch_generation_reviews || 0}</strong><span>Patch Gen Reviews</span></div>
+                            <div class="metric"><strong>${counts.ready_to_run_reviews || 0}</strong><span>Ready-to-Run</span></div>
+                        </div>
+                    `;
+                    const stages = (data.stages || []).map(stage => `
+                        <tr>
+                            <td>${stage.ready ? '✅' : '⚠️'} ${stage.name || '-'}</td>
+                            <td><strong>${stage.count || 0}</strong></td>
+                            <td>${stage.endpoint || '-'}</td>
+                            <td>${stage.next_action || '-'}</td>
+                        </tr>
+                    `).join('');
+                    const path = (data.next_demo_path || []).map(item => `<span class="pill">${item}</span>`).join(' ');
+                    container.innerHTML = `
+                        ${metrics}
+                        <p>
+                            <span class="pill">metadata_only=${flags.metadata_only}</span>
+                            <span class="pill">human_escalation_first_class=${(data.competitive_posture || {}).human_escalation_first_class}</span>
+                            <span class="pill">approval_separated=${(data.competitive_posture || {}).approval_separated_from_execution}</span>
+                            <span class="pill">raw_diff_stored=${flags.raw_diff_stored}</span>
+                            <span class="pill">raw_outputs_stored=${flags.raw_outputs_stored}</span>
+                            <span class="pill">live_repo_patch=${flags.live_repo_patch}</span>
+                            <span class="pill">commit_created=${flags.commit_created}</span>
+                            <span class="pill">pushed=${flags.pushed}</span>
+                            <span class="pill">pr_created=${flags.pr_created}</span>
+                        </p>
+                        <div class="step-label">Demo Path</div>
+                        <p>${path}</p>
+                        <table><thead><tr><th>Stage</th><th>Count</th><th>Endpoint</th><th>Next Action</th></tr></thead><tbody>${stages}</tbody></table>
+                    `;
                 }
 
                 function renderAutonomyLoopDemo(data) {

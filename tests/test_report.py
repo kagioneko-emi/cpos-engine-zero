@@ -1233,3 +1233,36 @@ def test_generate_report_renders_ready_to_run_execution_summary(tmp_path):
     assert "transient_diff_required=True" in html
     assert "execute_automatically=False" in html
     assert "+hello" not in html
+
+
+def test_generate_report_renders_competitive_demo_readiness(tmp_path):
+    audit_path = tmp_path / "audit.jsonl"
+    pointer_path = tmp_path / "pointers.jsonl"
+    tape_path = tmp_path / "tasks.jsonl"
+    checkpoint_path = tmp_path / "checkpoints.jsonl"
+    mcp_registry_path = tmp_path / "mcp_connectors.json"
+    mcp_audit_path = tmp_path / "mcp_audit.jsonl"
+    mcp_review_path = tmp_path / "mcp_reviews.jsonl"
+    output_path = tmp_path / "report.html"
+    audit_path.write_text('', encoding="utf-8")
+    pointer_path.write_text('', encoding="utf-8")
+
+    generate_hackathon_report(
+        str(audit_path),
+        output_path=str(output_path),
+        pointer_path=str(pointer_path),
+        task_tape_path=str(tape_path),
+        task_checkpoint_path=str(checkpoint_path),
+        mcp_registry_path=str(mcp_registry_path),
+        mcp_audit_path=str(mcp_audit_path),
+        mcp_review_path=str(mcp_review_path),
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    assert "Competitive Demo Readiness" in html
+    assert "Fast Resume + Safe Execution Loop" in html
+    assert "Fast Resume → Human Escalation → Patch Generation" in html
+    assert "approval_separated=True" in html
+    assert "raw_diff_stored=False" in html
+    assert "execute_automatically=False" in html
+    assert "Ready-to-Run Gate" in html

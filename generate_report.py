@@ -22,6 +22,7 @@ from cpos.auto_fix_candidate import pending_auto_fix_candidates
 from cpos.diff_review_draft import pending_diff_review_drafts
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 from cpos.patch_generation_review import pending_patch_generation_reviews
+from cpos.demo_readiness import build_competitive_demo_readiness
 
 
 def load_jsonl(path):
@@ -1024,6 +1025,52 @@ def render_diff_review_draft_summary(task_tape_path, task_checkpoint_path):
     return html
 
 
+def render_competitive_demo_readiness_summary(task_tape_path, task_checkpoint_path, mcp_registry_path=None, mcp_audit_path=None, mcp_review_path=None):
+    store = TaskTapeStore(task_tape_path, task_checkpoint_path)
+    registry = MCPRegistry(mcp_registry_path, mcp_audit_path, mcp_review_path) if mcp_registry_path and mcp_audit_path else None
+    readiness = build_competitive_demo_readiness(store, mcp_registry=registry)
+    counts = readiness.get('counts') or {}
+    flags = readiness.get('safety_flags') or {}
+    posture = readiness.get('competitive_posture') or {}
+    html = f"""
+        <div class="card governance-card">
+            <div class="step-label">Competitive Demo Readiness</div>
+            <h2>Fast Resume + Safe Execution Loop</h2>
+            <div class="metrics">
+                <div class="metric"><strong>{escape(str(readiness.get('ready_count')))} / {escape(str(readiness.get('stage_count')))}</strong><span>Ready Stages</span></div>
+                <div class="metric"><strong>{escape(str(counts.get('fast_resume_keys', 0)))}</strong><span>Resume Keys</span></div>
+                <div class="metric"><strong>{escape(str(counts.get('patch_generation_reviews', 0)))}</strong><span>Patch Gen Reviews</span></div>
+                <div class="metric"><strong>{escape(str(counts.get('ready_to_run_reviews', 0)))}</strong><span>Ready-to-Run</span></div>
+            </div>
+            <p class="muted">Competitive demo path: Fast Resume → Human Escalation → Patch Generation → Validation Harness → Safe Advance → Ready-to-Run Gate → Explicit Supplied-Diff Run → Flow Graph → Report Snapshot.</p>
+            <p>
+                <span class="pill">metadata_only={escape(str(flags.get('metadata_only')))}</span>
+                <span class="pill">human_escalation_first_class={escape(str(posture.get('human_escalation_first_class')))}</span>
+                <span class="pill">approval_separated={escape(str(posture.get('approval_separated_from_execution')))}</span>
+                <span class="pill">raw_diff_stored={escape(str(flags.get('raw_diff_stored')))}</span>
+                <span class="pill">raw_outputs_stored={escape(str(flags.get('raw_outputs_stored')))}</span>
+                <span class="pill">live_repo_patch={escape(str(flags.get('live_repo_patch')))}</span>
+                <span class="pill">commit_created={escape(str(flags.get('commit_created')))}</span>
+                <span class="pill">pushed={escape(str(flags.get('pushed')))}</span>
+                <span class="pill">pr_created={escape(str(flags.get('pr_created')))}</span>
+                <span class="pill">execute_automatically={escape(str(flags.get('execute_automatically')))}</span>
+            </p>
+            <table><thead><tr><th>Stage</th><th>Ready</th><th>Count</th><th>Endpoint</th><th>Next Action</th></tr></thead><tbody>
+    """
+    for stage in readiness.get('stages') or []:
+        html += f"""
+            <tr>
+                <td>{escape(str(stage.get('name') or '-'))}</td>
+                <td>{escape(str(stage.get('ready')))}</td>
+                <td><strong>{escape(str(stage.get('count', 0)))}</strong></td>
+                <td><code>{escape(str(stage.get('endpoint') or '-'))}</code></td>
+                <td>{escape(str(stage.get('next_action') or '-'))}</td>
+            </tr>
+        """
+    html += '</tbody></table></div>'
+    return html
+
+
 def render_autonomy_loop_demo_snapshot(task_tape_path, task_checkpoint_path):
     store = TaskTapeStore(task_tape_path, task_checkpoint_path)
     events = [event.to_dict() for event in store.events()]
@@ -1340,6 +1387,7 @@ def generate_hackathon_report(audit_log_path, output_path="hackathon_report.html
     html += render_auto_fix_candidate_summary(task_tape_path, task_checkpoint_path)
     html += render_patch_generation_review_summary(task_tape_path, task_checkpoint_path)
     html += render_diff_review_draft_summary(task_tape_path, task_checkpoint_path)
+    html += render_competitive_demo_readiness_summary(task_tape_path, task_checkpoint_path, mcp_registry_path, mcp_audit_path, mcp_review_path)
     html += render_autonomy_loop_demo_snapshot(task_tape_path, task_checkpoint_path)
     html += render_sandbox_flow_graph_summary(task_tape_path, task_checkpoint_path)
     html += render_rate_limit_backend_summary()
