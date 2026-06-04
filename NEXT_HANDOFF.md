@@ -299,6 +299,50 @@ Optional additions ifねこさん wants more polish:
 
 Recommendation: do not add large new runtime features before v0.1 unless there is a concrete target integration. Prefer schema docs/release polish/final handoff.
 
+
+## Final pre-release audit — 2026-06-05
+
+Final pre-release audit was run after `88eaa7e Add external agent adapter schema docs` was pushed. No final tag was created.
+
+Verified commands/results:
+
+```bash
+git status --short --branch
+# ## main...origin/main
+
+git remote -v
+# origin https://github.com/kagioneko/cpos-engine-zero.git (fetch/push)
+
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+# ok=true; secret_scan ok=true count=0
+
+PYTHONPATH=. .venv/bin/python -m cpos.release_check --json
+# ok=true
+
+PYTHONPATH=. .venv/bin/python -m pytest tests -q
+# 320 passed
+
+git tag --list 'v0.1*'
+# v0.1.0-rc1
+
+git ls-remote --tags origin 'v0.1*'
+# remote has v0.1.0-rc1 only; final v0.1.0 not present
+```
+
+Release docs/checklist status:
+
+- `RELEASE_NOTES_v0.1.0.md` records `320 passed`.
+- `OSS_RELEASE_CHECKLIST.md` records `320 passed`.
+- `GITHUB_RELEASE_DRAFT_v0.1.0.md` exists.
+- Existing RC tag: `v0.1.0-rc1` -> annotated tag object `38488de...`, peeled commit `0f1e585 Prepare CPOS Engine-Zero for OSS release`.
+- Final tag **`v0.1.0` has not been created**.
+
+Recommendation:
+
+- Safe path: stop here, keep handoff pushed, create final tag later after explicit instruction.
+- Ifねこさん explicitly says to release: rerun `git status`, `prepublish_check`, `release_check`, full tests, confirm remote, then create/push final `v0.1.0` tag.
+- Do not create or push final tag without explicit confirmation.
+
 ## Current recommended next action
 
 Recommended next session path:
