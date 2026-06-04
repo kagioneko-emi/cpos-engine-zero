@@ -14,7 +14,9 @@ def test_human_escalation_queue_collects_github_pr_metadata(tmp_path):
     assert rows[0]['decision']['requires_human'] is True
     assert rows[0]['decision']['secret_values_stored'] is False
     assert rows[0]['decision']['raw_diff_stored'] is False
+    assert rows[0]['review_endpoint_hint'] == '/github/pr-dry-runs'
     assert rows[0]['approval_endpoint_hint'].endswith('/approve')
+    assert rows[0]['rejection_endpoint_hint'].endswith('/reject')
     assert rows[0]['owning_pipeline'] == 'github_pr_dry_run'
     assert rows[0]['pipeline_stage'] == 'pr_dry_run_review'
     assert rows[0]['pipeline_node_id'].startswith('github_pr_dry_run:')
@@ -40,6 +42,8 @@ def test_human_escalation_api_and_dashboard_are_wired():
     assert 'Show in Sandbox Flow' in html
     assert 'focusSandboxFlowFromEscalation' in html
     assert 'owning_pipeline=${row.owning_pipeline' in html
+    assert 'review_endpoint=${row.review_endpoint_hint' in html
+    assert 'rejection_endpoint=${row.rejection_endpoint_hint' in html
     assert 'flow_graph_endpoint=${row.flow_graph_endpoint_hint' in html
     assert 'Assisted autonomy gate across review pipelines' in html
     assert 'metadata-only: raw_request_stored' in html
@@ -113,7 +117,48 @@ def test_human_escalation_queue_collects_sandbox_pipeline_metadata(tmp_path):
     execution_row = next(row for row in rows if row["review_type"] == "sandbox_patch_execution")
     assert execution_row["owning_pipeline"] == "sandbox_patch_pipeline"
     assert execution_row["pipeline_stage"] == "sandbox_execution_gate"
+    assert execution_row["review_endpoint_hint"] == "/sandbox/executions"
     assert execution_row["flow_graph_endpoint_hint"].startswith("/sandbox/flow-graph?source_execution_task_id=")
     assert execution_row["sandbox_flow_source_execution_task_id"] == execution.get_json()["task_id"]
     assert all(row["decision"]["secret_values_stored"] is False for row in rows)
     assert "+hello" not in str(rows)
+
+
+def test_human_escalation_patch_generation_links_to_sandbox_flow(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl")
+    task_id = store.create_task(
+        target="sandbox://patch-generation/candidate-1",
+        action="sandbox_patch_generation_review_request",
+        payload={"review_type": "sandbox_patch_generation"},
+    )
+    store.append_event(
+        task_id=task_id,
+        event="review_required",
+        target="sandbox://patch-generation/candidate-1",
+        status="pending_review",
+        payload={
+            "review_type": "sandbox_patch_generation",
+            "plan": {"source_execution_task_id": "exec-123"},
+            "human_escalation": {
+                "schema": "cpos.human_escalation_decision.v1",
+                "requires_human": True,
+                "severity": "high",
+                "reasons": ["policy_requires_confirmation"],
+                "recommended_mode": "assisted_autonomy",
+                "raw_request_stored": False,
+                "raw_diff_stored": False,
+                "raw_outputs_stored": False,
+                "secret_values_stored": False,
+            },
+        },
+    )
+
+    rows = pending_human_escalations(store)
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["review_type"] == "sandbox_patch_generation"
+    assert row["review_endpoint_hint"] == "/sandbox/patch-generations"
+    assert row["approval_endpoint_hint"].endswith("/approve")
+    assert row["rejection_endpoint_hint"].endswith("/reject")
+    assert row["sandbox_flow_source_execution_task_id"] == "exec-123"
+    assert row["flow_graph_endpoint_hint"] == "/sandbox/flow-graph?source_execution_task_id=exec-123"

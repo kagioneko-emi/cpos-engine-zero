@@ -850,7 +850,9 @@
                                 <span class="muted">review_type=${row.review_type || '-'} / severity=${decision.severity || '-'} / mode=${decision.recommended_mode || '-'}</span><br>
                                 <span class="muted">owning_pipeline=${row.owning_pipeline || '-'} / pipeline_stage=${row.pipeline_stage || '-'} / node=${row.pipeline_node_id || '-'}</span><br>
                                 <span class="muted">requires_human=${decision.requires_human} / safe_autonomy_allowed=${decision.safe_autonomy_allowed}</span><br>
+                                <span class="muted">review_endpoint=${row.review_endpoint_hint || '-'}</span><br>
                                 <span class="muted">approval_endpoint=${row.approval_endpoint_hint || '-'}</span><br>
+                                <span class="muted">rejection_endpoint=${row.rejection_endpoint_hint || '-'}</span><br>
                                 <span class="muted">flow_graph_endpoint=${row.flow_graph_endpoint_hint || '-'}</span><br>
                                 <span class="muted">metadata-only: raw_request_stored=${decision.raw_request_stored} / raw_diff_stored=${decision.raw_diff_stored} / raw_outputs_stored=${decision.raw_outputs_stored} / secret_values_stored=${decision.secret_values_stored}</span>
                                 <div style="margin-top: 8px;"><strong>Reasons</strong><br>${reasons}</div>

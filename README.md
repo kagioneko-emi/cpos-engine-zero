@@ -159,11 +159,12 @@ curl https://<host>/human-escalations
 ```
 
 The queue covers GitHub PR dry-runs, GitHub diff reviews, MCP execution/probe
-reviews, sandbox patch plans, sandbox execution reviews, and sandbox retry reviews.
-It stores only policy metadata such as review type, severity, reasons, recommended
-mode, and owning approve/reject endpoint hints. It does **not** persist secret
-values, raw request bodies, raw diff text, raw stdout/stderr, checkpoint contents,
-or raw handoff bodies.
+reviews, sandbox patch plans, sandbox execution reviews, sandbox retry reviews,
+and patch generation reviews. It stores only policy metadata such as review type,
+severity, reasons, recommended mode, owning review list endpoints, approve/reject
+endpoint hints, and sandbox flow graph hints when lineage is available. It does
+**not** persist secret values, raw request bodies, raw diff text, raw stdout/stderr,
+checkpoint contents, or raw handoff bodies.
 
 Dashboard actions route approval/rejection back through the owning pipeline endpoint
 (for example `/github/pr-dry-runs/<task_id>/approve` or

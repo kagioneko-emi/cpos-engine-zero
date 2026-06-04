@@ -227,6 +227,7 @@ def pending_human_escalations(store: Any) -> list[dict[str, Any]]:
             'owning_pipeline': _owning_pipeline_hint(review_type),
             'pipeline_stage': _pipeline_stage_hint(review_type),
             'pipeline_node_id': f'{review_type}:{event.task_id}' if review_type else event.task_id,
+            'review_endpoint_hint': _review_endpoint_hint(review_type),
             'flow_graph_endpoint_hint': _flow_graph_endpoint_hint(review_type, payload, event.task_id),
             'sandbox_flow_source_execution_task_id': _sandbox_flow_source_execution_task_id(review_type, payload, event.task_id),
             'approval_endpoint_hint': _approval_endpoint_hint(review_type, event.task_id),
@@ -266,7 +267,7 @@ def _pipeline_stage_hint(review_type: str | None) -> str:
 
 def _sandbox_flow_source_execution_task_id(review_type: str | None, payload: dict[str, Any], task_id: str) -> str | None:
     plan = payload.get('plan') or {}
-    if review_type == 'sandbox_patch_execution_retry':
+    if review_type in {'sandbox_patch_execution_retry', 'sandbox_patch_generation', 'sandbox_patch_plan'}:
         return plan.get('source_execution_task_id') or payload.get('source_execution_task_id')
     if review_type == 'sandbox_patch_execution':
         # This review becomes the execution task once approved and run; use it
@@ -280,6 +281,20 @@ def _flow_graph_endpoint_hint(review_type: str | None, payload: dict[str, Any], 
     if source_task_id:
         return f'/sandbox/flow-graph?source_execution_task_id={source_task_id}'
     return None
+
+def _review_endpoint_hint(review_type: str | None) -> str | None:
+    mapping = {
+        'github_pr_dry_run': '/github/pr-dry-runs',
+        'github_diff_review': '/github/diff-reviews',
+        'sandbox_patch_plan': '/sandbox/patch-plans',
+        'sandbox_patch_execution': '/sandbox/executions',
+        'sandbox_patch_execution_retry': '/sandbox/execution-retries',
+        'sandbox_patch_generation': '/sandbox/patch-generations',
+        'mcp_tool_execution': '/mcp/executions',
+        'mcp_capability_probe': '/mcp/probes',
+    }
+    return mapping.get(review_type)
+
 
 def _approval_endpoint_hint(review_type: str | None, task_id: str) -> str | None:
     mapping = {

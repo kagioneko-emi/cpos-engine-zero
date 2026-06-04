@@ -625,7 +625,7 @@ def render_human_escalation_summary(task_tape_path, task_checkpoint_path):
                 <td>{escape(str(row.get('owning_pipeline') or '-'))}<br><span class="muted">stage={escape(str(row.get('pipeline_stage') or '-'))}</span><br><span class="muted">type={escape(str(row.get('review_type') or '-'))}</span></td>
                 <td>{escape(str(decision.get('severity') or '-'))}<br><span class="muted">mode={escape(str(decision.get('recommended_mode') or '-'))} / requires_human={escape(str(decision.get('requires_human')))}</span></td>
                 <td>{reasons}</td>
-                <td><code>{escape(str(row.get('approval_endpoint_hint') or '-'))}</code><br><span class="muted">flow={escape(str(row.get('flow_graph_endpoint_hint') or '-'))}</span><br><span class="muted">metadata_only={escape(str(row.get('metadata_only')))}</span></td>
+                <td><code>{escape(str(row.get('review_endpoint_hint') or '-'))}</code><br><span class="muted">approve={escape(str(row.get('approval_endpoint_hint') or '-'))}</span><br><span class="muted">reject={escape(str(row.get('rejection_endpoint_hint') or '-'))}</span><br><span class="muted">flow={escape(str(row.get('flow_graph_endpoint_hint') or '-'))}</span><br><span class="muted">metadata_only={escape(str(row.get('metadata_only')))}</span></td>
             </tr>
         """
     html += '</tbody></table></div>'
