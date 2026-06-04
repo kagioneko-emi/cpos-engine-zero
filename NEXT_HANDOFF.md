@@ -4,7 +4,7 @@
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
 4. Expected state at handoff: `main...origin/main` after pushing this memo, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `320 passed`.
-5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `cce2855 Add demo evidence assets to README`.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `c6c2298 Add external agent adapter integration example`.
 6. **Do not create final v0.1.0 tag yet** unlessねこさん explicitly says so. Existing remote/local RC tag: `v0.1.0-rc1` -> `0f1e585` from 2026-05-29.
 7. Latest pushed work: External Agent Adapter MVP, adapter dashboard queue, Human Escalation integration, adapter demo readiness/fixture integration, plus prior Competitive Demo Readiness / Ready-to-Run / Patch Generation / tape-memory MCP review work.
 8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`, `cpos_release_tag_audit`; MCP review pending: `mcp_review_cca928799d599640`.
@@ -20,7 +20,7 @@ Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
 Remote status before this memo commit: `main...origin/main`
-Latest pushed commit: `cce2855 Add demo evidence assets to README`
+Latest pushed commit: `c6c2298 Add external agent adapter integration example`
 Release/tag status: final **v0.1.0** tag has NOT been created yet. Existing remote/local release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
 
 ## Absolute first steps next session
@@ -54,6 +54,8 @@ Pushed to `origin main`:
 7. `6371bc1 Update handoff with result scoreboard readiness`
 8. `4121591 Add metadata-only demo capture assets`
 9. `cce2855 Add demo evidence assets to README`
+10. `c5129aa Update handoff with demo asset polish`
+11. `c6c2298 Add external agent adapter integration example`
 
 Previous pushed handoff/tag status commit:
 
@@ -77,6 +79,7 @@ Latest pushed capabilities:
 - Dashboard and generated report surface external agent contracts/results prominently.
 - Competitive Demo Readiness now highlights External Agent Adapter + Result Scoreboard in the main demo path.
 - Metadata-only demo capture assets are committed under `docs/assets/demo/` and linked from README.
+- External agent integration docs and a stdlib-only example client are committed.
 - Full test count is now `320 passed`; prepublish and secret scan are clean.
 
 ## What changed most recently
@@ -172,7 +175,7 @@ Dashboard/report/readiness:
 
 Updated tests in `tests/test_demo_readiness.py` assert the adapter appears in readiness and fixture output.
 
-### Docs / Demo Assets
+### Docs / Demo Assets / Integration Example
 
 `README.md` now has **External Agent Adapter MVP** with minimal curl examples:
 
@@ -191,6 +194,31 @@ README also links metadata-only demo assets:
 - `docs/assets/demo/report-demo-readiness.png`
 
 These panels show hashes, counts, endpoint hints, statuses, and safety flags only. Asset secret scan was `ok=true count=0`.
+
+Added external adapter integration materials:
+
+- `docs/AGENT_ADAPTER_INTEGRATION.md`
+  - endpoint list
+  - supported event types
+  - command_request example
+  - execution_result example
+  - safety invariants
+  - local usage examples
+- `examples/agent_adapter_client.py`
+  - Python stdlib-only client
+  - supports `command-request` and `execution-result`
+  - dry-run by default; `--send` posts to `/agent-adapter/intake`
+  - `--token-file` reads a Vault-rendered bearer token file without printing the token
+
+Verification for the example/client docs:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m py_compile examples/agent_adapter_client.py
+PYTHONPATH=. .venv/bin/python examples/agent_adapter_client.py --command 'pytest tests -q' --changed-file README.md command-request
+PYTHONPATH=. .venv/bin/python -m pytest tests/test_readme.py -q
+PYTHONPATH=. .venv/bin/python -m cpos.secret_scan README.md docs/AGENT_ADAPTER_INTEGRATION.md examples/agent_adapter_client.py --json
+# test_readme: 16 passed; secret scan ok=true count=0
+```
 
 ## Verification at handoff
 
@@ -264,13 +292,12 @@ No urgent core feature is missing for v0.1. The project is in a good "ship/demo"
 
 Optional additions ifねこさん wants more polish:
 
-1. **Tiny adapter client examples**: `examples/agent_adapter_client.py` or curl snippets for Hermes/OpenClaw/Codex-style callers. Good for adoption, low risk.
+1. **Adapter JSON schema docs**: next recommended item. Add `docs/AGENT_ADAPTER_SCHEMA.md` for `command_request`, `proposed_diff`, `execution_result`, response contract, and safety flags. Link from README/integration docs and update tests.
 2. **README badges/diagram polish**: add a small architecture diagram or link directly to demo assets. Mostly presentation.
 3. **Final v0.1.0 release packaging**: only if explicitly instructed; create final tag/release after final checks.
 4. **Real browser screenshots/GIF**: only if local browser tooling is available; current metadata-only panels are already safe and committed.
-5. **Adapter SDK schema docs**: JSON schema for action contracts/result reports. Nice-to-have if external integrations become the focus.
 
-Recommendation: do not add large new features before v0.1 unless there is a concrete target integration. Prefer release/demo polish and final handoff.
+Recommendation: do not add large new runtime features before v0.1 unless there is a concrete target integration. Prefer schema docs/release polish/final handoff.
 
 ## Current recommended next action
 
@@ -280,7 +307,8 @@ Recommended next session path:
 2. If this handoff memo is not pushed yet, push the memo commit after explicit approval.
 3. Then choose one:
    - **Release path**: prepare final `v0.1.0` only ifねこさん explicitly says so.
-   - **Polish path**: optional adapter client examples / schema docs / final v0.1 packaging notes.
+   - **Schema docs path**: add `docs/AGENT_ADAPTER_SCHEMA.md` and link it from README + integration docs. This was the planned next step when the user asked to pause for handoff.
+   - **Release path**: after schema docs or if skipping them, prepare final `v0.1.0` only with explicit instruction.
    - **Dashboard capture path**: backend fixture/readiness/report verified; README already has metadata-only demo panels.
 
 Recommended strategic framing:
