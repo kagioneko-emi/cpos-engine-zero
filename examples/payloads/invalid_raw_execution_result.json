@@ -1,0 +1,12 @@
+{
+  "agent_name": "bad-example-agent",
+  "event_type": "execution_result",
+  "execution_result": {
+    "stdout": "Do not send raw stdout/stderr to CPOS. Use status and output_redacted instead."
+  },
+  "metadata": {
+    "success": false,
+    "exit_code": 1,
+    "duration_ms": 100
+  }
+}

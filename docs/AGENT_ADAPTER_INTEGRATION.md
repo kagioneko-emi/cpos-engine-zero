@@ -24,6 +24,57 @@ See `docs/AGENT_ADAPTER_SCHEMA.md` for field-level request/response examples and
 - `command_request`
 - `execution_result`
 
+## Payload examples and curl
+
+Secret-free payload files are available under `examples/payloads/`:
+
+- `examples/payloads/command_request.json`
+- `examples/payloads/proposed_diff.json`
+- `examples/payloads/execution_result.json`
+- `examples/payloads/invalid_raw_execution_result.json`
+
+Send a command request contract:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/agent-adapter/intake \
+  -H 'Content-Type: application/json' \
+  --data @examples/payloads/command_request.json
+```
+
+Send a proposed diff contract:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/agent-adapter/intake \
+  -H 'Content-Type: application/json' \
+  --data @examples/payloads/proposed_diff.json
+```
+
+Send a redacted/status-only execution result:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/agent-adapter/intake \
+  -H 'Content-Type: application/json' \
+  --data @examples/payloads/execution_result.json
+```
+
+Check review queues and result scoreboard:
+
+```bash
+curl -sS http://127.0.0.1:8080/agent-adapter/actions
+curl -sS http://127.0.0.1:8080/agent-adapter/execution-results
+curl -sS http://127.0.0.1:8080/human-escalations
+```
+
+Validate the raw-output rejection path:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8080/agent-adapter/intake \
+  -H 'Content-Type: application/json' \
+  --data @examples/payloads/invalid_raw_execution_result.json
+```
+
+Expected invalid result: HTTP `400`, `error=schema_validation_failed`, and `validation.metadata_only=true`. The response should not echo raw stdout/stderr values.
+
 ## Command request example
 
 ```json

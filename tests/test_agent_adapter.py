@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import server
 from agents.main_agent import MainAgent
 from cpos.agent_adapter import intake_external_agent_action, pending_external_agent_actions, approve_external_agent_action, build_external_agent_result_scoreboard, external_agent_execution_results, validate_external_agent_action_payload
@@ -224,6 +226,25 @@ def test_external_agent_adapter_api_schema_validation_rejects_invalid_payload(tm
     assert payload["validation"]["metadata_only"] is True
     assert "RAW_STDERR_SHOULD_NOT_ECHO" not in str(payload)
     assert agent.task_tape.events() == []
+
+
+def test_external_agent_adapter_payload_examples_are_valid_or_intentionally_invalid(tmp_path):
+    store = TaskTapeStore(tmp_path / "tasks.jsonl", tmp_path / "checkpoints.jsonl")
+    payload_dir = Path("examples/payloads")
+
+    for name in ["command_request.json", "proposed_diff.json", "execution_result.json"]:
+        payload = json.loads((payload_dir / name).read_text(encoding="utf-8"))
+        result = intake_external_agent_action(store, **payload)
+        assert result["ok"] is True, name
+        assert result["contract"]["execute_automatically"] is False
+        assert result["contract"]["raw_request_stored"] is False
+        assert result["contract"]["raw_outputs_stored"] is False
+
+    invalid = json.loads((payload_dir / "invalid_raw_execution_result.json").read_text(encoding="utf-8"))
+    rejected = intake_external_agent_action(store, **invalid)
+    assert rejected["ok"] is False
+    assert rejected["error"] == "schema_validation_failed"
+    assert any(error["code"] == "execution_result_raw_output_key_forbidden" for error in rejected["validation"]["errors"])
 
 
 def test_external_agent_execution_results_api(tmp_path):

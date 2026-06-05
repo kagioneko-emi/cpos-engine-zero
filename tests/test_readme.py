@@ -157,6 +157,7 @@ def test_readme_release_notes_and_checklist_include_competitive_demo_updates():
     assert 'docs/AGENT_ADAPTER_INTEGRATION.md' in readme
     assert 'docs/AGENT_ADAPTER_SCHEMA.md' in readme
     assert 'examples/agent_adapter_client.py' in readme
+    assert 'examples/payloads/' in readme
     assert '/demo/readiness' in readme
     assert '/demo/fixture' in readme
     assert 'Ready-to-Run Execution' in readme

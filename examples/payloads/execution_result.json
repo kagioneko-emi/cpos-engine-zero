@@ -1,0 +1,20 @@
+{
+  "agent_name": "codex-or-hermes",
+  "event_type": "execution_result",
+  "execution_result": {
+    "status": "passed",
+    "output_redacted": true,
+    "summary": "Adapter-focused tests completed without storing raw output.",
+    "result_kind": "validation"
+  },
+  "changed_files": [
+    "cpos/agent_adapter.py",
+    "tests/test_agent_adapter.py"
+  ],
+  "metadata": {
+    "success": true,
+    "exit_code": 0,
+    "failure_kind": "",
+    "duration_ms": 900
+  }
+}
