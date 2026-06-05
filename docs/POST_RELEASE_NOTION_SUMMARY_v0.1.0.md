@@ -1,3 +1,313 @@
+# CPOS Engine-Zero v0.1.0 — Notionまとめ
+
+## 日本語版：短く貼れる版
+
+CPOS Engine-Zero v0.1.0 は、**安全な自律実行**を目的にした、防御型・メモリ統治型のAIエージェントランタイムの正式リリースです。
+
+これは「何でも自動で書き換える無制限コーディングエージェント」ではなく、**レビューゲート・サンドボックス優先・メタデータのみ保存**を重視した、安全寄りのエージェント基盤です。
+
+主なポイント：
+
+- 正式リリース：`v0.1.0`
+- Release URL：https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.0
+- テスト：`320 passed`
+- `prepublish_check` / `release_check`：`ok=true`
+- secret scan：`count=0`
+- raw diff / raw stdout / raw stderr / request body / checkpoint本文 / handoff本文 / secret値は永続保存しない
+- デモ素材：`docs/assets/demo/`
+- External Agent Adapter により、外部エージェントの action contract / execution result を統治できる
+- 位置づけ：**CPOS Agent** かつ **CPOS for Agents**
+
+できること：
+
+- 危険な処理を Human Escalation に回す
+- Task Tape にメタデータ中心で履歴を残す
+- GitHub diff / sandbox plan / execution review をレビューゲート化する
+- 実行結果と failure-to-replan の流れを追跡する
+- dashboard / report / demo readiness で証跡を見せる
+- 外部エージェントから `command_request`、`proposed_diff`、`execution_result` を受ける
+
+まだ言いすぎになる表現：
+
+- 完全自律の無制限コーディングエージェント
+- 自動で本番リポジトリを書き換えるエージェント
+- 自動で commit / push / PR を作成するシステム
+- Vault の代替となる秘密情報管理システム
+
+次のおすすめ：
+
+- post-release stabilization
+- v0.1.1 の小さめ backlog 作り
+- Adapter integration / schema / examples の微調整
+- v0.1.0 release draft を基準に、告知文・Notion・README文面を整える
+
+---
+
+## 日本語版：詳しめ構造化版
+
+## 1. CPOS v0.1.0 とは
+
+CPOS Engine-Zero v0.1.0 は、安全な自律実行のための防御型AIエージェントランタイムです。
+
+中心にある考え方は、以下を分離することです。
+
+- 長期記憶 / 文脈記憶
+- タスク実行履歴
+- 短期的なランタイム状態
+- レビューが必要な危険操作
+
+CPOS は、エージェントに無制限の実行権限を与えるのではなく、**実行力にガバナンスをかける**ことを目的にしています。
+
+一言でいうと：
+
+> CPOS Engine-Zero は、安全な自律実行のための、防御型・メモリ統治型AIエージェントランタイム兼、外部エージェント向け安全レイヤーです。
+
+見せ方は2つあります。
+
+1. **CPOS Agent**  
+   CPOS自身がレビューゲート付きの防御型エージェントランタイムとして動く。
+
+2. **CPOS for Agents**  
+   Codex系、Hermes系、OpenClaw系のような外部エージェントの横に置き、安全・記憶・レビュー・証跡を担当する。
+
+## 2. v0.1.0 の意味
+
+多くのAIコーディングエージェントは、速度やツール実行範囲を強みにします。
+
+CPOS はそこではなく、**実行の安全性・説明可能性・レビュー可能性**を強みにしています。
+
+v0.1.0 で示せたこと：
+
+- 危険操作をレビューゲートに通せる
+- 承認と実行を分離できる
+- planning/review段階では live repo を直接書き換えない
+- 失敗を retry/replan 用のメタデータに変換できる
+- dashboard / report で流れを説明できる
+- raw diff や raw output や秘密情報を永続保存しない
+- 外部エージェントの行動も adapter 経由で統治できる
+
+そのため、防御用途、監査が必要な用途、レビュー前提の開発支援、外部エージェントの安全レイヤーとして向いています。
+
+## 3. 中核機能
+
+### Review-gated execution loop
+
+CPOS の安全な自律ループ：
+
+```text
+Diff Draft
+→ GitHub Diff Review
+→ Sandbox Plan
+→ Sandbox Execution Review
+→ Supplied-diff Sandbox Run
+→ Execution Result Metadata
+→ Retry/Replan
+→ Auto Fix Candidate
+→ Diff Review Draft
+→ Flow Graph / Report Snapshot
+```
+
+重要なのは、planning / review の段階では危険操作を直接実行しないことです。
+
+### Metadata-only persistence
+
+CPOS が保存するもの：
+
+- hash
+- size
+- count
+- task ID
+- status
+- endpoint hint
+- failure kind
+- lineage metadata
+
+CPOS が保存しないもの：
+
+- raw diff
+- raw stdout / stderr
+- request body
+- checkpoint / handoff の本文
+- token
+- API key
+- SSH key
+- secret値
+
+### Human Escalation
+
+危険または方針上レビューが必要な処理は Human Escalation に回します。
+
+例：
+
+- destructive 操作
+- secret / `.env` 関連
+- production / deploy 関連
+- network exposure
+- GitHub publish
+- low-confidence task
+- 外部エージェントからの承認必須 action contract
+
+### External Agent Adapter
+
+External Agent Adapter は、外部エージェントが CPOS に action contract や result metadata を送るための入口です。
+
+対応 event type：
+
+- `agent_intent`
+- `proposed_action`
+- `proposed_diff`
+- `command_request`
+- `execution_result`
+
+主な endpoint：
+
+- `POST /agent-adapter/intake`
+- `GET /agent-adapter/actions`
+- `GET /agent-adapter/execution-results`
+- `POST /agent-adapter/actions/<task_id>/approve`
+- `POST /agent-adapter/actions/<task_id>/reject`
+
+Adapter の安全デフォルト：
+
+- `raw_request_stored=false`
+- `raw_diff_stored=false`
+- `raw_outputs_stored=false`
+- `secret_values_stored=false`
+- `execute_automatically=false`
+
+Adapter action の approve は、あくまで metadata contract の承認です。コマンド実行はしません。
+
+### External Agent Result Scoreboard
+
+外部エージェントは、別の場所で行った実行結果を redacted metadata として CPOS に報告できます。
+
+CPOS はそれを scoreboard として集計します。
+
+- completed result count
+- success / failure count
+- success rate
+- failure kind count
+- recent result metadata
+
+これにより、外部エージェントが実行した結果も、CPOS 側で監査・可視化できます。
+
+## 4. デモと証跡
+
+デモ素材は以下にあります。
+
+```text
+docs/assets/demo/
+```
+
+主なデモ画面：
+
+- Competitive Demo Readiness
+- External Agent Adapter Queue / Result Scoreboard
+- Human Escalation Queue
+- Ready-to-Run Gate
+- Sandbox Flow Graph
+- Generated Report Snapshot
+
+デモの流れ：
+
+```text
+Fast Resume
+→ External Agent Adapter
+→ Result Scoreboard
+→ Human Escalation
+→ Patch Generation Review
+→ Validation Harness
+→ Ready-to-Run Gate
+→ Flow Graph
+→ Report Snapshot
+```
+
+デモ素材は metadata-only です。表示するのは status、count、hash、endpoint hint、安全フラグなどで、raw diff / raw output / secret は含みません。
+
+## 5. リリース検証
+
+v0.1.0 は最終チェック後に正式リリース済みです。
+
+記録された状態：
+
+- `git status`: `main...origin/main`
+- tests: `320 passed`
+- `prepublish_check`: `ok=true`
+- `release_check`: `ok=true`
+- secret scan: `count=0`
+- final tag: `v0.1.0`
+- GitHub Release: published / not draft / not prerelease
+
+Release URL：
+
+https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.0
+
+## 6. 言っていいこと / 言いすぎなこと
+
+言っていいこと：
+
+- defensive AI agent runtime
+- safe autonomy loop
+- external-agent-ready governance layer
+- metadata-only review and execution pipeline
+- Human Escalation / sandbox-first architecture
+- failure-to-replan lineage
+- release-time safety checks
+
+まだ言いすぎなこと：
+
+- 完全自律の無制限コーディングエージェント
+- 自動で live repo を書き換えるエージェント
+- 自動で commit / push / PR を作るシステム
+- Vault の代替
+- operator approval なしの本番デプロイシステム
+
+## 7. 次の方針
+
+v0.1.0 後のおすすめ：
+
+1. post-release stabilization
+2. フィードバック収集
+3. 大きな runtime 変更は具体的な統合先が出るまで控える
+4. v0.1.1 向けの小さめ backlog を作る
+5. 外部エージェント連携を重視するなら adapter docs / examples / schema を磨く
+6. v0.1.0 release draft を基準に、告知文・Notion・README文面を整える
+
+v0.1.1 の候補：
+
+- adapter request の JSON schema validation 強化
+- example client の追加
+- dashboard 文言の polish
+- release / announcement template
+- 安全に撮れる環境があれば browser GIF
+
+## 8. 告知文たたき台
+
+短い版：
+
+> CPOS Engine-Zero v0.1.0 を正式リリースしました。レビューゲート・サンドボックス優先・メタデータのみ保存・外部エージェント対応を特徴とする、防御型AIエージェントランタイムです。
+
+少し長い版：
+
+> CPOS Engine-Zero v0.1.0 は、安全寄りの実行力を重視したAIエージェントランタイムです。live repo を静かに書き換えたり、raw output を永続保存したりするのではなく、危険操作をレビューゲートに通し、メタデータのみを保存し、failure-to-replan の流れを可視化します。External Agent Adapter により、外部エージェントの行動も CPOS 側で統治できます。
+
+## 9. 今後の文章作成で参照するもの
+
+今後の告知文・README・Notionまとめ・次回リリースノートは、以下を基準に作るとよいです。
+
+- `GITHUB_RELEASE_DRAFT_v0.1.0.md`
+- `README.md`
+- `RELEASE_NOTES_v0.1.0.md`
+- `OSS_RELEASE_CHECKLIST.md`
+- `docs/AGENT_ADAPTER_INTEGRATION.md`
+- `docs/AGENT_ADAPTER_SCHEMA.md`
+- `docs/DEMO_CAPTURE_GUIDE.md`
+- `NEXT_HANDOFF.md`
+
+---
+
+## English reference version
+
 # CPOS Engine-Zero v0.1.0 — Notion Summary
 
 ## Short paste-ready version
