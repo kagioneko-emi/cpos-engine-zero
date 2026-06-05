@@ -3,15 +3,86 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state at handoff: `main...origin/main` after pushing this memo, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `325 passed`.
-5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `bd250b8 Add adapter schema validation`.
-6. Final **v0.1.0** tag and GitHub Release are published. Existing RC tag remains: `v0.1.0-rc1` -> `0f1e585` from 2026-05-29.
-7. Latest pushed work: External Agent Adapter schema validation, External Agent Adapter MVP, adapter dashboard queue, Human Escalation integration, adapter demo readiness/fixture integration, plus prior Competitive Demo Readiness / Ready-to-Run / Patch Generation / tape-memory MCP review work.
-8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`, `cpos_release_tag_audit`; MCP review pending: `mcp_review_cca928799d599640`.
-9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoint/handoff bodies, and secrets must not be persisted; store metadata/hashes/counters only.
-10. GitHub push/publish is Human Escalation; ask before pushing. Final release tag also requires explicit instruction.
+4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `332 passed`.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `2965490 Polish dashboard safety wording`.
+6. Final **v0.1.0** tag and GitHub Release are published. Do not retag or publish v0.1.1 without explicit user confirmation.
+7. v0.1.1 stabilization Priority 1–6 is complete on `main`: adapter schema validation, payload examples, 5-minute guide, announcement copy, local runtime inventory, dashboard wording polish.
+8. New consolidation doc: `docs/V0_1_1_SUMMARY.md`; backlog: `docs/backlog/V0_1_1_BACKLOG.md`; quick external-agent doc: `docs/EXTERNAL_AGENT_5_MIN_GUIDE.md`.
+9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoint/handoff bodies, cert/key material, and secrets must not be persisted or printed; store metadata/hashes/counters only.
+10. GitHub push/publish/tag/release remains Human Escalation; ask before pushing unless user explicitly says push/ぷす/ふす.
 
 ---
+
+# Latest Handoff — v0.1.1 Stabilization Consolidation
+
+Generated: `2026-06-06T00:00:00+09:00`
+Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
+Working directory: `/home/mayutama/cpos_defensive_agent`
+Branch: `main`
+Remote status before this memo commit: `main...origin/main`
+Latest pushed commit before this memo: `2965490 Polish dashboard safety wording`
+Release/tag status: final **v0.1.0** tag has been created and pushed; GitHub Release is published. Existing release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
+
+## Absolute first steps next session
+
+```bash
+cd /home/mayutama/cpos_defensive_agent
+git status --short --branch
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+```
+
+Expected after this memo is committed and pushed:
+
+- `git status --short --branch`: `## main...origin/main`
+- `prepublish_check`: `ok=true`
+- Secret scan: `ok=true count=0`
+- Working tree: clean
+- Full tests last verified before this memo: `332 passed`
+
+## v0.1.1 stabilization complete
+
+Priority 1–6 from `docs/backlog/V0_1_1_BACKLOG.md` are complete on `main`:
+
+1. Adapter schema validation — `bd250b8 Add adapter schema validation`
+2. Adapter payload examples — `934c393 Add adapter payload examples`
+3. 5-minute external-agent safety-layer guide — `92f49f7 Add external agent 5 minute guide`
+4. Announcement copy pack — `c605f5a Add v0.1.0 announcement copy pack`
+5. Local runtime file inventory — `057bdd8 Add local runtime file inventory`
+6. Dashboard wording polish — `2965490 Polish dashboard safety wording`
+
+New consolidation doc added in this session:
+
+- `docs/V0_1_1_SUMMARY.md`
+
+Current test/prepublish baseline before this memo commit:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m pytest tests -q
+# 332 passed
+
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+# ok=true; secret_scan ok=true count=0
+```
+
+## Recommended next action
+
+If continuing toward a release candidate:
+
+1. Run full verification again.
+2. Draft `RELEASE_NOTES_v0.1.1.md`.
+3. Only after explicit user confirmation, consider `v0.1.1-rc1` tag/release prep.
+4. Do not tag, push, publish, create PRs, open ports, or perform destructive cleanup without explicit confirmation.
+
+## Safety notes
+
+- Secrets/API keys/tokens/SSH keys stay in Vault; do not hardcode in code/docs/crontab/.env.
+- Never modify `authorized_keys`.
+- `rm -rf`, file overwrites, user creation/deletion, systemd stop/delete, and port opening need explicit confirmation and relevant safety steps.
+- Local runtime artifacts are documented in `docs/LOCAL_RUNTIME_FILE_INVENTORY.md`; do not delete automatically.
+
+---
+
+# Historical handoff detail
 
 # Latest Handoff — External Agent Adapter Checkpoint
 

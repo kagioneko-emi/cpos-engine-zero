@@ -218,3 +218,20 @@ def test_local_runtime_inventory_is_linked_and_non_destructive():
     assert 'hackathon_report.html' in inventory
     assert 'Never modify `authorized_keys`' in inventory
     assert 'prepublish_check' in inventory
+
+
+def test_v0_1_1_summary_is_linked_and_complete():
+    readme = open('README.md', encoding='utf-8').read()
+    summary = open('docs/V0_1_1_SUMMARY.md', encoding='utf-8').read()
+
+    assert 'docs/V0_1_1_SUMMARY.md' in readme
+    assert 'v0.1.1 Stabilization Summary' in summary
+    assert 'Adapter schema validation' in summary
+    assert 'Adapter payload examples' in summary
+    assert '5-minute external-agent safety-layer guide' in summary
+    assert 'announcement copy pack' in summary.lower()
+    assert 'Local runtime file inventory' in summary
+    assert 'Dashboard wording polish' in summary
+    assert '332 passed' in summary
+    assert 'prepublish_check' in summary
+    assert 'Do not tag, push, publish' in summary

@@ -150,8 +150,8 @@ PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 PYTHONPATH=. .venv/bin/python -m cpos.release_check --json
 ```
 
-Expected baseline from v0.1.0:
+Current stabilization baseline after Priority 1–6:
 
-- full tests: `320 passed`
+- full tests: `332 passed`
 - prepublish: `ok=true`
 - secret scan: `count=0`
