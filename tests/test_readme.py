@@ -167,3 +167,20 @@ def test_readme_release_notes_and_checklist_include_competitive_demo_updates():
     assert 'Quick Competitive Demo' in checklist
     assert 'Competitive Demo Readiness' in checklist
     assert '320 passed' in checklist
+
+
+def test_external_agent_5_min_guide_is_linked_and_safety_focused():
+    readme = open('README.md', encoding='utf-8').read()
+    guide = open('docs/EXTERNAL_AGENT_5_MIN_GUIDE.md', encoding='utf-8').read()
+
+    assert 'docs/EXTERNAL_AGENT_5_MIN_GUIDE.md' in readme
+    assert 'CPOS for Agents' in guide
+    assert '/agent-adapter/intake' in guide
+    assert 'examples/payloads/command_request.json' in guide
+    assert 'examples/payloads/proposed_diff.json' in guide
+    assert 'examples/payloads/execution_result.json' in guide
+    assert 'invalid_raw_execution_result.json' in guide
+    assert 'execute_automatically=false' in guide
+    assert 'raw_outputs_stored=false' in guide
+    assert 'execute external-agent commands' in guide
+    assert 'does not require opening public ports' in guide

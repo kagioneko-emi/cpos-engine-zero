@@ -231,9 +231,10 @@ gated pipeline decision. Execution-result reports are scoreboard inputs only and
 still store no raw stdout/stderr. Schema validation rejects malformed adapter
 payloads before Task Tape persistence. Secret-free payload examples are available
 in `examples/payloads/` for command requests, proposed diffs, execution results,
-and raw-output rejection checks. See `docs/AGENT_ADAPTER_INTEGRATION.md`,
-`docs/AGENT_ADAPTER_SCHEMA.md`, and `examples/agent_adapter_client.py` for
-integration details.
+and raw-output rejection checks. Start with
+`docs/EXTERNAL_AGENT_5_MIN_GUIDE.md`, then use
+`docs/AGENT_ADAPTER_INTEGRATION.md`, `docs/AGENT_ADAPTER_SCHEMA.md`, and
+`examples/agent_adapter_client.py` for deeper integration details.
 
 ## Human Escalation Queue
 

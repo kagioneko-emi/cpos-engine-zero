@@ -29,6 +29,8 @@ Acceptance criteria:
 
 ## Priority 2 — More adapter client examples
 
+Status: implemented on `main`; payload fixtures live under `examples/payloads/`.
+
 Goal: make CPOS easy to connect to external agents.
 
 Suggested scope:
@@ -46,6 +48,8 @@ Acceptance criteria:
 - Secret scan returns `count=0`.
 
 ## Priority 3 — 5-minute external-agent safety-layer guide
+
+Status: implemented on `main`; see `docs/EXTERNAL_AGENT_5_MIN_GUIDE.md`.
 
 Goal: explain how to use CPOS as “CPOS for Agents”.
 
