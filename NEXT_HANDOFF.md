@@ -405,6 +405,21 @@ Use the v0.1.0 release draft and current README/adapter docs as the source of tr
 
 Treat this as the next post-release documentation task when the user says "つないだらやる".
 
+
+## Notion post-release summary — 2026-06-05
+
+Created a Japanese-first Notion page for the v0.1.0 post-release summary.
+
+- Notion URL: https://app.notion.com/p/CPOS-Engine-Zero-v0-1-0-Notion-37676d12b6d2812ea817daf2ed8017c7
+- Source Markdown: `docs/POST_RELEASE_NOTION_SUMMARY_v0.1.0.md`
+- GitHub Markdown URL: https://github.com/kagioneko/cpos-engine-zero/blob/main/docs/POST_RELEASE_NOTION_SUMMARY_v0.1.0.md
+- Content style: Japanese main summary + English reference version preserved in Markdown.
+- Notion DB used: Vault `secret/notion` field `memo_db_id`; title property was `タイトル`.
+- Secret handling: Notion API token was read from Vault `secret/notion(api_key)` and was not printed or stored in repo.
+- Created page block count: `197`.
+
+If updating the Notion page later, continue using Vault for Notion credentials. Do not hardcode Notion tokens or database IDs in code, docs, shell history, `.env`, or crontab.
+
 ## Current recommended next action
 
 Recommended next session path:
