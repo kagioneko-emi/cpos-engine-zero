@@ -3,8 +3,8 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `333 passed`.
-5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `d12bf53 Draft v0.1.1 release prep docs`; latest tag: `v0.1.1-rc1`; GitHub prerelease is published.
+4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `334 passed`.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `135a3c4 Note v0.1.1 rc pause`; latest tag: `v0.1.1-rc1`; GitHub prerelease is published.
 6. Final **v0.1.0** tag and GitHub Release are published. v0.1.1-rc1 prerelease is published. Do not create/publish final v0.1.1 without explicit user confirmation.
 7. v0.1.1 stabilization Priority 1–6 is complete on `main`: adapter schema validation, payload examples, 5-minute guide, announcement copy, local runtime inventory, dashboard wording polish.
 8. New consolidation doc: `docs/V0_1_1_SUMMARY.md`; backlog: `docs/backlog/V0_1_1_BACKLOG.md`; quick external-agent doc: `docs/EXTERNAL_AGENT_5_MIN_GUIDE.md`.
@@ -20,7 +20,7 @@ Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
 Remote status before this memo commit: `main...origin/main`
-Latest pushed commit before this memo: `d12bf53 Draft v0.1.1 release prep docs`; latest tag: `v0.1.1-rc1`
+Latest pushed commit before this memo: `135a3c4 Note v0.1.1 rc pause`; latest tag: `v0.1.1-rc1`
 Release/tag status: final **v0.1.0** tag has been created and pushed; GitHub Release is published. Existing release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
 
 ## Absolute first steps next session
@@ -37,7 +37,7 @@ Expected after this memo is committed and pushed:
 - `prepublish_check`: `ok=true`
 - Secret scan: `ok=true count=0`
 - Working tree: clean
-- Full tests last verified before this memo: `333 passed`
+- Full tests last verified before this memo: `334 passed`
 
 ## v0.1.1 stabilization complete
 
@@ -58,7 +58,7 @@ Current test/prepublish baseline before this memo commit:
 
 ```bash
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 333 passed
+# 334 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan ok=true count=0
@@ -76,6 +76,17 @@ Published after RC tag push and draft review:
 
 Important: this is an RC prerelease, not a final `v0.1.1` release. Do not create or publish final `v0.1.1` without explicit user confirmation.
 
+
+
+## Next work sequence / parked ideas
+
+User selected next-work order **1 → 3 → 2** after deciding CPOS can rest after `v0.1.1-rc1`:
+
+1. Zenn追加記事: draft created in `/home/mayutama/zenn/articles/cpos-for-agents-v011-rc1.md` with `published: false`.
+2. CPOS v0.1.2 backlog only: `docs/backlog/V0_1_2_BACKLOG.md` created as ideas-only parking lot; no implementation started.
+3. 別プロジェクトに移動: choose target with user after committing/pushing/parking the above.
+
+Local helper log: `docs/NEXT_WORK_SEQUENCE.md`.
 
 ## Pause / reminder note
 

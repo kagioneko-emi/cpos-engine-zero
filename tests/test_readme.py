@@ -232,7 +232,7 @@ def test_v0_1_1_summary_is_linked_and_complete():
     assert 'announcement copy pack' in summary.lower()
     assert 'Local runtime file inventory' in summary
     assert 'Dashboard wording polish' in summary
-    assert '333 passed' in summary
+    assert '334 passed' in summary
     assert 'prepublish_check' in summary
     assert 'Do not tag, push, publish' in summary
 
@@ -247,7 +247,7 @@ def test_v0_1_1_release_notes_and_draft_are_linked_and_safety_focused():
     assert 'v0.1.1 Release Notes' in notes
     assert 'CPOS for Agents' in notes
     assert 'Adapter schema validation' in notes
-    assert '333 passed' in notes
+    assert '334 passed' in notes
     assert 'prepublish_check' in notes
     assert 'CPOS Engine-Zero v0.1.1' in draft
     assert 'External Agent Adapter validation' in draft
@@ -255,3 +255,20 @@ def test_v0_1_1_release_notes_and_draft_are_linked_and_safety_focused():
     assert 'execute_automatically' in draft
     assert 'Not enabled by default' in draft
     assert 'release_check --json' in draft
+
+
+def test_v0_1_2_backlog_and_next_work_sequence_are_linked():
+    readme = open('README.md', encoding='utf-8').read()
+    backlog = open('docs/backlog/V0_1_2_BACKLOG.md', encoding='utf-8').read()
+    sequence = open('docs/NEXT_WORK_SEQUENCE.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+
+    assert 'docs/backlog/V0_1_2_BACKLOG.md' in readme
+    assert 'ideas-only backlog' in backlog
+    assert 'Adapter contract schema export' in backlog
+    assert 'GitHub Actions safety checks' in backlog
+    assert 'Final v0.1.1 release follow-through' in backlog
+    assert '1 → 3 → 2' in sequence
+    assert 'cpos-for-agents-v011-rc1.md' in handoff
+    assert 'published: false' in handoff
+    assert 'no implementation started' in handoff.lower()
