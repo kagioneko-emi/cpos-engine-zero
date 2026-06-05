@@ -76,6 +76,28 @@ Published after RC tag push and draft review:
 
 Important: this is an RC prerelease, not a final `v0.1.1` release. Do not create or publish final `v0.1.1` without explicit user confirmation.
 
+
+## Pause / reminder note
+
+User decided to let CPOS Engine-Zero rest for a while after publishing `v0.1.1-rc1`.
+
+When this repo is resumed later, proactively surface this decision:
+
+- Current recommended posture: wait/observe the `v0.1.1-rc1` prerelease rather than rushing final `v0.1.1`.
+- If enough time has passed and no issues are reported, suggest a final `v0.1.1` readiness pass.
+- Final release steps still require explicit user confirmation.
+- Suggested final readiness commands:
+
+```bash
+git status --short --branch
+PYTHONPATH=. .venv/bin/python -m pytest tests -q
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+PYTHONPATH=. .venv/bin/python -m cpos.release_check --json
+gh release view v0.1.1-rc1 --repo kagioneko/cpos-engine-zero --json tagName,isDraft,isPrerelease,url,name
+```
+
+Reminder limitation: the assistant cannot proactively notify the user outside an active session; keep this note visible for the next handoff/resume.
+
 ## Recommended next action
 
 If continuing from the current RC prerelease state:
