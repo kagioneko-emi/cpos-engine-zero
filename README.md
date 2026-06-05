@@ -21,6 +21,8 @@ execution is not enabled by default.
 
 See `SECURITY.md` and `OSS_RELEASE_CHECKLIST.md` before publishing or deploying.
 
+See `docs/backlog/V0_1_1_BACKLOG.md` for post-v0.1.0 stabilization and v0.1.1 seed tasks.
+
 ## Quick Competitive Demo
 
 For a local, metadata-only demo path, seed safe fixture data and inspect readiness:

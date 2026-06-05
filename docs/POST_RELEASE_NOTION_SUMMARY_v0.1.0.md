@@ -303,6 +303,7 @@ v0.1.1 の候補：
 - `docs/AGENT_ADAPTER_SCHEMA.md`
 - `docs/DEMO_CAPTURE_GUIDE.md`
 - `NEXT_HANDOFF.md`
+- `docs/backlog/V0_1_1_BACKLOG.md`
 
 ---
 
@@ -608,3 +609,4 @@ Use these as the source of truth for future writing:
 - `docs/AGENT_ADAPTER_SCHEMA.md`
 - `docs/DEMO_CAPTURE_GUIDE.md`
 - `NEXT_HANDOFF.md`
+- `docs/backlog/V0_1_1_BACKLOG.md`
