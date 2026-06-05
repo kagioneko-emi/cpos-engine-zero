@@ -23,6 +23,7 @@ See `SECURITY.md` and `OSS_RELEASE_CHECKLIST.md` before publishing or deploying.
 
 See `docs/backlog/V0_1_1_BACKLOG.md` for post-v0.1.0 stabilization and v0.1.1 seed tasks.
 See `docs/V0_1_1_SUMMARY.md` for the completed v0.1.1 stabilization summary.
+See `RELEASE_NOTES_v0.1.1.md` and `GITHUB_RELEASE_DRAFT_v0.1.1.md` for v0.1.1 release prep drafts.
 See `docs/ANNOUNCEMENT_COPY_v0.1.0.md` for reusable post-release announcement/social copy.
 See `docs/LOCAL_RUNTIME_FILE_INVENTORY.md` for ignored local/runtime artifact handling.
 

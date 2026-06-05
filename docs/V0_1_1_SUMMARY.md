@@ -9,7 +9,7 @@ This summary consolidates the post-`v0.1.0` stabilization work currently on `mai
 - Branch: `main`
 - Latest pushed consolidation work before this summary: `2965490 Polish dashboard safety wording`
 - Release base: official `v0.1.0` is already tagged and published
-- Current verification baseline: `332 passed`
+- Current verification baseline: `333 passed`
 - `prepublish_check`: `ok=true`
 - secret scan: `count=0`
 
@@ -172,7 +172,7 @@ Latest verified baseline during v0.1.1 stabilization:
 
 ```bash
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 332 passed
+# 333 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan ok=true count=0

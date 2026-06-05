@@ -3,7 +3,7 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `332 passed`.
+4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `333 passed`.
 5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `2965490 Polish dashboard safety wording`.
 6. Final **v0.1.0** tag and GitHub Release are published. Do not retag or publish v0.1.1 without explicit user confirmation.
 7. v0.1.1 stabilization Priority 1–6 is complete on `main`: adapter schema validation, payload examples, 5-minute guide, announcement copy, local runtime inventory, dashboard wording polish.
@@ -37,7 +37,7 @@ Expected after this memo is committed and pushed:
 - `prepublish_check`: `ok=true`
 - Secret scan: `ok=true count=0`
 - Working tree: clean
-- Full tests last verified before this memo: `332 passed`
+- Full tests last verified before this memo: `333 passed`
 
 ## v0.1.1 stabilization complete
 
@@ -58,7 +58,7 @@ Current test/prepublish baseline before this memo commit:
 
 ```bash
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 332 passed
+# 333 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan ok=true count=0

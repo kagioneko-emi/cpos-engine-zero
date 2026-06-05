@@ -232,6 +232,26 @@ def test_v0_1_1_summary_is_linked_and_complete():
     assert 'announcement copy pack' in summary.lower()
     assert 'Local runtime file inventory' in summary
     assert 'Dashboard wording polish' in summary
-    assert '332 passed' in summary
+    assert '333 passed' in summary
     assert 'prepublish_check' in summary
     assert 'Do not tag, push, publish' in summary
+
+
+def test_v0_1_1_release_notes_and_draft_are_linked_and_safety_focused():
+    readme = open('README.md', encoding='utf-8').read()
+    notes = open('RELEASE_NOTES_v0.1.1.md', encoding='utf-8').read()
+    draft = open('GITHUB_RELEASE_DRAFT_v0.1.1.md', encoding='utf-8').read()
+
+    assert 'RELEASE_NOTES_v0.1.1.md' in readme
+    assert 'GITHUB_RELEASE_DRAFT_v0.1.1.md' in readme
+    assert 'v0.1.1 Release Notes' in notes
+    assert 'CPOS for Agents' in notes
+    assert 'Adapter schema validation' in notes
+    assert '333 passed' in notes
+    assert 'prepublish_check' in notes
+    assert 'CPOS Engine-Zero v0.1.1' in draft
+    assert 'External Agent Adapter validation' in draft
+    assert 'metadata-only' in draft
+    assert 'execute_automatically' in draft
+    assert 'Not enabled by default' in draft
+    assert 'release_check --json' in draft
