@@ -72,6 +72,8 @@ Acceptance criteria:
 
 ## Priority 4 — Announcement copy pack
 
+Status: implemented on `main`; see `docs/ANNOUNCEMENT_COPY_v0.1.0.md`.
+
 Goal: prepare reusable post-release communications.
 
 Suggested scope:

@@ -184,3 +184,20 @@ def test_external_agent_5_min_guide_is_linked_and_safety_focused():
     assert 'raw_outputs_stored=false' in guide
     assert 'execute external-agent commands' in guide
     assert 'does not require opening public ports' in guide
+
+
+def test_announcement_copy_pack_is_linked_and_safety_focused():
+    readme = open('README.md', encoding='utf-8').read()
+    copy = open('docs/ANNOUNCEMENT_COPY_v0.1.0.md', encoding='utf-8').read()
+
+    assert 'docs/ANNOUNCEMENT_COPY_v0.1.0.md' in readme
+    assert 'GitHub Release: https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.0' in copy
+    assert 'https://zenn.dev/kagioneko/articles/cpos-engine-zero-v010' in copy
+    assert 'Notion summary' in copy
+    assert 'CPOS is' in copy
+    assert 'CPOS is not' in copy
+    assert 'External Agent Safety Layer' in copy
+    assert 'does not auto-execute external commands' in copy
+    assert 'fully autonomous unrestricted coding agent' in copy
+    assert 'metadata-only' in copy
+    assert 'Human Escalation' in copy

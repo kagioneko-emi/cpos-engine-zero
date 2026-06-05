@@ -22,6 +22,7 @@ execution is not enabled by default.
 See `SECURITY.md` and `OSS_RELEASE_CHECKLIST.md` before publishing or deploying.
 
 See `docs/backlog/V0_1_1_BACKLOG.md` for post-v0.1.0 stabilization and v0.1.1 seed tasks.
+See `docs/ANNOUNCEMENT_COPY_v0.1.0.md` for reusable post-release announcement/social copy.
 
 ## Quick Competitive Demo
 
