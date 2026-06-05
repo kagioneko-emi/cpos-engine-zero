@@ -4,8 +4,8 @@
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
 4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `333 passed`.
-5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `2965490 Polish dashboard safety wording`.
-6. Final **v0.1.0** tag and GitHub Release are published. Do not retag or publish v0.1.1 without explicit user confirmation.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `d12bf53 Draft v0.1.1 release prep docs`; latest tag: `v0.1.1-rc1`; GitHub draft prerelease exists.
+6. Final **v0.1.0** tag and GitHub Release are published. Do not publish the v0.1.1-rc1 draft or final v0.1.1 without explicit user confirmation.
 7. v0.1.1 stabilization Priority 1–6 is complete on `main`: adapter schema validation, payload examples, 5-minute guide, announcement copy, local runtime inventory, dashboard wording polish.
 8. New consolidation doc: `docs/V0_1_1_SUMMARY.md`; backlog: `docs/backlog/V0_1_1_BACKLOG.md`; quick external-agent doc: `docs/EXTERNAL_AGENT_5_MIN_GUIDE.md`.
 9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoint/handoff bodies, cert/key material, and secrets must not be persisted or printed; store metadata/hashes/counters only.
@@ -20,7 +20,7 @@ Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
 Remote status before this memo commit: `main...origin/main`
-Latest pushed commit before this memo: `2965490 Polish dashboard safety wording`
+Latest pushed commit before this memo: `d12bf53 Draft v0.1.1 release prep docs`; latest tag: `v0.1.1-rc1`
 Release/tag status: final **v0.1.0** tag has been created and pushed; GitHub Release is published. Existing release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
 
 ## Absolute first steps next session
@@ -64,14 +64,26 @@ PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan ok=true count=0
 ```
 
+
+## v0.1.1-rc1 GitHub draft prerelease
+
+Created after RC tag push:
+
+- tag: `v0.1.1-rc1`
+- target commit: `d12bf532fa110e4115807f1c2f16370e9c3d6ec4`
+- GitHub Release state: draft + prerelease
+- Draft URL: https://github.com/kagioneko/cpos-engine-zero/releases/tag/untagged-11e89d572f3478c9124b
+
+Important: this is a draft prerelease, not a final `v0.1.1` release. Do not publish or convert to final without explicit user confirmation.
+
 ## Recommended next action
 
-If continuing toward a release candidate:
+If continuing from the current RC draft state:
 
-1. Run full verification again.
-2. Draft `RELEASE_NOTES_v0.1.1.md`.
-3. Only after explicit user confirmation, consider `v0.1.1-rc1` tag/release prep.
-4. Do not tag, push, publish, create PRs, open ports, or perform destructive cleanup without explicit confirmation.
+1. Re-run full verification if anything changed.
+2. Review the GitHub draft prerelease body against `GITHUB_RELEASE_DRAFT_v0.1.1.md`.
+3. Only after explicit user confirmation, publish the `v0.1.1-rc1` prerelease or move toward final `v0.1.1`.
+4. Do not create final tags, publish releases, create PRs, open ports, or perform destructive cleanup without explicit confirmation.
 
 ## Safety notes
 
