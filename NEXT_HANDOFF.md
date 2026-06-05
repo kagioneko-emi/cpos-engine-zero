@@ -3,10 +3,10 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state at handoff: `main...origin/main` after pushing this memo, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `320 passed`.
-5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `c6c2298 Add external agent adapter integration example`.
+4. Expected state at handoff: `main...origin/main` after pushing this memo, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `325 passed`.
+5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `bd250b8 Add adapter schema validation`.
 6. Final **v0.1.0** tag and GitHub Release are published. Existing RC tag remains: `v0.1.0-rc1` -> `0f1e585` from 2026-05-29.
-7. Latest pushed work: External Agent Adapter MVP, adapter dashboard queue, Human Escalation integration, adapter demo readiness/fixture integration, plus prior Competitive Demo Readiness / Ready-to-Run / Patch Generation / tape-memory MCP review work.
+7. Latest pushed work: External Agent Adapter schema validation, External Agent Adapter MVP, adapter dashboard queue, Human Escalation integration, adapter demo readiness/fixture integration, plus prior Competitive Demo Readiness / Ready-to-Run / Patch Generation / tape-memory MCP review work.
 8. Fast resume cache: `TAPE_MEMORY_DIR=/home/mayutama/.tape-memory-mcp-cpos`, keys `cpos_resume_latest`, `cpos_safety_invariants`, `cpos_next_action`, `cpos_mcp_tape_memory`, `cpos_competitive_demo_readiness`, `cpos_demo_fixture`, `cpos_pitch_demo_polish`, `cpos_release_docs_polish`, `cpos_push_checkpoint`, `cpos_release_tag_audit`; MCP review pending: `mcp_review_cca928799d599640`.
 9. Safety invariant: raw diffs, raw outputs, request bodies, checkpoint/handoff bodies, and secrets must not be persisted; store metadata/hashes/counters only.
 10. GitHub push/publish is Human Escalation; ask before pushing. Final release tag also requires explicit instruction.
@@ -20,7 +20,7 @@ Repo: `https://github.com/kagioneko/cpos-engine-zero.git`
 Working directory: `/home/mayutama/cpos_defensive_agent`
 Branch: `main`
 Remote status before this memo commit: `main...origin/main`
-Latest pushed commit: `c6c2298 Add external agent adapter integration example`
+Latest pushed commit: `bd250b8 Add adapter schema validation`
 Release/tag status: final **v0.1.0** tag has been created and pushed; GitHub Release is published. Existing remote/local release-candidate tag: `v0.1.0-rc1` -> `0f1e585 Prepare CPOS Engine-Zero for OSS release` from 2026-05-29.
 
 ## Absolute first steps next session
@@ -39,7 +39,7 @@ Expected after this memo is committed and pushed:
 - `prepublish_check`: `ok=true`
 - Secret scan: `ok=true count=0`
 - Working tree: clean
-- Full tests last verified: `320 passed`
+- Full tests last verified: `325 passed`
 
 ## Latest pushed commits
 
@@ -56,12 +56,13 @@ Pushed to `origin main`:
 9. `cce2855 Add demo evidence assets to README`
 10. `c5129aa Update handoff with demo asset polish`
 11. `c6c2298 Add external agent adapter integration example`
+12. `bd250b8 Add adapter schema validation`
 
 Previous pushed handoff/tag status commit:
 
 - `e7d641b Clarify v0.1 release tag status`
 
-Release docs now record latest full test count: `320 passed`.
+Latest full test count after adapter schema validation: `325 passed`.
 
 ## Completion/readiness assessment
 
@@ -80,9 +81,47 @@ Latest pushed capabilities:
 - Competitive Demo Readiness now highlights External Agent Adapter + Result Scoreboard in the main demo path.
 - Metadata-only demo capture assets are committed under `docs/assets/demo/` and linked from README.
 - External agent integration docs and a stdlib-only example client are committed.
-- Full test count is now `320 passed`; prepublish and secret scan are clean.
+- Full test count is now `325 passed`; prepublish and secret scan are clean.
 
 ## What changed most recently
+
+### Adapter Schema Validation
+
+Added lightweight schema validation for `/agent-adapter/intake` and pushed it to `origin/main` in `bd250b8 Add adapter schema validation`.
+
+Behavior:
+
+- Invalid adapter payloads are rejected before any Task Tape event is written.
+- Invalid responses use `error=schema_validation_failed` with `cpos.external_agent_action_validation.v1`.
+- Validation errors are metadata-only: field names, stable error codes, and safety flags only.
+- Raw command strings, raw diffs, raw stdout/stderr, raw request bodies, and secret-like values are not echoed in validation responses.
+- `commands` and `changed_files` must be arrays of strings.
+- `command_request` requires at least one command.
+- `proposed_diff` requires a non-empty string.
+- `metadata.risk` is limited to `low`, `medium`, `high`, or `critical`.
+- bool/int metadata fields are type checked.
+- `execution_result` must be a redacted/status-only object; raw output keys such as `stdout`, `stderr`, `output`, `raw_output`, `logs`, and `traceback` are rejected.
+
+Touched files:
+
+- `cpos/agent_adapter.py`
+- `server.py`
+- `tests/test_agent_adapter.py`
+- `docs/AGENT_ADAPTER_SCHEMA.md`
+- `docs/backlog/V0_1_1_BACKLOG.md`
+
+Verification after commit/push:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m pytest tests/test_agent_adapter.py -q
+# 9 passed
+
+PYTHONPATH=. .venv/bin/python -m pytest tests -q
+# 325 passed
+
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+# ok=true; secret_scan ok=true count=0
+```
 
 ### External Agent Adapter MVP
 
@@ -229,7 +268,7 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/test_agent_adapter.py tests/test_d
 # 46 passed
 
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 320 passed
+# 325 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan ok=true count=0
@@ -320,7 +359,7 @@ PYTHONPATH=. .venv/bin/python -m cpos.release_check --json
 # ok=true
 
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 320 passed
+# 325 passed
 
 git tag --list 'v0.1*'
 # v0.1.0-rc1
@@ -361,7 +400,7 @@ PYTHONPATH=. .venv/bin/python -m cpos.release_check --json
 # ok=true
 
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 320 passed
+# 325 passed
 
 git tag --list 'v0.1.0'
 # no output before final tag creation
