@@ -201,3 +201,20 @@ def test_announcement_copy_pack_is_linked_and_safety_focused():
     assert 'fully autonomous unrestricted coding agent' in copy
     assert 'metadata-only' in copy
     assert 'Human Escalation' in copy
+
+
+def test_local_runtime_inventory_is_linked_and_non_destructive():
+    readme = open('README.md', encoding='utf-8').read()
+    inventory = open('docs/LOCAL_RUNTIME_FILE_INVENTORY.md', encoding='utf-8').read()
+
+    assert 'docs/LOCAL_RUNTIME_FILE_INVENTORY.md' in readme
+    assert 'Local Runtime File Inventory' in inventory
+    assert 'Do not delete files automatically' in inventory
+    assert 'Do not run `rm -rf` without explicit confirmation' in inventory
+    assert 'Do not print secrets' in inventory
+    assert '.venv/' in inventory
+    assert 'cpos/*.jsonl' in inventory
+    assert 'certs/' in inventory
+    assert 'hackathon_report.html' in inventory
+    assert 'Never modify `authorized_keys`' in inventory
+    assert 'prepublish_check' in inventory

@@ -93,6 +93,8 @@ Acceptance criteria:
 
 ## Priority 5 — Local runtime file inventory
 
+Status: implemented on `main`; see `docs/LOCAL_RUNTIME_FILE_INVENTORY.md`.
+
 Goal: help keep the working directory understandable after release.
 
 Suggested scope:
