@@ -8,6 +8,8 @@ Do not add large runtime features unless there is a concrete target integration.
 
 ## Priority 1 — Adapter schema validation
 
+Status: implemented on `main` after v0.1.0; keep extending tests/docs as integrations appear.
+
 Goal: make External Agent Adapter requests easier to validate and safer to integrate.
 
 Suggested scope:

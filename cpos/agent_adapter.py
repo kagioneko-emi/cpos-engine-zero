@@ -10,6 +10,27 @@ from .task_tape import TaskTapeStore
 REVIEW_TYPE = "external_agent_action"
 TERMINAL_EVENTS = {"external_agent_action_approved", "external_agent_action_rejected"}
 ALLOWED_EVENT_TYPES = {"agent_intent", "proposed_action", "proposed_diff", "command_request", "execution_result"}
+ALLOWED_RISK_LEVELS = {"low", "medium", "high", "critical"}
+EXECUTION_RESULT_ALLOWED_KEYS = {
+    "status",
+    "output_redacted",
+    "summary",
+    "result_kind",
+    "failure_kind",
+    "artifact_refs",
+    "metrics",
+}
+EXECUTION_RESULT_FORBIDDEN_RAW_KEYS = {"stdout", "stderr", "output", "raw_output", "logs", "traceback"}
+BOOLEAN_METADATA_KEYS = {
+    "requires_human_approval",
+    "touches_secrets",
+    "touches_production",
+    "destructive",
+    "success",
+    "requires_publish",
+    "opens_port",
+}
+INTEGER_METADATA_KEYS = {"exit_code", "duration_ms"}
 
 
 def _stable_digest(value: Any) -> dict[str, Any]:
@@ -22,6 +43,139 @@ def _string_list(values: Any) -> list[str]:
     if not isinstance(values, list):
         return []
     return [str(value) for value in values[:100]]
+
+
+def _validation_error(code: str, field: str, message: str) -> dict[str, str]:
+    return {"code": code, "field": field, "message": message}
+
+
+def _is_string_list(values: Any) -> bool:
+    return isinstance(values, list) and all(isinstance(value, str) for value in values)
+
+
+def validate_external_agent_action_payload(
+    *,
+    event_type: Any,
+    commands: Any = None,
+    changed_files: Any = None,
+    metadata: Any = None,
+    proposed_diff: Any = None,
+    execution_result: Any = None,
+) -> dict[str, Any]:
+    """Validate adapter payload shape without echoing raw request content."""
+    errors: list[dict[str, str]] = []
+    normalized_event_type = str(event_type or "")
+    if normalized_event_type not in ALLOWED_EVENT_TYPES:
+        errors.append(_validation_error(
+            "unsupported_event_type",
+            "event_type",
+            "event_type must be one of the allowed adapter event types.",
+        ))
+
+    if commands is not None and not _is_string_list(commands):
+        errors.append(_validation_error(
+            "commands_must_be_string_array",
+            "commands",
+            "commands must be an array of strings when provided.",
+        ))
+    if changed_files is not None and not _is_string_list(changed_files):
+        errors.append(_validation_error(
+            "changed_files_must_be_string_array",
+            "changed_files",
+            "changed_files must be an array of strings when provided.",
+        ))
+
+    metadata_dict: dict[str, Any] = {}
+    if metadata is not None:
+        if not isinstance(metadata, dict):
+            errors.append(_validation_error(
+                "metadata_must_be_object",
+                "metadata",
+                "metadata must be an object when provided.",
+            ))
+        else:
+            metadata_dict = metadata
+
+    risk = metadata_dict.get("risk")
+    if risk is not None and str(risk) not in ALLOWED_RISK_LEVELS:
+        errors.append(_validation_error(
+            "metadata_risk_invalid",
+            "metadata.risk",
+            "metadata.risk must be one of low, medium, high, or critical.",
+        ))
+
+    for key in BOOLEAN_METADATA_KEYS:
+        if key in metadata_dict and not isinstance(metadata_dict.get(key), bool):
+            errors.append(_validation_error(
+                "metadata_bool_invalid",
+                f"metadata.{key}",
+                f"metadata.{key} must be a boolean when provided.",
+            ))
+    for key in INTEGER_METADATA_KEYS:
+        if key in metadata_dict and not isinstance(metadata_dict.get(key), int):
+            errors.append(_validation_error(
+                "metadata_int_invalid",
+                f"metadata.{key}",
+                f"metadata.{key} must be an integer when provided.",
+            ))
+
+    if normalized_event_type == "command_request" and not (isinstance(commands, list) and len(commands) > 0):
+        errors.append(_validation_error(
+            "command_request_requires_commands",
+            "commands",
+            "command_request requires at least one command string.",
+        ))
+
+    if normalized_event_type == "proposed_diff":
+        if not isinstance(proposed_diff, str) or proposed_diff == "":
+            errors.append(_validation_error(
+                "proposed_diff_requires_string",
+                "proposed_diff",
+                "proposed_diff requires a non-empty string.",
+            ))
+
+    if normalized_event_type == "execution_result":
+        if execution_result is None:
+            errors.append(_validation_error(
+                "execution_result_required",
+                "execution_result",
+                "execution_result requires a redacted/status-only object.",
+            ))
+        elif not isinstance(execution_result, dict):
+            errors.append(_validation_error(
+                "execution_result_must_be_object",
+                "execution_result",
+                "execution_result must be a redacted/status-only object.",
+            ))
+        else:
+            raw_keys = sorted(str(key) for key in execution_result.keys() if str(key) in EXECUTION_RESULT_FORBIDDEN_RAW_KEYS)
+            if raw_keys:
+                errors.append(_validation_error(
+                    "execution_result_raw_output_key_forbidden",
+                    "execution_result",
+                    "execution_result must not include raw stdout/stderr/output/log fields.",
+                ))
+            unknown_keys = sorted(str(key) for key in execution_result.keys() if str(key) not in EXECUTION_RESULT_ALLOWED_KEYS)
+            if unknown_keys:
+                errors.append(_validation_error(
+                    "execution_result_unknown_key",
+                    "execution_result",
+                    "execution_result may only include redacted/status-only keys.",
+                ))
+
+    return {
+        "ok": not errors,
+        "schema": "cpos.external_agent_action_validation.v1",
+        "errors": errors,
+        "allowed_event_types": sorted(ALLOWED_EVENT_TYPES),
+        "allowed_risk_levels": sorted(ALLOWED_RISK_LEVELS),
+        "metadata_only": True,
+        "raw_request_stored": False,
+        "raw_diff_stored": False,
+        "raw_outputs_stored": False,
+        "secret_values_stored": False,
+        "execute_automatically": False,
+    }
 
 
 def _result_summary(execution_result: Any, metadata: dict[str, Any]) -> dict[str, Any] | None:
@@ -116,8 +270,16 @@ def intake_external_agent_action(
     actor: str = "ExternalAgentAdapter",
 ) -> dict[str, Any]:
     event_type = str(event_type or "proposed_action")
-    if event_type not in ALLOWED_EVENT_TYPES:
-        return {"ok": False, "error": "unsupported_event_type", "allowed_event_types": sorted(ALLOWED_EVENT_TYPES)}
+    validation = validate_external_agent_action_payload(
+        event_type=event_type,
+        commands=commands,
+        changed_files=changed_files,
+        metadata=metadata,
+        proposed_diff=proposed_diff,
+        execution_result=execution_result,
+    )
+    if not validation["ok"]:
+        return {"ok": False, "error": "schema_validation_failed", "validation": validation, "execute_automatically": False}
     metadata = metadata if isinstance(metadata, dict) else {}
     commands_list = _string_list(commands)
     files = _string_list(changed_files)

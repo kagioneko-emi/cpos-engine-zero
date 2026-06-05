@@ -770,7 +770,7 @@ def external_agent_action_intake():
         commands=data.get('commands'),
         execution_result=data.get('execution_result'),
         changed_files=data.get('changed_files'),
-        metadata=data.get('metadata') if isinstance(data.get('metadata'), dict) else {},
+        metadata=data.get('metadata'),
         actor=request_actor(),
     )
     status = 200 if result.get('ok') else 400

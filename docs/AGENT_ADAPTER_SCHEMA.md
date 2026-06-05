@@ -110,6 +110,48 @@ Expected behavior:
 - Raw stdout/stderr must not be sent and are not persisted.
 - The result payload is stored as digest/size only.
 
+## Schema validation
+
+`POST /agent-adapter/intake` validates the request shape before any Task Tape event is written. Invalid requests return `400` with `error=schema_validation_failed` and a metadata-only validation report. The response lists field names and error codes only; it does not echo raw commands, raw diffs, raw stdout/stderr, or secret-looking values.
+
+Validation rules:
+
+- `event_type` must be one of `agent_intent`, `proposed_action`, `proposed_diff`, `command_request`, `execution_result`.
+- `commands` and `changed_files`, when present, must be arrays of strings.
+- `command_request` requires at least one command string. Commands are never executed by the adapter.
+- `proposed_diff` requires a non-empty string. The raw diff is accepted transiently only and persisted as digest/size on valid intake.
+- `metadata.risk`, when present, must be `low`, `medium`, `high`, or `critical`.
+- Boolean metadata flags such as `requires_human_approval`, `touches_secrets`, `touches_production`, `destructive`, and `success` must be booleans when present.
+- `metadata.exit_code` and `metadata.duration_ms` must be integers when present.
+- `execution_result` must be a redacted/status-only object. Keys such as `stdout`, `stderr`, `output`, `raw_output`, `logs`, and `traceback` are rejected.
+
+Example invalid response:
+
+```json
+{
+  "ok": false,
+  "error": "schema_validation_failed",
+  "validation": {
+    "schema": "cpos.external_agent_action_validation.v1",
+    "ok": false,
+    "errors": [
+      {
+        "code": "commands_must_be_string_array",
+        "field": "commands",
+        "message": "commands must be an array of strings when provided."
+      }
+    ],
+    "metadata_only": true,
+    "raw_request_stored": false,
+    "raw_diff_stored": false,
+    "raw_outputs_stored": false,
+    "secret_values_stored": false,
+    "execute_automatically": false
+  },
+  "execute_automatically": false
+}
+```
+
 ## Response contract
 
 Successful intake returns:
