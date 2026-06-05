@@ -437,15 +437,15 @@
 
 
         <div id="agent-adapter-section" class="card" style="display: none; border-color: var(--accent-green); margin-bottom: 30px;">
-            <h2>External Agent Adapter Queue</h2>
-            <p class="muted">Ingress gate for Codex/Hermes/OpenClaw-style agents. Stores contract metadata and hashes only; no raw requests, raw diffs, command output, secrets, or automatic execution.</p>
+            <h2>External Agent Adapter — Metadata-only Review Queue</h2>
+            <p class="muted">Safety ingress for Codex/Hermes/OpenClaw-style agents. Contract approval records metadata only; it does not run commands. No raw requests, raw diffs, raw stdout/stderr, secrets, or automatic execution.</p>
             <div id="agent-adapter-summary" class="muted" style="margin-bottom: 12px;">Loading external agent actions...</div>
             <div id="agent-adapter-container"></div>
         </div>
 
         <div id="human-escalation-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
-            <h2>Human Escalation Queue</h2>
-            <p class="muted">Assisted autonomy gate across review pipelines. Metadata-only: no secrets, raw request bodies, raw diffs, stdout/stderr, or checkpoint contents are persisted.</p>
+            <h2>Human Escalation — Assisted Autonomy Gates</h2>
+            <p class="muted">Assisted autonomy gate across review pipelines. Human decision queue with metadata-only decisions; no secrets, raw request bodies, raw diffs, stdout/stderr, or checkpoint contents are persisted.</p>
             <div id="human-escalation-summary" class="muted" style="margin-bottom: 12px;">Loading Human Escalation decisions...</div>
             <div id="human-escalation-container"></div>
         </div>
@@ -469,8 +469,8 @@
             <div id="sandbox-patch-container"></div>
         </div>
         <div id="ready-to-run-execution-section" class="card" style="display: none; border-color: var(--accent-orange); margin-bottom: 30px;">
-            <h2>Ready-to-Run Execution Reviews</h2>
-            <p class="muted">Final human run gate after safe advance. Approval and run stay separate; diff text is supplied transiently and raw outputs are never persisted.</p>
+            <h2>Ready-to-Run Execution — Final Human Run Gate</h2>
+            <p class="muted">Final human run gate after safe advance. Plan approval and actual run stay separate; diff text is supplied transiently and raw outputs are never persisted.</p>
             <div id="ready-to-run-execution-summary" class="muted" style="margin-bottom: 12px;">Loading ready-to-run execution reviews...</div>
             <div id="ready-to-run-execution-container"></div>
         </div>
@@ -1140,7 +1140,7 @@
                         return;
                     }
                     section.style.display = 'block';
-                    summary.innerText = `pending_actions=${reviews.length}, completed_results=${agentResultData.completed_results || 0}, success_rate=${agentResultData.success_rate || 0}%, metadata_only=true, raw_request_stored=false, raw_diff_stored=false, raw_outputs_stored=false, auto_execute=false`;
+                    summary.innerText = `pending_contract_reviews=${reviews.length}, completed_result_reports=${agentResultData.completed_results || 0}, success_rate=${agentResultData.success_rate || 0}%, contract_approval_only=true, metadata_only=true, raw_request_stored=false, raw_diff_stored=false, raw_outputs_stored=false, no_auto_execute=true`;
                     container.innerHTML = '';
                     if (results.length) {
                         const resultDiv = document.createElement('div');
@@ -1150,8 +1150,8 @@
                         resultDiv.style.borderColor = 'var(--accent-green)';
                         const recent = results.slice(-5).reverse().map(item => `<li><code>${item.task_id || '-'}</code> agent=${item.agent_name || '-'} success=${item.success} exit=${item.exit_code ?? '-'} failure=${item.failure_kind || '-'} raw_outputs_stored=${item.raw_outputs_stored}</li>`).join('');
                         resultDiv.innerHTML = `
-                            <strong style="color: var(--accent-green);">[EXTERNAL AGENT EXECUTION RESULTS]</strong><br>
-                            <span class="muted">completed=${agentResultData.completed_results || 0} / success=${agentResultData.success_results || 0} / failure=${agentResultData.failure_results || 0} / success_rate=${agentResultData.success_rate || 0}%</span><br>
+                            <strong style="color: var(--accent-green);">[EXTERNAL AGENT RESULT SCOREBOARD]</strong><br>
+                            <span class="muted">redacted/status-only reports: completed=${agentResultData.completed_results || 0} / success=${agentResultData.success_results || 0} / failure=${agentResultData.failure_results || 0} / success_rate=${agentResultData.success_rate || 0}%</span><br>
                             <span class="muted">metadata_only=${agentResultData.metadata_only} / raw_outputs_stored=${agentResultData.raw_outputs_stored} / execute_automatically=${agentResultData.execute_automatically}</span>
                             <ul>${recent}</ul>
                         `;
@@ -1168,11 +1168,12 @@
                         div.innerHTML = `
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                                 <div>
-                                    <strong style="color: var(--accent-green);">[EXTERNAL AGENT ACTION]</strong> <code>${review.task_id}</code><br>
+                                    <strong style="color: var(--accent-green);">[EXTERNAL AGENT CONTRACT REVIEW]</strong> <code>${review.task_id}</code><br>
                                     <span class="muted">agent=${contract.agent_name || '-'} / event=${contract.event_type || '-'} / decision=${contract.adapter_decision || '-'}</span><br>
                                     <span class="muted">risk=${contract.risk || '-'} / commands=${contract.command_count || 0} / files=${contract.changed_file_count || 0}</span><br>
                                     <span class="muted">contract_sha256=${contract.contract_sha256 || '-'}</span><br>
-                                    <span class="muted">metadata_only=${review.metadata_only} / raw_request_stored=${contract.raw_request_stored} / raw_diff_stored=${contract.raw_diff_stored} / raw_outputs_stored=${contract.raw_outputs_stored} / execute_automatically=${contract.execute_automatically}</span>
+                                    <span class="muted">contract_approval_only=true / metadata_only=${review.metadata_only} / raw_request_stored=${contract.raw_request_stored} / raw_diff_stored=${contract.raw_diff_stored} / raw_outputs_stored=${contract.raw_outputs_stored} / execute_automatically=${contract.execute_automatically}</span>
+                                    <div class="muted" style="margin-top: 4px;">Approval records this contract only; execution remains separately gated.</div>
                                     <div style="margin-top: 8px;"><strong>Changed files</strong><br>${files}</div>
                                 </div>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
@@ -1195,7 +1196,7 @@
                         return;
                     }
                     section.style.display = 'block';
-                    summary.innerText = `ready_reviews=${reviews.length}, explicit_approval_required=true, transient_diff_required=true, raw_diff_stored=false, raw_outputs_stored=false, auto_execute=false`;
+                    summary.innerText = `ready_reviews=${reviews.length}, explicit_human_run_approval_required=true, plan_approval_separate_from_run=true, transient_diff_required=true, raw_diff_stored=false, raw_outputs_stored=false, no_auto_execute=true`;
                     container.innerHTML = '';
                     reviews.slice(-5).reverse().forEach(review => {
                         const div = document.createElement('div');

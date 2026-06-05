@@ -191,8 +191,9 @@ def test_dashboard_contains_ready_to_run_execution_review_ui():
     assert '/sandbox/executions/ready-to-run' in html
     assert 'renderReadyToRunExecutions' in html
     assert 'READY-TO-RUN EXECUTION REVIEW' in html
-    assert 'Ready-to-Run Execution Reviews' in html
+    assert 'Ready-to-Run Execution — Final Human Run Gate' in html
     assert 'Final human run gate' in html
+    assert 'Plan approval and actual run stay separate' in html
     assert 'transient_diff_required=true' in html
     assert 'Approve Execution Plan Only' in html
     assert 'Approve + Run with Supplied Diff' in html
@@ -385,3 +386,30 @@ def test_dashboard_contains_competitive_demo_readiness_ui():
     assert 'approval_separated' in html
     assert 'raw_diff_stored' in html
     assert 'Ready-to-Run Gate' in html
+
+
+def test_dashboard_contains_external_agent_adapter_wording_polish():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'External Agent Adapter — Metadata-only Review Queue' in html
+    assert 'Safety ingress for Codex/Hermes/OpenClaw-style agents' in html
+    assert 'Contract approval records metadata only; it does not run commands' in html
+    assert 'EXTERNAL AGENT RESULT SCOREBOARD' in html
+    assert 'redacted/status-only reports' in html
+    assert 'EXTERNAL AGENT CONTRACT REVIEW' in html
+    assert 'contract_approval_only=true' in html
+    assert 'no_auto_execute=true' in html
+    assert 'Approval records this contract only; execution remains separately gated.' in html
+
+
+def test_dashboard_contains_human_escalation_wording_polish():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'Human Escalation — Assisted Autonomy Gates' in html
+    assert 'Human decision queue with metadata-only decisions' in html
+    assert 'metadata-only decisions' in html
+    assert 'plan_approval_separate_from_run=true' in html

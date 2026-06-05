@@ -114,6 +114,8 @@ Acceptance criteria:
 
 ## Priority 6 — Dashboard wording polish
 
+Status: implemented on `main`; dashboard copy now emphasizes metadata-only review contracts, no auto execution, and separated approval/run gates.
+
 Goal: make demo/dashboard copy clearer for first-time viewers.
 
 Suggested scope:
