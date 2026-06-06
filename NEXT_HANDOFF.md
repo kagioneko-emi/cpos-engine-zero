@@ -748,3 +748,60 @@ PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --json
 
 The snapshot combines Git sensor, Time sensor, release readiness, known risks, suggested next actions, and the public/private repository boundary. It does not store raw logs, raw diffs, secret values, or execute actions.
 
+
+## Latest Handoff — World Model pushed
+
+Current state after latest push:
+
+```bash
+cd /home/mayutama/cpos_defensive_agent
+git status --short --branch
+# ## main...origin/main
+
+PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
+# ok=true; secret_scan ok=true count=0
+```
+
+Latest pushed CPOS commit:
+
+- `801eee6 Add world model snapshot MVP`
+
+New command:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --json
+```
+
+What it does:
+
+- combines Git sensor, Time sensor, release readiness, known risks, suggested next actions, and public/private repo boundary
+- read-only / metadata-only
+- no raw logs
+- no raw diffs
+- no secret values
+- no automatic execution
+
+Validation before push:
+
+- full tests: `349 passed`
+- secret scan: `count=0`
+- prepublish: `ok=true`
+
+Repo boundary remains important:
+
+- Public CPOS: `kagioneko/cpos-engine-zero` for release-ready public safety-kernel code/docs/tests.
+- Private lab: `kagioneko/cognitive-agent-os-lab` for Cognitive Agent OS research/materials, AGI-modoki framing, Android Emilia bridge planning, DB/reflection-source planning.
+- Private lab is not a secrets store; never commit credentials, `.env`, raw DB dumps, raw private logs, OAuth tokens, or SSH keys.
+
+Recent private/Zenn state:
+
+- Private lab has `docs/AGI_MODOKI_CAPABILITY_MAP.md` and `docs/PUBLIC_ARTICLE_DRAFT_COGNITIVE_AGENT_OS.md`, pushed.
+- Zenn has `articles/cognitive-agent-os-safety-kernel.md` with `published: false`, pushed.
+
+Recommended next options:
+
+1. Goal Manager MVP.
+2. DB inventory sensor path-only.
+3. Android Emilia bridge inventory sensor observe-only.
+4. Private lab Mermaid/diagram for AGI-modoki/Cognitive Agent OS.
+5. Polish/publish Zenn article only after explicit confirmation.
