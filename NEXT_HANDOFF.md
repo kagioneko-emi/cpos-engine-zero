@@ -3,7 +3,7 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `336 passed`.
+4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `337 passed`.
 5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `135a3c4 Note v0.1.1 rc pause`; latest tag: `v0.1.1-rc1`; GitHub prerelease is published.
 6. Final **v0.1.0** tag and GitHub Release are published. v0.1.1-rc1 prerelease is published. Do not create/publish final v0.1.1 without explicit user confirmation.
 7. v0.1.1 stabilization Priority 1–6 is complete on `main`: adapter schema validation, payload examples, 5-minute guide, announcement copy, local runtime inventory, dashboard wording polish.
@@ -37,7 +37,7 @@ Expected after this memo is committed and pushed:
 - `prepublish_check`: `ok=true`
 - Secret scan: `ok=true count=0`
 - Working tree: clean
-- Full tests last verified before this memo: `336 passed`
+- Full tests last verified before this memo: `337 passed`
 
 ## v0.1.1 stabilization complete
 
@@ -58,7 +58,7 @@ Current test/prepublish baseline before this memo commit:
 
 ```bash
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 336 passed
+# 337 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan ok=true count=0
@@ -90,6 +90,23 @@ Local helper log: `docs/NEXT_WORK_SEQUENCE.md`.
 
 
 
+
+
+## Event Bus and World Model spec draft
+
+Created `docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md` as a documentation-only spec.
+
+Scope:
+
+- shared cognitive event schema
+- event types: sensor_event, goal_update, memory_pointer, state_delta, action_proposal, review_decision, execution_result, reflection_note, sleep_consolidation
+- world fact schema
+- repo/release/docker/article/goal/risk/memory fact categories
+- staleness and conflict rules
+- relation to CPOS Task Tape, Observatory, and tape-memory
+- no implementation started
+
+This completes a first doc-only chain: Architecture → Sensor/Goal Spec → Event Bus/World Model Spec.
 
 ## Sensor and Goal Manager spec draft
 

@@ -232,7 +232,7 @@ def test_v0_1_1_summary_is_linked_and_complete():
     assert 'announcement copy pack' in summary.lower()
     assert 'Local runtime file inventory' in summary
     assert 'Dashboard wording polish' in summary
-    assert '336 passed' in summary
+    assert '337 passed' in summary
     assert 'prepublish_check' in summary
     assert 'Do not tag, push, publish' in summary
 
@@ -247,7 +247,7 @@ def test_v0_1_1_release_notes_and_draft_are_linked_and_safety_focused():
     assert 'v0.1.1 Release Notes' in notes
     assert 'CPOS for Agents' in notes
     assert 'Adapter schema validation' in notes
-    assert '336 passed' in notes
+    assert '337 passed' in notes
     assert 'prepublish_check' in notes
     assert 'CPOS Engine-Zero v0.1.1' in draft
     assert 'External Agent Adapter validation' in draft
@@ -311,3 +311,23 @@ def test_sensor_and_goal_manager_spec_is_linked_and_doc_only():
     assert 'Human Escalation triggers' in spec
     assert 'Not implemented by this spec' in spec
     assert 'Sensor and Goal Manager spec draft' in handoff
+
+
+def test_event_bus_and_world_model_spec_is_linked_and_doc_only():
+    readme = open('README.md', encoding='utf-8').read()
+    spec = open('docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+
+    assert 'docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md' in readme
+    assert 'Event Bus and World Model Spec' in spec
+    assert 'documentation-only specification' in spec
+    assert 'Base event schema' in spec
+    assert 'sensor_event' in spec
+    assert 'goal_update' in spec
+    assert 'world fact schema' in spec.lower()
+    assert 'Staleness rules' in spec
+    assert 'Relationship to CPOS Task Tape' in spec
+    assert 'Relationship to Observatory' in spec
+    assert 'Relationship to tape-memory' in spec
+    assert 'implementation should wait for review' in spec
+    assert 'Event Bus and World Model spec draft' in handoff
