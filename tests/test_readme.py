@@ -368,3 +368,19 @@ def test_android_emilia_and_db_inventory_docs_are_linked_and_safe():
     assert 'no token/config values' in db
     assert 'DB reflection source inventory note' in handoff
     assert 'Android Emilia sensor bridge note' in handoff
+
+
+
+def test_world_model_snapshot_command_is_linked_and_safe():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    world_model = open('cpos/world_model.py', encoding='utf-8').read()
+
+    assert 'cpos.world_model snapshot --json' in readme
+    assert 'World Model snapshot MVP' in handoff
+    assert 'kagioneko.world_model_snapshot.v1' in world_model
+    assert 'metadata_only' in world_model
+    assert 'raw_diff_stored' in world_model
+    assert 'secret_values_stored' in world_model
+    assert 'execute_automatically' in world_model
+    assert 'kagioneko/cognitive-agent-os-lab' in world_model

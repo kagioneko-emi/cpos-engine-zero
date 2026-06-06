@@ -737,3 +737,14 @@ Use split going forward:
 Never put credentials, `.env`, raw DB dumps, raw private logs, API keys, OAuth tokens, or SSH keys in either repo. Private lab is not a secrets store.
 
 Do not move private lab material into public CPOS until sanitized and explicitly reviewed.
+
+## World Model snapshot MVP
+
+Added `cpos.world_model` with a read-only metadata-only snapshot command:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --json
+```
+
+The snapshot combines Git sensor, Time sensor, release readiness, known risks, suggested next actions, and the public/private repository boundary. It does not store raw logs, raw diffs, secret values, or execute actions.
+
