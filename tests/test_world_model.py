@@ -151,3 +151,60 @@ def test_world_model_optional_sensors_are_absent_by_default(monkeypatch, tmp_pat
     snapshot = world_model.build_world_model_snapshot(tmp_path)
 
     assert snapshot['optional_sensors'] == {}
+
+
+def test_world_model_goal_store_validation_summary(monkeypatch, tmp_path):
+    monkeypatch.setattr(world_model, '_repo_root', lambda: tmp_path)
+    monkeypatch.setattr(world_model, 'observe_git_repo', lambda repo: _event(metadata={'ahead': 0, 'behind': 0}))
+    monkeypatch.setattr(world_model, 'observe_time_session', lambda repo: _event(source='time', event_type='normal_session_time', metadata={'extra_confirmation_for_high_stakes': False}))
+    monkeypatch.setattr(world_model, 'run_release_check', lambda: {'ok': True, 'git_status_lines': [], 'tracked_bad_artifacts': [], 'missing_files': [], 'failures': []})
+    monkeypatch.setattr(world_model, 'validate_goal_store_file', lambda path, include_merged_summary=True: {
+        'schema': 'kagioneko.goal_store_validation.v1',
+        'ok': True,
+        'goal_count': 1,
+        'merged_goal_count': 9,
+        'external_goal_ids': ['demo_goal'],
+        'errors': [],
+        'write_enabled': False,
+        'autonomous_goal_updates': False,
+        'self_preservation_goals': False,
+    })
+
+    snapshot = world_model.build_world_model_snapshot(tmp_path, goal_store_path=tmp_path / 'goals.json')
+
+    assert_snapshot_safety(snapshot)
+    validation = snapshot['goal_store_validation']
+    assert validation['schema'] == 'kagioneko.goal_store_validation.v1'
+    assert validation['ok'] is True
+    assert validation['goal_count'] == 1
+    assert validation['merged_goal_count'] == 9
+    assert validation['external_goal_ids'] == ['demo_goal']
+    assert validation['error_count'] == 0
+    assert validation['write_enabled'] is False
+    assert validation['execute_automatically'] is False
+
+
+def test_world_model_goal_store_validation_failure_adds_risk(monkeypatch, tmp_path):
+    monkeypatch.setattr(world_model, '_repo_root', lambda: tmp_path)
+    monkeypatch.setattr(world_model, 'observe_git_repo', lambda repo: _event(metadata={'ahead': 0, 'behind': 0}))
+    monkeypatch.setattr(world_model, 'observe_time_session', lambda repo: _event(source='time', event_type='normal_session_time', metadata={'extra_confirmation_for_high_stakes': False}))
+    monkeypatch.setattr(world_model, 'run_release_check', lambda: {'ok': True, 'git_status_lines': [], 'tracked_bad_artifacts': [], 'missing_files': [], 'failures': []})
+    monkeypatch.setattr(world_model, 'validate_goal_store_file', lambda path, include_merged_summary=True: {
+        'schema': 'kagioneko.goal_store_validation.v1',
+        'ok': False,
+        'goal_count': 1,
+        'errors': [{'code': 'write_enabled_forbidden', 'field': 'write_enabled'}],
+        'write_enabled': False,
+        'autonomous_goal_updates': False,
+        'self_preservation_goals': False,
+    })
+
+    snapshot = world_model.build_world_model_snapshot(tmp_path, goal_store_path=tmp_path / 'bad.json')
+
+    validation = snapshot['goal_store_validation']
+    assert validation['ok'] is False
+    assert validation['error_count'] == 1
+    assert validation['error_codes'] == ['write_enabled_forbidden']
+    names = {risk['name'] for risk in snapshot['known_risks']}
+    assert 'goal_store_validation_failed' in names
+    assert snapshot['overall_risk'] == 'medium'

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .goal_store import validate_file as validate_goal_store_file
 from .goals import goal_summary
 from .release_check import run_release_check
 from .sensors.android_emilia_sensor import observe_android_emilia_bridge
@@ -97,6 +98,42 @@ def _optional_sensor_risks(optional_sensors: dict[str, Any]) -> list[dict[str, s
         risks.append({"risk": "medium", "name": "android_emilia_bridge_observed", "summary": "Android Emilia references detected; privacy review required before ingestion"})
     return risks
 
+
+
+def _compact_goal_store_validation(result: dict[str, Any], path: str | Path) -> dict[str, Any]:
+    errors = result.get("errors") or []
+    return {
+        "schema": result.get("schema"),
+        "path": str(path),
+        "ok": bool(result.get("ok")),
+        "goal_count": result.get("goal_count", 0),
+        "merged_goal_count": result.get("merged_goal_count"),
+        "external_goal_ids": result.get("external_goal_ids", []),
+        "error_count": len(errors),
+        "error_codes": sorted({str(error.get("code")) for error in errors if isinstance(error, dict)}),
+        "write_enabled": False,
+        "autonomous_goal_updates": False,
+        "self_preservation_goals": False,
+        "metadata_only": True,
+        "raw_request_stored": False,
+        "raw_diff_stored": False,
+        "raw_outputs_stored": False,
+        "secret_values_stored": False,
+        "execute_automatically": False,
+    }
+
+
+def _goal_store_risks(goal_store_validation: dict[str, Any] | None) -> list[dict[str, str]]:
+    if not goal_store_validation:
+        return []
+    if goal_store_validation.get("ok"):
+        return []
+    return [{
+        "risk": "medium",
+        "name": "goal_store_validation_failed",
+        "summary": "Goal store validation failed; use defaults or fix goal store before relying on persisted goals",
+    }]
+
 def _release_state(release_check: dict[str, Any]) -> dict[str, Any]:
     return {
         "repo": PUBLIC_REPO,
@@ -157,6 +194,7 @@ def build_world_model_snapshot(
     db_root: str | Path | None = None,
     include_android_emilia: bool = False,
     android_references: dict[str, str] | None = None,
+    goal_store_path: str | Path | None = None,
 ) -> dict[str, Any]:
     repo_path = Path(repo).resolve() if repo else _repo_root()
     git_event = observe_git_repo(repo_path)
@@ -164,11 +202,17 @@ def build_world_model_snapshot(
     release_check = run_release_check() if repo_path == _repo_root() else {"ok": False, "git_status_lines": [], "tracked_bad_artifacts": [], "missing_files": [], "failures": [{"name": "repo", "error": "release_check_only_supported_for_cpos_root"}]}
     goal_state = goal_summary()
     optional_sensors: dict[str, Any] = {}
+    goal_store_validation = None
+    if goal_store_path:
+        goal_store_validation = _compact_goal_store_validation(
+            validate_goal_store_file(goal_store_path, include_merged_summary=True),
+            goal_store_path,
+        )
     if include_db_inventory:
         optional_sensors["db_inventory"] = _compact_sensor(inventory_db_paths(db_root or repo_path))
     if include_android_emilia:
         optional_sensors["android_emilia"] = _compact_sensor(observe_android_emilia_bridge(android_references or {}))
-    risks = _known_risks(git_event, time_event, release_check) + _optional_sensor_risks(optional_sensors)
+    risks = _known_risks(git_event, time_event, release_check) + _optional_sensor_risks(optional_sensors) + _goal_store_risks(goal_store_validation)
     optional_risks = [sensor.get("risk", "low") for sensor in optional_sensors.values()]
     risk = _max_risk(git_event.get("risk", "low"), time_event.get("risk", "low"), *optional_risks, *(item.get("risk", "low") for item in risks))
 
@@ -187,6 +231,7 @@ def build_world_model_snapshot(
         },
         "release": _release_state(release_check),
         "goals": goal_state,
+        "goal_store_validation": goal_store_validation,
         "optional_sensors": optional_sensors,
         "public_private_boundary": {
             "public_repo": PUBLIC_REPO,
@@ -206,6 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
     snapshot = sub.add_parser("snapshot", help="Build current world model snapshot.")
     snapshot.add_argument("--repo", default=None, help="Repository path to observe. Defaults to CPOS root.")
+    snapshot.add_argument("--goal-store", help="Optional goal store JSON to validate and summarize.")
     snapshot.add_argument("--include-db-inventory", action="store_true", help="Include compact path-only DB inventory summary.")
     snapshot.add_argument("--db-root", default=None, help="Root for DB inventory when included. Defaults to observed repo.")
     snapshot.add_argument("--include-android-emilia", action="store_true", help="Include compact Android Emilia bridge inventory summary.")
@@ -243,6 +289,7 @@ def main(argv: list[str] | None = None) -> None:
         db_root=args.db_root,
         include_android_emilia=args.include_android_emilia,
         android_references=android_refs,
+        goal_store_path=args.goal_store,
     )
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))

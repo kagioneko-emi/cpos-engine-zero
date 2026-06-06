@@ -956,3 +956,30 @@ Safety posture:
 
 Goal state update: `goal_store_phase1` is now `done`.
 
+
+## World Model goal store validation summary
+
+Connected Goal Store validation to World Model as an optional compact summary:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --goal-store goals/goals.example.json --json
+```
+
+Safety posture:
+
+- validation only; no writes
+- World Model includes compact validation result only
+- goal bodies are not duplicated in the snapshot
+- error codes/counts only for invalid stores
+- invalid goal store adds `goal_store_validation_failed` known risk
+
+Validation summary includes:
+
+- `ok`
+- `goal_count`
+- `merged_goal_count`
+- `external_goal_ids`
+- `error_count`
+- `error_codes`
+- no-execute / metadata-only flags
+

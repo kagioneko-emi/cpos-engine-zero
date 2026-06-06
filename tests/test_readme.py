@@ -489,3 +489,17 @@ def test_goal_store_validator_is_linked_and_read_only():
     assert 'risky_text_detected' in goal_store
     assert 'goal_store_phase1' in goals
     assert 'kagioneko.goal_set.v1' in example
+
+
+
+def test_world_model_goal_store_summary_is_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    world_model = open('cpos/world_model.py', encoding='utf-8').read()
+
+    assert '--goal-store goals/goals.example.json' in readme
+    assert 'World Model goal store validation summary' in handoff
+    assert 'validation only; no writes' in handoff
+    assert 'goal_store_validation_failed' in world_model
+    assert 'goal_store_validation' in world_model
+    assert '_compact_goal_store_validation' in world_model
