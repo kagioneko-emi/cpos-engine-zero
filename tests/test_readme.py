@@ -553,3 +553,21 @@ def test_resume_pointer_reflection_and_handoff_digest_are_documented():
     assert 'full_handoff_stored' in resume_pointer
     assert 'body_included' in resume_pointer
     assert 'resume_pointer_reflection_handoff' in goals
+
+
+def test_resume_pointer_validator_and_write_plan_are_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    resume_pointer = open('cpos/resume_pointer.py', encoding='utf-8').read()
+    bridge = open('docs/TAPE_MEMORY_BRIDGE_DESIGN.md', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert 'cpos.resume_pointer validate --pointer-json pointer.json --json' in readme
+    assert 'cpos.resume_pointer write-plan --pointer-json pointer.json --json' in readme
+    assert 'Resume Pointer validator + tape-memory write dry-run plan' in handoff
+    assert 'kagioneko.resume_pointer_validation.v1' in resume_pointer
+    assert 'kagioneko.tape_memory_write_plan.v1' in resume_pointer
+    assert 'would_write' in resume_pointer
+    assert 'dry_run=true' in bridge
+    assert 'would_write=false' in bridge
+    assert 'resume_pointer_validator_dry_run' in goals

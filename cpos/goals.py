@@ -221,6 +221,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/resume_pointer.py", "tests/test_resume_pointer.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="resume_pointer_validator_dry_run",
+            title="Add resume pointer validator and tape-memory write dry-run plan",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["pointer validator exists", "dry-run write plan exists", "tests pass", "no tape-memory writes"],
+            safety_constraints=["dry-run only", "would_write=false", "write_enabled=false", "human confirmation and secret scan required before any future write"],
+            source_of_truth=["cpos/resume_pointer.py", "docs/TAPE_MEMORY_BRIDGE_DESIGN.md", "tests/test_resume_pointer.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 

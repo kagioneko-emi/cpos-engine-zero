@@ -1084,3 +1084,22 @@ Behavior:
 - raw command output, raw diffs, request bodies, full handoff content, private repo content, DB rows, Android/phone data, and secrets are not stored.
 
 Goal state update: `resume_pointer_reflection_handoff` is now `done`.
+
+## Resume Pointer validator + tape-memory write dry-run plan
+
+Extended `cpos.resume_pointer` with validation and dry-run planning:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pointer validate --pointer-json pointer.json --json
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pointer write-plan --pointer-json pointer.json --json
+```
+
+Behavior:
+
+- Validator schema: `kagioneko.resume_pointer_validation.v1`.
+- Dry-run plan schema: `kagioneko.tape_memory_write_plan.v1`.
+- Validator rejects unsafe pointer flags, tape-memory write enablement, missing human-confirmation policy, non-stdout-only builds, and embedded handoff bodies.
+- Write plan is deliberately non-executing: `dry_run=true`, `would_write=false`, `write_enabled=false`.
+- A future real tape-memory write path still requires explicit human confirmation and secret scan immediately before writing.
+
+Goal state update: `resume_pointer_validator_dry_run` is now `done`.

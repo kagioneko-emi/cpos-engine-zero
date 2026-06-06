@@ -131,3 +131,56 @@ def test_resume_pointer_cli_accepts_reflection_json_and_handoff_digest(monkeypat
     assert '"last_recommendation": "ask"' in out
     assert 'kagioneko.safe_handoff_digest.v1' in out
     assert 'private body omitted' not in out
+
+
+def test_resume_pointer_validator_accepts_safe_pointer():
+    pointer = resume_pointer.build_resume_pointer(_world(), include_handoff_digest=True)
+
+    result = resume_pointer.validate_resume_pointer(pointer)
+
+    assert result['schema'] == 'kagioneko.resume_pointer_validation.v1'
+    assert result['ok'] is True
+    assert result['error_count'] == 0
+    assert result['metadata_only'] is True
+    assert result['execute_automatically'] is False
+
+
+def test_resume_pointer_validator_rejects_write_and_handoff_body():
+    pointer = resume_pointer.build_resume_pointer(_world(), include_handoff_digest=True)
+    pointer['write_policy']['tape_memory_write_enabled'] = True
+    pointer['handoff']['body_included'] = True
+
+    result = resume_pointer.validate_resume_pointer(pointer)
+
+    assert result['ok'] is False
+    assert 'write_enabled_forbidden' in result['error_codes']
+    assert 'handoff_body_forbidden' in result['error_codes']
+
+
+def test_tape_memory_write_plan_is_dry_run_only():
+    pointer = resume_pointer.build_resume_pointer(_world())
+
+    plan = resume_pointer.build_tape_memory_write_plan(pointer)
+
+    assert plan['schema'] == 'kagioneko.tape_memory_write_plan.v1'
+    assert plan['dry_run'] is True
+    assert plan['would_write'] is False
+    assert plan['write_enabled'] is False
+    assert plan['requires_human_confirmation'] is True
+    assert plan['secret_scan_required_before_write'] is True
+    assert plan['execute_automatically'] is False
+
+
+def test_resume_pointer_validate_and_write_plan_cli(tmp_path, capsys):
+    pointer = resume_pointer.build_resume_pointer(_world())
+    path = tmp_path / 'pointer.json'
+    import json
+    path.write_text(json.dumps(pointer), encoding='utf-8')
+
+    resume_pointer.main(['validate', '--pointer-json', str(path), '--json'])
+    assert 'kagioneko.resume_pointer_validation.v1' in capsys.readouterr().out
+
+    resume_pointer.main(['write-plan', '--pointer-json', str(path), '--json'])
+    out = capsys.readouterr().out
+    assert 'kagioneko.tape_memory_write_plan.v1' in out
+    assert '"would_write": false' in out

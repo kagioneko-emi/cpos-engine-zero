@@ -72,3 +72,19 @@ Until then, CPOS may document pointer shapes and read-safe resume behavior only.
 A future reader may consume pointer metadata to decide where to resume, but must
 not treat tape-memory as authority for execution. High-stakes actions still route
 through Human Escalation and current repository checks.
+
+
+## Validator and dry-run write plan
+
+The public CPOS implementation includes a validator and dry-run write plan only:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pointer validate --pointer-json pointer.json --json
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pointer write-plan --pointer-json pointer.json --json
+```
+
+The validator checks that pointer safety flags remain metadata-only/no-execute,
+that tape-memory writes are disabled, and that handoff bodies are not embedded.
+The write plan is deliberately non-executing: `dry_run=true`, `would_write=false`,
+and `write_enabled=false`. A real write path would require explicit human
+confirmation and a secret scan immediately before writing.
