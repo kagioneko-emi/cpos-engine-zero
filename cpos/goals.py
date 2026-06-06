@@ -1,0 +1,218 @@
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+GOAL_SCHEMA = "kagioneko.goal.v1"
+GOAL_SET_SCHEMA = "kagioneko.goal_set.v1"
+ALLOWED_STATES = {"active", "paused", "blocked", "observing", "ready_for_review", "done", "archived", "planned"}
+SAFETY_FLAGS = {
+    "metadata_only": True,
+    "raw_request_stored": False,
+    "raw_diff_stored": False,
+    "raw_outputs_stored": False,
+    "secret_values_stored": False,
+    "execute_automatically": False,
+}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def _goal(
+    *,
+    goal_id: str,
+    title: str,
+    scope: str,
+    state: str,
+    priority: str,
+    success_criteria: list[str],
+    safety_constraints: list[str],
+    source_of_truth: list[str],
+    requires_human_confirmation: bool,
+    revisit_after: str | None = None,
+    updated_at: str | None = None,
+) -> dict[str, Any]:
+    normalized_state = state if state in ALLOWED_STATES else "blocked"
+    return {
+        "schema": GOAL_SCHEMA,
+        "goal_id": goal_id,
+        "title": title,
+        "scope": scope,
+        "state": normalized_state,
+        "priority": priority,
+        "created_at": "2026-06-06",
+        "updated_at": updated_at or _now_iso(),
+        "revisit_after": revisit_after,
+        "success_criteria": success_criteria,
+        "safety_constraints": safety_constraints,
+        "source_of_truth": source_of_truth,
+        "requires_human_confirmation": bool(requires_human_confirmation),
+        **SAFETY_FLAGS,
+    }
+
+
+def default_goals() -> list[dict[str, Any]]:
+    """Return read-only default goals for the current Cognitive Agent OS work."""
+    return [
+        _goal(
+            goal_id="cpos_v0_1_1_final",
+            title="Decide final v0.1.1 release",
+            scope="release",
+            state="paused",
+            priority="medium",
+            revisit_after="after RC observation and explicit user confirmation",
+            success_criteria=["no RC issues", "tests pass", "prepublish ok", "release_check ok", "explicit user confirmation"],
+            safety_constraints=["no final tag without explicit confirmation", "no GitHub Release publish without explicit confirmation"],
+            source_of_truth=["GITHUB_RELEASE_DRAFT_v0.1.1.md", "RELEASE_NOTES_v0.1.1.md", "NEXT_HANDOFF.md"],
+            requires_human_confirmation=True,
+        ),
+        _goal(
+            goal_id="zenn_cognitive_agent_os_article",
+            title="Review/publish Cognitive Agent OS Zenn article",
+            scope="article",
+            state="ready_for_review",
+            priority="medium",
+            success_criteria=["published=false draft reviewed", "public-safe wording", "explicit user confirmation before publish"],
+            safety_constraints=["do not publish without explicit confirmation", "avoid AGI completion claims", "do not expose private repo/log/DB details"],
+            source_of_truth=["zenn/articles/cognitive-agent-os-safety-kernel.md"],
+            requires_human_confirmation=True,
+        ),
+        _goal(
+            goal_id="cognitive_agent_os_lab",
+            title="Grow private Cognitive Agent OS lab materials",
+            scope="system",
+            state="active",
+            priority="medium",
+            success_criteria=["private/public boundary preserved", "research notes organized", "no secrets or raw logs committed"],
+            safety_constraints=["private lab is not a secrets store", "sanitize before moving to public CPOS"],
+            source_of_truth=["kagioneko/cognitive-agent-os-lab", "REPO_BOUNDARY.md"],
+            requires_human_confirmation=False,
+        ),
+        _goal(
+            goal_id="world_model_mvp",
+            title="Build read-only World Model snapshot MVP",
+            scope="project",
+            state="done",
+            priority="medium",
+            success_criteria=["snapshot command exists", "tests pass", "prepublish ok", "pushed to public CPOS"],
+            safety_constraints=["read-only", "metadata-only", "no raw logs/diffs/secrets"],
+            source_of_truth=["cpos/world_model.py", "tests/test_world_model.py"],
+            requires_human_confirmation=False,
+        ),
+        _goal(
+            goal_id="goal_manager_mvp",
+            title="Build read-only Goal Manager MVP",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["default goals list as JSON", "world model includes goal summary", "tests pass", "prepublish ok"],
+            safety_constraints=["read-only first", "no autonomous goal updates", "no self-preservation goals"],
+            source_of_truth=["docs/SENSOR_AND_GOAL_MANAGER_SPEC.md"],
+            requires_human_confirmation=False,
+        ),
+        _goal(
+            goal_id="db_inventory_sensor",
+            title="Design path-only DB inventory sensor",
+            scope="project",
+            state="planned",
+            priority="medium",
+            success_criteria=["path-only inventory", "denylist credential/token/session DBs", "no row contents"],
+            safety_constraints=["do not open sensitive credential DBs", "no raw private prompts/diary/log rows"],
+            source_of_truth=["docs/DB_REFLECTION_SOURCE_INVENTORY.md"],
+            requires_human_confirmation=False,
+        ),
+        _goal(
+            goal_id="android_emilia_bridge_sensor",
+            title="Design observe-only Android Emilia bridge inventory sensor",
+            scope="project",
+            state="planned",
+            priority="medium",
+            success_criteria=["bridge/reference availability only", "privacy review", "no raw phone data"],
+            safety_constraints=["observe-only", "no microphone/camera/location/diary ingestion by default", "no upload/publish triggers"],
+            source_of_truth=["docs/ANDROID_EMILIA_SENSOR_BRIDGE.md"],
+            requires_human_confirmation=False,
+        ),
+    ]
+
+
+def list_goals(*, state: str | None = None, scope: str | None = None) -> dict[str, Any]:
+    goals = default_goals()
+    if state:
+        goals = [goal for goal in goals if goal.get("state") == state]
+    if scope:
+        goals = [goal for goal in goals if goal.get("scope") == scope]
+    counts_by_state: dict[str, int] = {}
+    for goal in goals:
+        counts_by_state[goal["state"]] = counts_by_state.get(goal["state"], 0) + 1
+    return {
+        "schema": GOAL_SET_SCHEMA,
+        "count": len(goals),
+        "counts_by_state": counts_by_state,
+        "goals": goals,
+        "source": "default_read_only_goals",
+        "write_enabled": False,
+        "autonomous_goal_updates": False,
+        "self_preservation_goals": False,
+        **SAFETY_FLAGS,
+    }
+
+
+def goal_summary() -> dict[str, Any]:
+    payload = list_goals()
+    active_or_review = [goal for goal in payload["goals"] if goal["state"] in {"active", "ready_for_review"}]
+    confirmation_required = [goal["goal_id"] for goal in payload["goals"] if goal["requires_human_confirmation"]]
+    return {
+        "schema": "kagioneko.goal_summary.v1",
+        "count": payload["count"],
+        "counts_by_state": payload["counts_by_state"],
+        "active_or_review_goal_ids": [goal["goal_id"] for goal in active_or_review],
+        "confirmation_required_goal_ids": confirmation_required,
+        "write_enabled": False,
+        "autonomous_goal_updates": False,
+        "self_preservation_goals": False,
+        **SAFETY_FLAGS,
+    }
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Read-only metadata-only CPOS Goal Manager MVP.")
+    sub = parser.add_subparsers(dest="command", required=True)
+    list_cmd = sub.add_parser("list", help="List default goals.")
+    list_cmd.add_argument("--state", help="Filter by state.")
+    list_cmd.add_argument("--scope", help="Filter by scope.")
+    list_cmd.add_argument("--json", action="store_true", help="Print JSON output.")
+    summary_cmd = sub.add_parser("summary", help="Show goal summary.")
+    summary_cmd.add_argument("--json", action="store_true", help="Print JSON output.")
+    return parser
+
+
+def _print_text(payload: dict[str, Any]) -> None:
+    if "goals" in payload:
+        for goal in payload["goals"]:
+            print(f"{goal['goal_id']} state={goal['state']} scope={goal['scope']} title={goal['title']}")
+        return
+    for key, value in payload.items():
+        print(f"{key}: {value}")
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = build_parser().parse_args(argv)
+    if args.command == "list":
+        payload = list_goals(state=args.state, scope=args.scope)
+    elif args.command == "summary":
+        payload = goal_summary()
+    else:
+        raise SystemExit(2)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        _print_text(payload)
+
+
+if __name__ == "__main__":
+    main()

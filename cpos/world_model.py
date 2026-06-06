@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .goals import goal_summary
 from .release_check import run_release_check
 from .sensors.git_sensor import observe_git_repo
 from .sensors.time_session_sensor import observe_time_session
@@ -101,6 +102,7 @@ def build_world_model_snapshot(repo: str | Path | None = None) -> dict[str, Any]
     git_event = observe_git_repo(repo_path)
     time_event = observe_time_session(repo_path)
     release_check = run_release_check() if repo_path == _repo_root() else {"ok": False, "git_status_lines": [], "tracked_bad_artifacts": [], "missing_files": [], "failures": [{"name": "repo", "error": "release_check_only_supported_for_cpos_root"}]}
+    goal_state = goal_summary()
     risks = _known_risks(git_event, time_event, release_check)
     risk = _max_risk(git_event.get("risk", "low"), time_event.get("risk", "low"), *(item.get("risk", "low") for item in risks))
 
@@ -118,6 +120,7 @@ def build_world_model_snapshot(repo: str | Path | None = None) -> dict[str, Any]
             "late_night_extra_confirmation": bool(time_event.get("metadata", {}).get("extra_confirmation_for_high_stakes")),
         },
         "release": _release_state(release_check),
+        "goals": goal_state,
         "public_private_boundary": {
             "public_repo": PUBLIC_REPO,
             "private_lab_repo": PRIVATE_LAB_REPO,

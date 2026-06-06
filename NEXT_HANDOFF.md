@@ -805,3 +805,37 @@ Recommended next options:
 3. Android Emilia bridge inventory sensor observe-only.
 4. Private lab Mermaid/diagram for AGI-modoki/Cognitive Agent OS.
 5. Polish/publish Zenn article only after explicit confirmation.
+
+## Goal Manager implementation MVP
+
+Added `cpos.goals` with read-only default goal commands:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.goals list --json
+PYTHONPATH=. .venv/bin/python -m cpos.goals summary --json
+```
+
+Goal posture:
+
+- default goals only for MVP
+- no writes
+- no autonomous goal updates
+- no self-preservation goals
+- metadata-only
+- World Model snapshots include a compact goal summary
+
+Current default goals include:
+
+- `cpos_v0_1_1_final`: paused, confirmation required
+- `zenn_cognitive_agent_os_article`: ready_for_review, confirmation required before publish
+- `cognitive_agent_os_lab`: active
+- `world_model_mvp`: done
+- `goal_manager_mvp`: done
+- `db_inventory_sensor`: planned
+- `android_emilia_bridge_sensor`: planned
+
+Validation before commit:
+
+- full tests: `354 passed`
+- touched-file secret scan: `count=0`
+- prepublish expected to pass after this clean commit

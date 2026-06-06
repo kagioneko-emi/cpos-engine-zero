@@ -384,3 +384,19 @@ def test_world_model_snapshot_command_is_linked_and_safe():
     assert 'secret_values_stored' in world_model
     assert 'execute_automatically' in world_model
     assert 'kagioneko/cognitive-agent-os-lab' in world_model
+
+
+
+def test_goal_manager_command_is_linked_and_safe():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+    world_model = open('cpos/world_model.py', encoding='utf-8').read()
+
+    assert 'cpos.goals list --json' in readme
+    assert 'Goal Manager MVP' in handoff
+    assert 'kagioneko.goal.v1' in goals
+    assert 'write_enabled' in goals
+    assert 'autonomous_goal_updates' in goals
+    assert 'self_preservation_goals' in goals
+    assert 'goal_summary' in world_model
