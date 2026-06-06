@@ -1037,3 +1037,27 @@ Safety posture:
 - no raw command output, raw diffs, raw request bodies, full handoff bodies, private repo content, DB rows, diary text, phone data, or secrets
 
 Goal state updates: `goal_store_summary_export` and `tape_memory_bridge_design` are now `done`.
+
+## Resume Pointer read-only CLI + World Model embed
+
+Added `cpos.resume_pointer` as a stdout-only resume pointer builder:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pointer build --goal-store goals/goals.example.json --json
+```
+
+World Model can optionally embed the same compact pointer:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --goal-store goals/goals.example.json --include-resume-pointer --json
+```
+
+Safety posture:
+
+- read-only and stdout-only
+- no tape-memory writes are performed
+- future tape-memory writes still require explicit human confirmation
+- pointer stores repo/commit/risk names/goal validation summary/reflection metadata only
+- raw command outputs, raw diffs, request bodies, full handoff content, private repo content, DB rows, Android/phone data, and secrets are not stored
+
+Goal state update: `resume_pointer_cli` is now `done`.

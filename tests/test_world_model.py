@@ -208,3 +208,20 @@ def test_world_model_goal_store_validation_failure_adds_risk(monkeypatch, tmp_pa
     names = {risk['name'] for risk in snapshot['known_risks']}
     assert 'goal_store_validation_failed' in names
     assert snapshot['overall_risk'] == 'medium'
+
+
+def test_world_model_can_include_resume_pointer(monkeypatch, tmp_path):
+    monkeypatch.setattr(world_model, '_repo_root', lambda: tmp_path)
+    monkeypatch.setattr(world_model, 'observe_git_repo', lambda repo: _event(metadata={'head': 'abc123', 'ahead': 0, 'behind': 0}))
+    monkeypatch.setattr(world_model, 'observe_time_session', lambda repo: _event(source='time', event_type='normal_session_time', metadata={'extra_confirmation_for_high_stakes': False}))
+    monkeypatch.setattr(world_model, 'run_release_check', lambda: {'ok': True, 'git_status_lines': [], 'tracked_bad_artifacts': [], 'missing_files': [], 'failures': []})
+
+    snapshot = world_model.build_world_model_snapshot(tmp_path, include_resume_pointer=True)
+
+    assert_snapshot_safety(snapshot)
+    pointer = snapshot['resume_pointer']
+    assert pointer['schema'] == 'kagioneko.tape_memory_bridge_pointer.v1'
+    assert pointer['metadata_only'] is True
+    assert pointer['write_policy']['tape_memory_write_enabled'] is False
+    assert pointer['world_model']['overall_risk'] == snapshot['overall_risk']
+    assert pointer['commit'] == 'abc123'

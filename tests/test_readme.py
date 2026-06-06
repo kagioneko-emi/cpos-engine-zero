@@ -523,3 +523,19 @@ def test_goal_store_summary_and_tape_memory_bridge_are_documented():
     assert 'execute_automatically' in bridge
     assert 'goal_store_summary_export' in goals
     assert 'tape_memory_bridge_design' in goals
+
+
+def test_resume_pointer_cli_and_world_model_link_are_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    resume_pointer = open('cpos/resume_pointer.py', encoding='utf-8').read()
+    world_model = open('cpos/world_model.py', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert 'cpos.resume_pointer build --goal-store goals/goals.example.json --json' in readme
+    assert '--include-resume-pointer' in readme
+    assert 'Resume Pointer read-only CLI' in handoff
+    assert 'kagioneko.tape_memory_bridge_pointer.v1' in resume_pointer
+    assert 'tape_memory_write_enabled' in resume_pointer
+    assert 'include_resume_pointer' in world_model
+    assert 'resume_pointer_cli' in goals

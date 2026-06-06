@@ -195,6 +195,7 @@ def build_world_model_snapshot(
     include_android_emilia: bool = False,
     android_references: dict[str, str] | None = None,
     goal_store_path: str | Path | None = None,
+    include_resume_pointer: bool = False,
 ) -> dict[str, Any]:
     repo_path = Path(repo).resolve() if repo else _repo_root()
     git_event = observe_git_repo(repo_path)
@@ -216,7 +217,7 @@ def build_world_model_snapshot(
     optional_risks = [sensor.get("risk", "low") for sensor in optional_sensors.values()]
     risk = _max_risk(git_event.get("risk", "low"), time_event.get("risk", "low"), *optional_risks, *(item.get("risk", "low") for item in risks))
 
-    return {
+    snapshot = {
         "schema": SNAPSHOT_SCHEMA,
         "snapshot_type": "cpos_current_state",
         "repo": {
@@ -244,6 +245,11 @@ def build_world_model_snapshot(
         "overall_risk": risk,
         **SAFETY_FLAGS,
     }
+    if include_resume_pointer:
+        from .resume_pointer import build_resume_pointer
+
+        snapshot["resume_pointer"] = build_resume_pointer(snapshot)
+    return snapshot
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -252,6 +258,7 @@ def build_parser() -> argparse.ArgumentParser:
     snapshot = sub.add_parser("snapshot", help="Build current world model snapshot.")
     snapshot.add_argument("--repo", default=None, help="Repository path to observe. Defaults to CPOS root.")
     snapshot.add_argument("--goal-store", help="Optional goal store JSON to validate and summarize.")
+    snapshot.add_argument("--include-resume-pointer", action="store_true", help="Include compact read-only resume pointer summary.")
     snapshot.add_argument("--include-db-inventory", action="store_true", help="Include compact path-only DB inventory summary.")
     snapshot.add_argument("--db-root", default=None, help="Root for DB inventory when included. Defaults to observed repo.")
     snapshot.add_argument("--include-android-emilia", action="store_true", help="Include compact Android Emilia bridge inventory summary.")
@@ -290,6 +297,7 @@ def main(argv: list[str] | None = None) -> None:
         include_android_emilia=args.include_android_emilia,
         android_references=android_refs,
         goal_store_path=args.goal_store,
+        include_resume_pointer=args.include_resume_pointer,
     )
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))

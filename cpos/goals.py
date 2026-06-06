@@ -197,6 +197,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["docs/TAPE_MEMORY_BRIDGE_DESIGN.md"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="resume_pointer_cli",
+            title="Build read-only resume pointer CLI",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["resume pointer command exists", "World Model can include pointer", "tests pass", "no tape-memory writes"],
+            safety_constraints=["stdout-only", "metadata-only", "no raw handoff/private paths", "future tape-memory writes require explicit confirmation"],
+            source_of_truth=["cpos/resume_pointer.py", "cpos/world_model.py", "tests/test_resume_pointer.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 
