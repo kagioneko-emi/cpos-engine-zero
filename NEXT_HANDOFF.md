@@ -928,3 +928,31 @@ MVP posture:
 
 Goal state update: `reflection_evaluator_mvp` is now `done`.
 
+
+## Goal Store Phase 1 — schema + validator
+
+Added read-only goal store validation:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.goal_store validate --path goals/goals.example.json --json
+PYTHONPATH=. .venv/bin/python -m cpos.goal_store validate --path goals/goals.example.json --include-merged-summary --json
+```
+
+Files:
+
+- `cpos/goal_store.py`
+- `goals/goals.example.json`
+- `tests/test_goal_store.py`
+
+Safety posture:
+
+- validates only; no writes
+- rejects `write_enabled=true`
+- rejects `autonomous_goal_updates=true`
+- rejects `self_preservation_goals=true` and self-preservation goal IDs
+- rejects forbidden raw/secret fields such as token/private_key/raw logs/raw DB/phone data
+- enforces metadata-only and no-execute safety flags
+- supports merge-with-defaults summary counts only
+
+Goal state update: `goal_store_phase1` is now `done`.
+

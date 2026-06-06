@@ -470,3 +470,22 @@ def test_reflection_evaluator_command_is_linked_and_safe():
     assert 'raw_db_rows' in evaluator
     assert 'authorized_keys' in evaluator
     assert 'reflection_evaluator_mvp' in goals
+
+
+
+def test_goal_store_validator_is_linked_and_read_only():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    goal_store = open('cpos/goal_store.py', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+    example = open('goals/goals.example.json', encoding='utf-8').read()
+
+    assert 'cpos.goal_store validate --path goals/goals.example.json --json' in readme
+    assert 'Goal Store Phase 1' in handoff
+    assert 'validates only; no writes' in handoff
+    assert 'kagioneko.goal_store_validation.v1' in goal_store
+    assert 'write_enabled_forbidden' in goal_store
+    assert 'self_preservation_goal_forbidden' in goal_store
+    assert 'risky_text_detected' in goal_store
+    assert 'goal_store_phase1' in goals
+    assert 'kagioneko.goal_set.v1' in example

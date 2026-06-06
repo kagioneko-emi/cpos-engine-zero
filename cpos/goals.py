@@ -149,6 +149,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/reflection_evaluator.py", "tests/test_reflection_evaluator.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="goal_store_phase1",
+            title="Build read-only Goal Store schema validator",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["validator command exists", "example goal set exists", "tests pass", "no writes"],
+            safety_constraints=["read-only", "rejects secrets/raw logs/raw DB/Android data", "rejects self-preservation goals", "rejects autonomous goal updates"],
+            source_of_truth=["cpos/goal_store.py", "goals/goals.example.json", "tests/test_goal_store.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 

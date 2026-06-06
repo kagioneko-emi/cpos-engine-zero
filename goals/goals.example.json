@@ -1,0 +1,40 @@
+{
+  "schema": "kagioneko.goal_set.v1",
+  "version": 1,
+  "updated_at": "2026-06-07T00:00:00+09:00",
+  "write_enabled": false,
+  "autonomous_goal_updates": false,
+  "self_preservation_goals": false,
+  "metadata_only": true,
+  "goals": [
+    {
+      "schema": "kagioneko.goal.v1",
+      "goal_id": "zenn_cognitive_agent_os_article",
+      "title": "Review/publish Cognitive Agent OS Zenn article",
+      "scope": "article",
+      "state": "ready_for_review",
+      "priority": "medium",
+      "created_at": "2026-06-06T00:00:00+09:00",
+      "updated_at": "2026-06-07T00:00:00+09:00",
+      "revisit_after": null,
+      "success_criteria": [
+        "published=false draft reviewed",
+        "explicit user confirmation before publish"
+      ],
+      "safety_constraints": [
+        "do not publish without explicit confirmation",
+        "avoid AGI completion claims"
+      ],
+      "source_of_truth": [
+        "zenn/articles/cognitive-agent-os-safety-kernel.md"
+      ],
+      "requires_human_confirmation": true,
+      "metadata_only": true,
+      "raw_request_stored": false,
+      "raw_diff_stored": false,
+      "raw_outputs_stored": false,
+      "secret_values_stored": false,
+      "execute_automatically": false
+    }
+  ]
+}
