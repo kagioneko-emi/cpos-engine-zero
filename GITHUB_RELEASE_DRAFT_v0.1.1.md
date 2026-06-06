@@ -86,7 +86,7 @@ Latest local checks before this draft:
 
 ```text
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-337 passed
+338 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 ok=true

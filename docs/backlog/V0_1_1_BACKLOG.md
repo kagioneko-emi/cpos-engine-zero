@@ -152,6 +152,6 @@ PYTHONPATH=. .venv/bin/python -m cpos.release_check --json
 
 Current stabilization baseline after Priority 1–6:
 
-- full tests: `337 passed`
+- full tests: `338 passed`
 - prepublish: `ok=true`
 - secret scan: `count=0`

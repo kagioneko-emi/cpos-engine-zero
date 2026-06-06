@@ -26,6 +26,7 @@ See `docs/backlog/V0_1_2_BACKLOG.md` for parked post-RC ideas; implementation is
 See `docs/COGNITIVE_AGENT_OS_ARCHITECTURE.md` for the repo-family Cognitive Agent OS architecture draft.
 See `docs/SENSOR_AND_GOAL_MANAGER_SPEC.md` for the first sensor/goal-manager spec draft.
 See `docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md` for the event bus/world-model spec draft.
+See `docs/COGNITIVE_AGENT_OS_ROADMAP.md` for the doc-only implementation roadmap.
 See `docs/V0_1_1_SUMMARY.md` for the completed v0.1.1 stabilization summary.
 See `RELEASE_NOTES_v0.1.1.md` and `GITHUB_RELEASE_DRAFT_v0.1.1.md` for v0.1.1 release prep drafts.
 See `docs/ANNOUNCEMENT_COPY_v0.1.0.md` for reusable post-release announcement/social copy.
