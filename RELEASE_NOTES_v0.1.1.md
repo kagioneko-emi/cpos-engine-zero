@@ -80,7 +80,7 @@ Latest local validation before this release notes draft:
 
 ```text
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-335 passed
+336 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 ok=true, secret_scan ok=true count=0, destructive_actions_performed=false

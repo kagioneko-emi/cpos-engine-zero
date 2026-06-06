@@ -232,7 +232,7 @@ def test_v0_1_1_summary_is_linked_and_complete():
     assert 'announcement copy pack' in summary.lower()
     assert 'Local runtime file inventory' in summary
     assert 'Dashboard wording polish' in summary
-    assert '335 passed' in summary
+    assert '336 passed' in summary
     assert 'prepublish_check' in summary
     assert 'Do not tag, push, publish' in summary
 
@@ -247,7 +247,7 @@ def test_v0_1_1_release_notes_and_draft_are_linked_and_safety_focused():
     assert 'v0.1.1 Release Notes' in notes
     assert 'CPOS for Agents' in notes
     assert 'Adapter schema validation' in notes
-    assert '335 passed' in notes
+    assert '336 passed' in notes
     assert 'prepublish_check' in notes
     assert 'CPOS Engine-Zero v0.1.1' in draft
     assert 'External Agent Adapter validation' in draft
@@ -292,3 +292,22 @@ def test_cognitive_agent_os_architecture_is_linked_and_safety_focused():
     assert 'VN-CPU / UNO should start at Level 0' in arch
     assert 'SENSOR_AND_GOAL_MANAGER_SPEC.md' in arch
     assert 'Cognitive Agent OS architecture draft' in handoff
+
+
+def test_sensor_and_goal_manager_spec_is_linked_and_doc_only():
+    readme = open('README.md', encoding='utf-8').read()
+    spec = open('docs/SENSOR_AND_GOAL_MANAGER_SPEC.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+
+    assert 'docs/SENSOR_AND_GOAL_MANAGER_SPEC.md' in readme
+    assert 'Sensor and Goal Manager Spec' in spec
+    assert 'documentation-only specification' in spec
+    assert 'Base sensor event schema' in spec
+    assert 'Git sensor' in spec
+    assert 'Docker/process sensor' in spec
+    assert 'Time/session sensor' in spec
+    assert 'Goal schema' in spec
+    assert 'Wellbeing advisory rules' in spec
+    assert 'Human Escalation triggers' in spec
+    assert 'Not implemented by this spec' in spec
+    assert 'Sensor and Goal Manager spec draft' in handoff
