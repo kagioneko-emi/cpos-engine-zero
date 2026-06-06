@@ -571,3 +571,17 @@ def test_resume_pointer_validator_and_write_plan_are_documented():
     assert 'dry_run=true' in bridge
     assert 'would_write=false' in bridge
     assert 'resume_pointer_validator_dry_run' in goals
+
+
+def test_resume_pipeline_bundle_is_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    pipeline = open('cpos/resume_pipeline.py', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert 'cpos.resume_pipeline run --goal-store goals/goals.example.json --json' in readme
+    assert 'Integrated read-only resume pipeline bundle' in handoff
+    assert 'kagioneko.resume_pipeline_bundle.v1' in pipeline
+    assert 'tape_memory_write_plan_dry_run' in pipeline
+    assert 'would_write' in pipeline
+    assert 'resume_pipeline_bundle' in goals

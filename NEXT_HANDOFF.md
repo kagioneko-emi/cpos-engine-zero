@@ -1103,3 +1103,30 @@ Behavior:
 - A future real tape-memory write path still requires explicit human confirmation and secret scan immediately before writing.
 
 Goal state update: `resume_pointer_validator_dry_run` is now `done`.
+
+## Integrated read-only resume pipeline bundle
+
+Added `cpos.resume_pipeline` as a one-command metadata bundle:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pipeline run --goal-store goals/goals.example.json --json
+```
+
+Pipeline steps:
+
+1. Build World Model snapshot.
+2. Run Reflection Evaluator for the proposed action.
+3. Build Resume Pointer with Reflection metadata and safe handoff digest.
+4. Validate Resume Pointer.
+5. Build tape-memory write plan in dry-run mode.
+
+Safety posture:
+
+- schema: `kagioneko.resume_pipeline_bundle.v1`
+- read-only and metadata-only
+- no command execution beyond local analysis
+- no tape-memory writes
+- write plan remains `dry_run=true`, `would_write=false`, `write_enabled=false`
+- raw command output, raw diffs, request bodies, full handoff content, private repo content, DB rows, Android/phone data, and secrets are not stored
+
+Goal state update: `resume_pipeline_bundle` is now `done`.

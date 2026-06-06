@@ -233,6 +233,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/resume_pointer.py", "docs/TAPE_MEMORY_BRIDGE_DESIGN.md", "tests/test_resume_pointer.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="resume_pipeline_bundle",
+            title="Build integrated read-only resume pipeline bundle",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["one command runs reflection, pointer build, validation, and dry-run write plan", "tests pass", "no writes or execution"],
+            safety_constraints=["read-only", "metadata-only", "dry-run write plan only", "no raw outputs/diffs/request bodies/handoff bodies/secrets"],
+            source_of_truth=["cpos/resume_pipeline.py", "tests/test_resume_pipeline.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 
