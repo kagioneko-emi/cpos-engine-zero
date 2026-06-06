@@ -539,3 +539,17 @@ def test_resume_pointer_cli_and_world_model_link_are_documented():
     assert 'tape_memory_write_enabled' in resume_pointer
     assert 'include_resume_pointer' in world_model
     assert 'resume_pointer_cli' in goals
+
+
+def test_resume_pointer_reflection_and_handoff_digest_are_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    resume_pointer = open('cpos/resume_pointer.py', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert '--reflection-json eval.json --include-handoff-digest' in readme
+    assert 'Resume Pointer Reflection metadata + safe handoff digest' in handoff
+    assert 'kagioneko.safe_handoff_digest.v1' in resume_pointer
+    assert 'full_handoff_stored' in resume_pointer
+    assert 'body_included' in resume_pointer
+    assert 'resume_pointer_reflection_handoff' in goals

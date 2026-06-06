@@ -209,6 +209,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/resume_pointer.py", "cpos/world_model.py", "tests/test_resume_pointer.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="resume_pointer_reflection_handoff",
+            title="Connect Reflection metadata and safe handoff digest to resume pointer",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["reflection JSON metadata can be included", "heading-only handoff digest can be included", "tests pass", "no tape-memory writes"],
+            safety_constraints=["stdout-only", "metadata-only", "no raw handoff body", "no raw outputs/diffs/request bodies/secrets"],
+            source_of_truth=["cpos/resume_pointer.py", "tests/test_resume_pointer.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 

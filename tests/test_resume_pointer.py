@@ -81,3 +81,53 @@ def test_resume_pointer_cli_json(monkeypatch, capsys):
     assert 'kagioneko.tape_memory_bridge_pointer.v1' in out
     assert 'tape_memory_write_enabled' in out
     assert 'abc123' in out
+
+
+def test_safe_handoff_digest_is_heading_only(tmp_path):
+    handoff = tmp_path / 'NEXT_HANDOFF.md'
+    handoff.write_text('# First\nsecret body should not appear\n## Latest Handoff\nraw diff should not appear\n', encoding='utf-8')
+
+    digest = resume_pointer.build_safe_handoff_digest(handoff)
+
+    assert digest['schema'] == 'kagioneko.safe_handoff_digest.v1'
+    assert digest['metadata_only'] is True
+    assert digest['body_included'] is False
+    assert digest['full_handoff_stored'] is False
+    assert digest['heading_count'] == 2
+    assert digest['latest_heading'] == 'Latest Handoff'
+    assert 'secret body' not in str(digest)
+    assert 'raw diff' not in str(digest)
+
+
+def test_resume_pointer_can_include_handoff_digest(tmp_path):
+    handoff = tmp_path / 'NEXT_HANDOFF.md'
+    handoff.write_text('# Start Here\n## Latest Handoff\nbody not included\n', encoding='utf-8')
+
+    pointer = resume_pointer.build_resume_pointer(_world(), include_handoff_digest=True, handoff_path=handoff)
+
+    assert_pointer_safety(pointer)
+    assert pointer['handoff']['schema'] == 'kagioneko.safe_handoff_digest.v1'
+    assert pointer['handoff']['latest_heading'] == 'Latest Handoff'
+    assert 'body not included' not in str(pointer)
+
+
+def test_resume_pointer_cli_accepts_reflection_json_and_handoff_digest(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(resume_pointer, 'build_world_model_snapshot', lambda **kwargs: _world())
+    reflection = tmp_path / 'reflection.json'
+    reflection.write_text('{"schema":"kagioneko.reflection_evaluation.v1","recommendation":"ask","risk":"high","goal_store_validation_used":true,"goal_store_error_codes":["duplicate_goal_id"]}', encoding='utf-8')
+    handoff = tmp_path / 'NEXT_HANDOFF.md'
+    handoff.write_text('# Start\n## Latest Handoff\nprivate body omitted\n', encoding='utf-8')
+
+    resume_pointer.main([
+        'build',
+        '--goal-store', 'goals/goals.example.json',
+        '--reflection-json', str(reflection),
+        '--include-handoff-digest',
+        '--handoff-path', str(handoff),
+        '--json',
+    ])
+
+    out = capsys.readouterr().out
+    assert '"last_recommendation": "ask"' in out
+    assert 'kagioneko.safe_handoff_digest.v1' in out
+    assert 'private body omitted' not in out

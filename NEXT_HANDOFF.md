@@ -1061,3 +1061,26 @@ Safety posture:
 - raw command outputs, raw diffs, request bodies, full handoff content, private repo content, DB rows, Android/phone data, and secrets are not stored
 
 Goal state update: `resume_pointer_cli` is now `done`.
+
+## Resume Pointer Reflection metadata + safe handoff digest
+
+Extended `cpos.resume_pointer build`:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pointer build \
+  --goal-store goals/goals.example.json \
+  --reflection-json eval.json \
+  --include-handoff-digest \
+  --json
+```
+
+Behavior:
+
+- `--reflection-json` includes only Reflection Evaluator metadata: recommendation, risk, goal-store validation usage, and goal-store error codes.
+- `--include-handoff-digest` includes a heading-only digest of `NEXT_HANDOFF.md`.
+- Handoff digest schema: `kagioneko.safe_handoff_digest.v1`.
+- Handoff body is not included; full handoff is not stored.
+- Still stdout-only; no tape-memory writes.
+- raw command output, raw diffs, request bodies, full handoff content, private repo content, DB rows, Android/phone data, and secrets are not stored.
+
+Goal state update: `resume_pointer_reflection_handoff` is now `done`.
