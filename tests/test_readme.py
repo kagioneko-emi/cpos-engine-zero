@@ -453,3 +453,20 @@ def test_world_model_optional_sensor_summaries_are_documented():
     assert 'not candidate path lists' in handoff
     assert '_compact_sensor' in world_model
     assert 'optional_sensors' in world_model
+
+
+
+def test_reflection_evaluator_command_is_linked_and_safe():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    evaluator = open('cpos/reflection_evaluator.py', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert 'cpos.reflection_evaluator evaluate --json' in readme
+    assert 'Reflection Evaluator MVP' in handoff
+    assert 'proceed`, `ask`, `defer`, or `block`' in handoff
+    assert 'kagioneko.reflection_evaluation.v1' in evaluator
+    assert 'execute_automatically' in evaluator
+    assert 'raw_db_rows' in evaluator
+    assert 'authorized_keys' in evaluator
+    assert 'reflection_evaluator_mvp' in goals

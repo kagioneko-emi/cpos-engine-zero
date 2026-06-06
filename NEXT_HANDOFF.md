@@ -903,3 +903,28 @@ Notes:
 - Android Emilia remains observe-only and requires explicit reference paths for local/private refs.
 - World Model stores compact counts/flags only, not candidate path lists, raw references, raw logs, raw diffs, DB contents, or phone data.
 
+
+## Reflection Evaluator MVP
+
+Added `cpos.reflection_evaluator` with a read-only proposed-action evaluation command:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --json
+```
+
+Examples:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --action-type doc --summary "Draft safe docs" --json
+PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --action-type publish --summary "Publish Zenn article" --touches-public-surface --json
+```
+
+MVP posture:
+
+- evaluates only; does not execute actions
+- returns `proceed`, `ask`, `defer`, or `block`
+- checks publish/release/tag/push, raw DB rows, Android/phone data, `authorized_keys`, destructive/port/secret boundaries, public/private leaks, AGI overclaim wording, and late-night high-stakes caution
+- metadata-only; no raw logs/diffs/DB rows/Android data/secrets
+
+Goal state update: `reflection_evaluator_mvp` is now `done`.
+

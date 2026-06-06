@@ -137,6 +137,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["docs/ANDROID_EMILIA_SENSOR_BRIDGE.md", "cpos/sensors/android_emilia_sensor.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="reflection_evaluator_mvp",
+            title="Build read-only Reflection Evaluator MVP",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["evaluate command exists", "proceed/ask/defer/block recommendations", "tests pass", "no execution"],
+            safety_constraints=["read-only", "metadata-only", "does not bypass Human Escalation", "does not read raw DB/Android/private data"],
+            source_of_truth=["cpos/reflection_evaluator.py", "tests/test_reflection_evaluator.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 
