@@ -117,13 +117,13 @@ def default_goals() -> list[dict[str, Any]]:
         ),
         _goal(
             goal_id="db_inventory_sensor",
-            title="Design path-only DB inventory sensor",
+            title="Build path-only DB inventory sensor",
             scope="project",
-            state="planned",
+            state="done",
             priority="medium",
-            success_criteria=["path-only inventory", "denylist credential/token/session DBs", "no row contents"],
+            success_criteria=["path-only inventory command exists", "denylist credential/token/session DBs", "no row contents", "tests pass"],
             safety_constraints=["do not open sensitive credential DBs", "no raw private prompts/diary/log rows"],
-            source_of_truth=["docs/DB_REFLECTION_SOURCE_INVENTORY.md"],
+            source_of_truth=["docs/DB_REFLECTION_SOURCE_INVENTORY.md", "cpos/sensors/db_inventory_sensor.py"],
             requires_human_confirmation=False,
         ),
         _goal(

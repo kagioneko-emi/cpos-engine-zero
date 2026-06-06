@@ -400,3 +400,21 @@ def test_goal_manager_command_is_linked_and_safe():
     assert 'autonomous_goal_updates' in goals
     assert 'self_preservation_goals' in goals
     assert 'goal_summary' in world_model
+
+
+
+def test_db_inventory_sensor_command_is_linked_and_path_only():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    sensor = open('cpos/sensors/db_inventory_sensor.py', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert 'cpos.sensors.db_inventory_sensor --root . --json' in readme
+    assert 'DB inventory sensor MVP' in handoff
+    assert 'DB files are not opened' in handoff
+    assert 'row_contents_read' in sensor
+    assert 'table_names_read' in sensor
+    assert 'db_files_opened' in sensor
+    assert 'sensitive_skipped' in sensor
+    assert 'goal_id="db_inventory_sensor"' in goals
+    assert 'state="done"' in goals

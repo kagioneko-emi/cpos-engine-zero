@@ -839,3 +839,26 @@ Validation before commit:
 - full tests: `354 passed`
 - touched-file secret scan: `count=0`
 - prepublish expected to pass after this clean commit
+
+## DB inventory sensor MVP
+
+Added `cpos.sensors.db_inventory_sensor` with a path-only inventory command:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.sensors.db_inventory_sensor --root . --json
+```
+
+Safety posture:
+
+- DB files are not opened.
+- Table names are not read.
+- Row contents are not read.
+- Prompt/diary/token values are not read.
+- Output is path/stat/classification metadata only.
+- `.git`, `.venv`, `node_modules`, caches, and build dirs are skipped.
+- credential/token/session/cloud/browser-like DB paths are classified as `sensitive_skipped`.
+
+Note: scanning broad roots such as `/home/mayutama` may print private path names. Use narrow roots first unless intentionally doing a private local inventory.
+
+Goal state update: `db_inventory_sensor` is now `done`; `android_emilia_bridge_sensor` remains `planned`.
+

@@ -110,3 +110,46 @@ def test_time_session_sensor_normal_time_is_low_risk(tmp_path):
     assert event['event_type'] == 'normal_session_time'
     assert event['risk'] == 'low'
     assert event['requires_human_review'] is False
+
+
+def test_db_inventory_sensor_path_only_classifies_candidates(tmp_path):
+    from cpos.sensors.db_inventory_sensor import inventory_db_paths
+
+    (tmp_path / 'safe').mkdir()
+    (tmp_path / 'safe' / 'project.sqlite').write_text('not opened by test sensor\n', encoding='utf-8')
+    (tmp_path / 'agent').mkdir()
+    (tmp_path / 'agent' / 'gemini_conversation.db').write_text('private prompt text should not be read\n', encoding='utf-8')
+    (tmp_path / '.config' / 'gcloud').mkdir(parents=True)
+    (tmp_path / '.config' / 'gcloud' / 'access_tokens.db').write_text('token-value-must-not-appear\n', encoding='utf-8')
+    (tmp_path / '.venv').mkdir()
+    (tmp_path / '.venv' / 'ignored.db').write_text('ignored\n', encoding='utf-8')
+
+    event = inventory_db_paths(tmp_path)
+
+    assert_sensor_safety(event)
+    assert event['source'] == 'db_inventory'
+    assert event['event_type'] == 'db_source_inventory_available'
+    assert event['metadata']['candidate_count'] == 3
+    assert event['metadata']['sensitive_skipped_count'] == 1
+    assert event['metadata']['reflection_candidate_count'] == 1
+    assert event['metadata']['db_files_opened'] is False
+    assert event['metadata']['table_names_read'] is False
+    assert event['metadata']['row_contents_read'] is False
+    assert 'token-value-must-not-appear' not in str(event)
+    assert 'private prompt text should not be read' not in str(event)
+    categories = {item['path']: item['category'] for item in event['metadata']['candidates']}
+    assert categories['safe/project.sqlite'] == 'db_candidate'
+    assert categories['agent/gemini_conversation.db'] == 'reflection_candidate'
+    assert categories['.config/gcloud/access_tokens.db'] == 'sensitive_skipped'
+    assert '.venv/ignored.db' not in categories
+
+
+def test_db_inventory_sensor_empty_root_is_low_risk(tmp_path):
+    from cpos.sensors.db_inventory_sensor import inventory_db_paths
+
+    event = inventory_db_paths(tmp_path)
+
+    assert_sensor_safety(event)
+    assert event['event_type'] == 'db_source_inventory_empty'
+    assert event['risk'] == 'low'
+    assert event['metadata']['candidate_count'] == 0
