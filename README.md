@@ -32,7 +32,7 @@ Add `--goal-store goals/goals.example.json` to include compact read-only goal st
 Add `--include-db-inventory` and/or `--include-android-emilia` to include compact optional sensor summaries.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goals list --json` for read-only default goal state.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goal_store validate --path goals/goals.example.json --json` for read-only goal store validation.
-Run `PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --json` for read-only proposed-action evaluation.
+Run `PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --json` for read-only proposed-action evaluation. Add `--goal-store goals/goals.example.json` to let the evaluator consume compact goal-store validation via the World Model.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.db_inventory_sensor --root . --json` for path-only DB inventory.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.android_emilia_sensor --json` for observe-only Android Emilia bridge reference inventory.
 See `docs/ANDROID_EMILIA_SENSOR_BRIDGE.md` for Android Emilia observe-only sensor bridge notes.

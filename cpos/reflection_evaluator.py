@@ -92,9 +92,15 @@ def evaluate_proposed_action(
     *,
     world_model_snapshot: dict[str, Any] | None = None,
     goal_state: dict[str, Any] | None = None,
+    goal_store_path: str | Path | None = None,
 ) -> dict[str, Any]:
     action = _normalize_action(proposed_action)
-    world = world_model_snapshot or build_world_model_snapshot()
+    if world_model_snapshot is not None:
+        world = world_model_snapshot
+    elif goal_store_path is not None:
+        world = build_world_model_snapshot(goal_store_path=goal_store_path)
+    else:
+        world = build_world_model_snapshot()
     goals = goal_state or world.get("goals") or goal_summary()
 
     reasons: list[str] = []
@@ -151,6 +157,12 @@ def evaluate_proposed_action(
         risks.append("medium")
         required_confirmations.append("late-night high-stakes extra confirmation")
         reasons.append("late-night high-stakes caution applies")
+
+    goal_store_validation = world.get("goal_store_validation")
+    if goal_store_validation and not goal_store_validation.get("ok"):
+        risks.append("high")
+        blocking_issues.append("goal store validation failed; fix goal store before relying on persisted goals")
+        reasons.append("goal store validation is not clean")
 
     if world.get("release", {}).get("final_v0_1_1_paused") and action_type == "release":
         risks.append("high")
@@ -216,6 +228,7 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--opens-port", action="store_true")
     evaluate.add_argument("--touches-secrets", action="store_true")
     evaluate.add_argument("--explicit-confirmation", action="store_true")
+    evaluate.add_argument("--goal-store", help="Optional goal store JSON to validate through the World Model before evaluating.")
     evaluate.add_argument("--json", action="store_true", help="Print JSON output.")
     return parser
 
@@ -247,7 +260,7 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     if args.command != "evaluate":
         raise SystemExit(2)
-    result = evaluate_proposed_action(_action_from_args(args))
+    result = evaluate_proposed_action(_action_from_args(args), goal_store_path=args.goal_store)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     else:

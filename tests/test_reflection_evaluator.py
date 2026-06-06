@@ -105,6 +105,63 @@ def test_reflection_late_night_high_stakes_needs_extra_confirmation():
     assert 'late-night high-stakes extra confirmation' in result['required_confirmations']
 
 
+def test_reflection_blocks_invalid_goal_store_validation():
+    result = reflection.evaluate_proposed_action(
+        {
+            'action_id': 'goal_backed_action',
+            'action_type': 'doc',
+            'summary': 'Use persisted goal store to plan next work',
+            'requires_execution': False,
+        },
+        world_model_snapshot=_world(goal_store_validation={
+            'schema': 'kagioneko.goal_store_validation.v1',
+            'ok': False,
+            'goal_count': 1,
+            'error_count': 1,
+            'error_codes': ['write_enabled_forbidden'],
+            'metadata_only': True,
+            'raw_request_stored': False,
+            'raw_diff_stored': False,
+            'raw_outputs_stored': False,
+            'secret_values_stored': False,
+            'execute_automatically': False,
+        }),
+    )
+
+    assert_eval_safety(result)
+    assert result['recommendation'] == 'block'
+    assert result['risk'] == 'high'
+    assert 'goal store validation failed' in result['blocking_issues'][0]
+
+
+def test_reflection_cli_accepts_goal_store(monkeypatch, capsys):
+    seen = {}
+
+    def fake_world_model_snapshot(**kwargs):
+        seen.update(kwargs)
+        return _world(goal_store_validation={
+            'schema': 'kagioneko.goal_store_validation.v1',
+            'ok': True,
+            'goal_count': 1,
+            'error_count': 0,
+            'error_codes': [],
+            'metadata_only': True,
+            'raw_request_stored': False,
+            'raw_diff_stored': False,
+            'raw_outputs_stored': False,
+            'secret_values_stored': False,
+            'execute_automatically': False,
+        })
+
+    monkeypatch.setattr(reflection, 'build_world_model_snapshot', fake_world_model_snapshot)
+
+    reflection.main(['evaluate', '--action-type', 'doc', '--summary', 'Draft docs', '--goal-store', 'goals/goals.example.json', '--json'])
+
+    out = capsys.readouterr().out
+    assert 'kagioneko.reflection_evaluation.v1' in out
+    assert seen['goal_store_path'] == 'goals/goals.example.json'
+
+
 def test_reflection_cli_json(monkeypatch, capsys):
     monkeypatch.setattr(reflection, 'build_world_model_snapshot', lambda: _world())
 

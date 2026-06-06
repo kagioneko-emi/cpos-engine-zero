@@ -983,3 +983,21 @@ Validation summary includes:
 - `error_codes`
 - no-execute / metadata-only flags
 
+
+## Reflection Evaluator goal store validation gate
+
+Connected optional Goal Store validation to `cpos.reflection_evaluator` through the World Model:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --action-type doc --summary "Draft safe docs" --goal-store goals/goals.example.json --json
+```
+
+Behavior:
+
+- validation only; no writes
+- uses the World Model compact `goal_store_validation` summary
+- does not duplicate raw goal bodies in evaluation output
+- invalid goal stores block reliance on persisted goals until fixed
+- keeps metadata-only / no-execute safety flags
+
+Goal state update: `reflection_goal_store_gate` is now `done`.

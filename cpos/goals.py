@@ -161,6 +161,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/goal_store.py", "goals/goals.example.json", "tests/test_goal_store.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="reflection_goal_store_gate",
+            title="Connect Goal Store validation to Reflection Evaluator",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["evaluator accepts optional goal store", "invalid goal store blocks reliance on persisted goals", "tests pass", "no writes"],
+            safety_constraints=["read-only", "metadata-only validation summary", "no autonomous goal updates", "no raw goal bodies duplicated in evaluation output"],
+            source_of_truth=["cpos/reflection_evaluator.py", "cpos/world_model.py", "tests/test_reflection_evaluator.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 
