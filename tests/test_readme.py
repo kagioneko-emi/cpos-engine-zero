@@ -348,3 +348,23 @@ def test_cognitive_agent_os_roadmap_is_linked_and_doc_only():
     assert 'Limited low-risk autonomy' in roadmap
     assert 'final release requires explicit user confirmation' in roadmap
     assert 'Cognitive Agent OS roadmap draft' in handoff
+
+
+
+def test_android_emilia_and_db_inventory_docs_are_linked_and_safe():
+    readme = open('README.md', encoding='utf-8').read()
+    emilia = open('docs/ANDROID_EMILIA_SENSOR_BRIDGE.md', encoding='utf-8').read()
+    db = open('docs/DB_REFLECTION_SOURCE_INVENTORY.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+
+    assert 'docs/ANDROID_EMILIA_SENSOR_BRIDGE.md' in readme
+    assert 'docs/DB_REFLECTION_SOURCE_INVENTORY.md' in readme
+    assert 'observe-only' in emilia
+    assert 'no microphone/camera content ingestion' in emilia
+    assert 'no automatic upload/publish/video pipeline trigger' in emilia
+    assert 'metadata_only' in emilia
+    assert 'inventory-only' in db
+    assert 'no row contents' in db
+    assert 'no token/config values' in db
+    assert 'DB reflection source inventory note' in handoff
+    assert 'Android Emilia sensor bridge note' in handoff

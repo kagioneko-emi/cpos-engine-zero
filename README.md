@@ -27,6 +27,8 @@ See `docs/COGNITIVE_AGENT_OS_ARCHITECTURE.md` for the repo-family Cognitive Agen
 See `docs/SENSOR_AND_GOAL_MANAGER_SPEC.md` for the first sensor/goal-manager spec draft.
 See `docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md` for the event bus/world-model spec draft.
 See `docs/COGNITIVE_AGENT_OS_ROADMAP.md` for the doc-only implementation roadmap.
+See `docs/ANDROID_EMILIA_SENSOR_BRIDGE.md` for Android Emilia observe-only sensor bridge notes.
+See `docs/DB_REFLECTION_SOURCE_INVENTORY.md` for DB inventory/reflection-source safety notes.
 See `docs/V0_1_1_SUMMARY.md` for the completed v0.1.1 stabilization summary.
 See `RELEASE_NOTES_v0.1.1.md` and `GITHUB_RELEASE_DRAFT_v0.1.1.md` for v0.1.1 release prep drafts.
 See `docs/ANNOUNCEMENT_COPY_v0.1.0.md` for reusable post-release announcement/social copy.

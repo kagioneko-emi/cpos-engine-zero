@@ -65,6 +65,8 @@ Candidate sensors:
 - Test/prepublish sensor
 - Zenn/Notion state sensor
 - User intent sensor
+- Android Emilia bridge sensor (observe-only candidate)
+- DB inventory sensor for reflection/prompt-eval sources (path-only first)
 
 Implementation posture:
 

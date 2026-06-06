@@ -93,6 +93,24 @@ Local helper log: `docs/NEXT_WORK_SEQUENCE.md`.
 
 
 
+## DB reflection source inventory note
+
+Added `docs/DB_REFLECTION_SOURCE_INVENTORY.md` after Neko-san noted that J/Gemini-related repos may contain DBs useful for goal design or introspection prompt validation.
+
+Safety framing: DBs may contain credentials, private prompts, diary/chat logs, OAuth tokens, or session data. CPOS should start with path-only inventory, denylist credential/token/cloud/browser/session DBs, and avoid row contents unless separately reviewed.
+
+## Android Emilia sensor bridge note
+
+Added `docs/ANDROID_EMILIA_SENSOR_BRIDGE.md` as a documentation-only observe-first note after Neko-san pointed out Android Emilia as a sensor candidate.
+
+Local references observed without editing them:
+
+- `/home/mayutama/workspace/emilia-spirit-android`
+- `/home/mayutama/workspace/vps-spirit/emilia_receiver.py`
+- `/home/mayutama/zenn/articles/emilia-tamagotchi-sensor.md`
+
+Safety framing: Android Emilia is a potential body/environment sensor layer, but CPOS should start with metadata-only bridge availability and must not ingest raw diary, microphone/camera/location, secrets, or trigger upload/publish/video actions automatically.
+
 ## Cognitive Agent OS roadmap draft
 
 Created `docs/COGNITIVE_AGENT_OS_ROADMAP.md` as a documentation-only roadmap.

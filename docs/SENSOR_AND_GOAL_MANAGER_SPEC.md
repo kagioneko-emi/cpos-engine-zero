@@ -251,7 +251,33 @@ Rules:
 - Do not store Notion API keys or page contents with secrets.
 - Store URLs and status only.
 
-### 8. User intent sensor
+### 8. Android Emilia bridge sensor
+
+Purpose: treat Android Emilia as a future body/environment sensor source without granting CPOS phone-control authority.
+
+Inputs, only after explicit review:
+
+- bridge/reference presence
+- coarse app-local sensor summaries
+- coarse NeuroState summaries
+- diary availability metadata
+
+Events:
+
+- `android_emilia_bridge_detected`
+- `android_emilia_status_observed`
+- `android_emilia_sensor_summary_available`
+- `android_emilia_privacy_review_required`
+
+Rules:
+
+- Start observe-only and metadata-only.
+- Do not persist raw microphone/camera/location/diary content in CPOS by default.
+- Do not trigger upload/publish/video pipelines automatically.
+- Store receiver secrets in Vault/runtime environment only, never docs/code.
+- Public publish/upload actions require Human Escalation and explicit confirmation.
+
+### 9. User intent sensor
 
 Purpose: interpret user shorthand and high-stakes requests.
 
