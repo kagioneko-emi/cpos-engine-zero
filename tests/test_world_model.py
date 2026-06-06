@@ -72,7 +72,7 @@ def test_world_model_cli_json(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(
         world_model,
         'build_world_model_snapshot',
-        lambda repo=None: {
+        lambda repo=None, **kwargs: {
             'schema': 'kagioneko.world_model_snapshot.v1',
             'overall_risk': 'low',
             'repo': {'path': str(Path(repo or '.'))},
@@ -90,3 +90,64 @@ def test_world_model_cli_json(monkeypatch, capsys, tmp_path):
     out = capsys.readouterr().out
     assert 'kagioneko.world_model_snapshot.v1' in out
     assert str(tmp_path) in out
+
+
+def test_world_model_optional_sensors_are_compact_and_gated(monkeypatch, tmp_path):
+    monkeypatch.setattr(world_model, '_repo_root', lambda: tmp_path)
+    monkeypatch.setattr(world_model, 'observe_git_repo', lambda repo: _event(metadata={'ahead': 0, 'behind': 0}))
+    monkeypatch.setattr(world_model, 'observe_time_session', lambda repo: _event(source='time', event_type='normal_session_time', metadata={'extra_confirmation_for_high_stakes': False}))
+    monkeypatch.setattr(world_model, 'run_release_check', lambda: {'ok': True, 'git_status_lines': [], 'tracked_bad_artifacts': [], 'missing_files': [], 'failures': []})
+    monkeypatch.setattr(world_model, 'inventory_db_paths', lambda root: _event(source='db_inventory', event_type='db_source_inventory_available', risk='high', metadata={
+        'candidate_count': 2,
+        'sensitive_skipped_count': 1,
+        'reflection_candidate_count': 1,
+        'candidates': [{'path': 'should_not_be_in_compact'}],
+        'db_files_opened': False,
+        'table_names_read': False,
+        'row_contents_read': False,
+    }))
+    monkeypatch.setattr(world_model, 'observe_android_emilia_bridge', lambda refs: _event(source='android_emilia', event_type='android_emilia_bridge_detected', risk='medium', metadata={
+        'existing_count': 1,
+        'reference_count': 1,
+        'references': [{'path': 'should_not_be_in_compact'}],
+        'content_read': False,
+        'phone_data_read': False,
+        'diary_text_read': False,
+        'sensor_stream_read': False,
+        'upload_triggered': False,
+        'phone_control_enabled': False,
+    }))
+
+    snapshot = world_model.build_world_model_snapshot(
+        tmp_path,
+        include_db_inventory=True,
+        db_root=tmp_path,
+        include_android_emilia=True,
+        android_references={'android_app_repo': str(tmp_path / 'android')},
+    )
+
+    assert_snapshot_safety(snapshot)
+    assert 'db_inventory' in snapshot['optional_sensors']
+    assert 'android_emilia' in snapshot['optional_sensors']
+    db_meta = snapshot['optional_sensors']['db_inventory']['metadata']
+    android_meta = snapshot['optional_sensors']['android_emilia']['metadata']
+    assert db_meta['candidate_count'] == 2
+    assert db_meta['sensitive_skipped_count'] == 1
+    assert 'candidates' not in db_meta
+    assert android_meta['existing_count'] == 1
+    assert 'references' not in android_meta
+    names = {risk['name'] for risk in snapshot['known_risks']}
+    assert 'db_sensitive_paths_observed' in names
+    assert 'android_emilia_bridge_observed' in names
+    assert snapshot['overall_risk'] == 'high'
+
+
+def test_world_model_optional_sensors_are_absent_by_default(monkeypatch, tmp_path):
+    monkeypatch.setattr(world_model, '_repo_root', lambda: tmp_path)
+    monkeypatch.setattr(world_model, 'observe_git_repo', lambda repo: _event(metadata={'ahead': 0, 'behind': 0}))
+    monkeypatch.setattr(world_model, 'observe_time_session', lambda repo: _event(source='time', event_type='normal_session_time', metadata={'extra_confirmation_for_high_stakes': False}))
+    monkeypatch.setattr(world_model, 'run_release_check', lambda: {'ok': True, 'git_status_lines': [], 'tracked_bad_artifacts': [], 'missing_files': [], 'failures': []})
+
+    snapshot = world_model.build_world_model_snapshot(tmp_path)
+
+    assert snapshot['optional_sensors'] == {}

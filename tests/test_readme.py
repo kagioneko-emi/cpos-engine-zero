@@ -438,3 +438,18 @@ def test_android_emilia_sensor_command_is_linked_and_observe_only():
     assert 'Concrete local paths belong in the private lab repo' in doc
     assert 'goal_id="android_emilia_bridge_sensor"' in goals
     assert 'state="done"' in goals
+
+
+
+def test_world_model_optional_sensor_summaries_are_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    world_model = open('cpos/world_model.py', encoding='utf-8').read()
+
+    assert '--include-db-inventory' in readme
+    assert '--include-android-emilia' in readme
+    assert 'World Model optional sensor summaries' in handoff
+    assert 'Optional sensors are absent by default' in handoff
+    assert 'not candidate path lists' in handoff
+    assert '_compact_sensor' in world_model
+    assert 'optional_sensors' in world_model

@@ -885,3 +885,21 @@ Safety posture:
 
 Goal state update: `android_emilia_bridge_sensor` is now `done`. Privacy review is still required before any actual Android data ingestion.
 
+
+## World Model optional sensor summaries
+
+Extended `cpos.world_model snapshot` with optional compact sensor summaries:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --include-db-inventory --json
+PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --include-android-emilia --json
+PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --include-db-inventory --include-android-emilia --json
+```
+
+Notes:
+
+- Optional sensors are absent by default to keep snapshots lightweight.
+- DB inventory remains path-only and does not open DB files.
+- Android Emilia remains observe-only and requires explicit reference paths for local/private refs.
+- World Model stores compact counts/flags only, not candidate path lists, raw references, raw logs, raw diffs, DB contents, or phone data.
+

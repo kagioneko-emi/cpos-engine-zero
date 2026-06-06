@@ -28,6 +28,7 @@ See `docs/SENSOR_AND_GOAL_MANAGER_SPEC.md` for the first sensor/goal-manager spe
 See `docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md` for the event bus/world-model spec draft.
 See `docs/COGNITIVE_AGENT_OS_ROADMAP.md` for the doc-only implementation roadmap.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --json` for a read-only current-state snapshot.
+Add `--include-db-inventory` and/or `--include-android-emilia` to include compact optional sensor summaries.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goals list --json` for read-only default goal state.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.db_inventory_sensor --root . --json` for path-only DB inventory.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.android_emilia_sensor --json` for observe-only Android Emilia bridge reference inventory.
