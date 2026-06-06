@@ -1171,3 +1171,64 @@ Behavior:
 Added `docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md` as a review summary for the post-RC resume pipeline work. This is not a release declaration.
 
 Goal state update: `resume_pipeline_secret_scan_summary` is now `done`.
+
+## Latest Handoff — Resume Pipeline + Zenn draft checkpoint
+
+Generated: `2026-06-07T00:00:00+09:00`
+
+Current clean states at checkpoint:
+
+- CPOS repo `/home/mayutama/cpos_defensive_agent`: `main...origin/main`, clean/synced
+- Zenn repo `/home/mayutama/zenn`: `main...origin/main`, clean/synced
+- Zenn article `articles/cognitive-agent-os-safety-kernel.md`: `published: false`
+
+Completed in the latest run:
+
+1. Compact Resume Pipeline secret scan
+   - command:
+     ```bash
+     PYTHONPATH=. .venv/bin/python -m cpos.resume_pipeline run --goal-store goals/goals.example.json --scan-compact --json
+     ```
+   - schema: `kagioneko.resume_pipeline_compact_secret_scan.v1`
+   - reports pattern names/counts only
+   - does not print matching secret values
+   - remains read-only, metadata-only, dry-run-only
+   - tape-memory write remains disabled: `dry_run=true`, `would_write=false`, `write_enabled=false`
+   - full tests before commit: `409 passed`
+   - prepublish after commit: `ok=true`, secret scan `count=0`
+   - pushed commit: `713baf8 Add compact pipeline secret scan summary`
+
+2. v0.1.2 Resume Pipeline summary doc
+   - added `docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md`
+   - summary doc is review/planning only, not a release declaration
+   - captures schemas, safety invariants, compact mode, secret scan gate, and tape-memory non-write status
+
+3. Zenn draft updates
+   - updated `/home/mayutama/zenn/articles/cognitive-agent-os-safety-kernel.md`
+   - article remains `published: false`
+   - added/polished “Fast resume without raw logs” narrative
+   - clarified Safety Kernel / World Model / Goal Manager / Resume Pipeline framing
+   - Zenn article secret scan before commits: `count=0`
+   - pushed commits:
+     - `145f0d2 Update Cognitive Agent OS resume pipeline draft`
+     - `dc2d99b Polish Cognitive Agent OS resume pipeline draft`
+
+Recommended next options:
+
+1. Notionまとめ
+   - summarize “fast resume without raw logs” and v0.1.2 Resume Pipeline in Japanese.
+2. Zenn公開前レビュー
+   - review wording, title, flow, and public-safe AGI framing.
+   - do not publish unless Neko-san explicitly confirms publishing.
+3. v0.1.2 release readiness check
+   - review `docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md` and current tests/prepublish.
+   - do not tag/release without explicit confirmation.
+4. tape-memory real write design
+   - keep real writes disabled unless explicit human confirmation flow is designed and approved.
+
+Safety reminders:
+
+- Do not store raw logs, raw diffs, request bodies, full handoff bodies, DB rows, Android/phone data, private repo content, or secrets in memory/pointers.
+- API keys/tokens/SSH keys stay in Vault only.
+- GitHub push/publish/tag/release remains Human Escalation.
+- Zenn article is draft-only until explicit publish confirmation.
