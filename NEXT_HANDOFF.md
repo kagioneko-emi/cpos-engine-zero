@@ -724,3 +724,16 @@ Recommended strategic framing:
 - Port opening requires explicit approval, Discord notice, and 15-minute auto-close.
 - GitHub push/publish requires explicit human approval.
 - Final `v0.1.0` was explicitly approved, tagged, pushed, and published on 2026-06-05.
+
+## Repository boundary memo
+
+Created private materials repo: `kagioneko/cognitive-agent-os-lab`.
+
+Use split going forward:
+
+- Public `kagioneko/cpos-engine-zero`: release-ready CPOS Engine-Zero code/docs/tests/release materials.
+- Private `kagioneko/cognitive-agent-os-lab`: Cognitive Agent OS research/materials, Android Emilia bridge planning, DB/reflection-source planning, private non-public strategy notes.
+
+Never put credentials, `.env`, raw DB dumps, raw private logs, API keys, OAuth tokens, or SSH keys in either repo. Private lab is not a secrets store.
+
+Do not move private lab material into public CPOS until sanitized and explicitly reviewed.

@@ -268,3 +268,11 @@ After this roadmap is committed/pushed:
 4. Start Phase 1 with a read-only Git sensor prototype.
 
 Recommended: pause/review or Zenn polish before implementation.
+
+## Public/private repository boundary
+
+Public CPOS Engine-Zero remains the release-ready public safety-kernel repository.
+
+Private Cognitive Agent OS research/materials should live first in `kagioneko/cognitive-agent-os-lab`.
+
+Use the private lab repo for broad non-public strategy, Android Emilia bridge planning, DB/reflection-source planning, or private life/context sensor notes. Do not move lab material into public CPOS until it has been sanitized and explicitly reviewed.
