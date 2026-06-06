@@ -232,7 +232,7 @@ def test_v0_1_1_summary_is_linked_and_complete():
     assert 'announcement copy pack' in summary.lower()
     assert 'Local runtime file inventory' in summary
     assert 'Dashboard wording polish' in summary
-    assert '334 passed' in summary
+    assert '335 passed' in summary
     assert 'prepublish_check' in summary
     assert 'Do not tag, push, publish' in summary
 
@@ -247,7 +247,7 @@ def test_v0_1_1_release_notes_and_draft_are_linked_and_safety_focused():
     assert 'v0.1.1 Release Notes' in notes
     assert 'CPOS for Agents' in notes
     assert 'Adapter schema validation' in notes
-    assert '334 passed' in notes
+    assert '335 passed' in notes
     assert 'prepublish_check' in notes
     assert 'CPOS Engine-Zero v0.1.1' in draft
     assert 'External Agent Adapter validation' in draft
@@ -272,3 +272,23 @@ def test_v0_1_2_backlog_and_next_work_sequence_are_linked():
     assert 'cpos-for-agents-v011-rc1.md' in handoff
     assert 'published: false' in handoff
     assert 'no implementation started' in handoff.lower()
+
+
+def test_cognitive_agent_os_architecture_is_linked_and_safety_focused():
+    readme = open('README.md', encoding='utf-8').read()
+    arch = open('docs/COGNITIVE_AGENT_OS_ARCHITECTURE.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+
+    assert 'docs/COGNITIVE_AGENT_OS_ARCHITECTURE.md' in readme
+    assert 'Kagioneko Cognitive Agent OS' in arch
+    assert 'not a claim that the system is AGI' in arch
+    assert 'Sensor Layer' in arch
+    assert 'Goal Manager' in arch
+    assert 'Self-Evaluation Gate' in arch
+    assert 'Unified Event Bus' in arch
+    assert 'World Model' in arch
+    assert 'Sleep / Consolidation' in arch
+    assert 'Permission ladder' in arch
+    assert 'VN-CPU / UNO should start at Level 0' in arch
+    assert 'SENSOR_AND_GOAL_MANAGER_SPEC.md' in arch
+    assert 'Cognitive Agent OS architecture draft' in handoff

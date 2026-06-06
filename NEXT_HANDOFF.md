@@ -3,7 +3,7 @@
 1. `cd /home/mayutama/cpos_defensive_agent`
 2. `git status --short --branch`
 3. `PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json`
-4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `334 passed`.
+4. Expected state after this memo is pushed: `main...origin/main`, clean tree, `prepublish_check ok=true`, secret scan `count=0`, full tests `335 passed`.
 5. Correct remote: `origin https://github.com/kagioneko/cpos-engine-zero.git`; latest pushed commit before this memo: `135a3c4 Note v0.1.1 rc pause`; latest tag: `v0.1.1-rc1`; GitHub prerelease is published.
 6. Final **v0.1.0** tag and GitHub Release are published. v0.1.1-rc1 prerelease is published. Do not create/publish final v0.1.1 without explicit user confirmation.
 7. v0.1.1 stabilization Priority 1–6 is complete on `main`: adapter schema validation, payload examples, 5-minute guide, announcement copy, local runtime inventory, dashboard wording polish.
@@ -37,7 +37,7 @@ Expected after this memo is committed and pushed:
 - `prepublish_check`: `ok=true`
 - Secret scan: `ok=true count=0`
 - Working tree: clean
-- Full tests last verified before this memo: `334 passed`
+- Full tests last verified before this memo: `335 passed`
 
 ## v0.1.1 stabilization complete
 
@@ -58,7 +58,7 @@ Current test/prepublish baseline before this memo commit:
 
 ```bash
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 334 passed
+# 335 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan ok=true count=0
@@ -88,6 +88,21 @@ User selected next-work order **1 → 3 → 2** after deciding CPOS can rest aft
 
 Local helper log: `docs/NEXT_WORK_SEQUENCE.md`.
 
+
+
+## Cognitive Agent OS architecture draft
+
+Created `docs/COGNITIVE_AGENT_OS_ARCHITECTURE.md` as a documentation-only architecture draft.
+
+Key framing:
+
+- Do not claim completed AGI.
+- Position as a safety-first Cognitive Agent OS / artificial cognitive runtime.
+- CPOS is the safety kernel.
+- VN-CPU/UNO is a cognitive pulse / organism core candidate, but should remain observe-only at first.
+- Missing components: software sensors, Goal Manager, Self-Evaluation Gate, unified event bus/schema, world model, sleep/consolidation.
+
+Next concrete design doc if continuing: `docs/SENSOR_AND_GOAL_MANAGER_SPEC.md`.
 
 ## Late-night reflection / origin story note
 
