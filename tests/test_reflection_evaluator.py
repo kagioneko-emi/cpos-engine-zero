@@ -130,8 +130,33 @@ def test_reflection_blocks_invalid_goal_store_validation():
 
     assert_eval_safety(result)
     assert result['recommendation'] == 'block'
-    assert result['risk'] == 'high'
-    assert 'goal store validation failed' in result['blocking_issues'][0]
+    assert result['risk'] == 'critical'
+    assert result['goal_store_validation_used'] is True
+    assert result['goal_store_error_codes'] == ['write_enabled_forbidden']
+    assert 'codes=write_enabled_forbidden' in result['blocking_issues'][0]
+
+
+def test_reflection_goal_store_duplicate_ids_are_medium_but_blocked():
+    result = reflection.evaluate_proposed_action(
+        {'action_id': 'goal_backed_action', 'action_type': 'doc', 'summary': 'Plan from persisted goals', 'requires_execution': False},
+        world_model_snapshot=_world(goal_store_validation={
+            'schema': 'kagioneko.goal_store_validation.v1',
+            'ok': False,
+            'goal_count': 2,
+            'error_count': 1,
+            'error_codes': ['duplicate_goal_id'],
+            'metadata_only': True,
+            'raw_request_stored': False,
+            'raw_diff_stored': False,
+            'raw_outputs_stored': False,
+            'secret_values_stored': False,
+            'execute_automatically': False,
+        }),
+    )
+
+    assert result['recommendation'] == 'block'
+    assert result['risk'] == 'medium'
+    assert result['goal_store_error_codes'] == ['duplicate_goal_id']
 
 
 def test_reflection_cli_accepts_goal_store(monkeypatch, capsys):

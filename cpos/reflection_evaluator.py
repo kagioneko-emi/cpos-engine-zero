@@ -27,12 +27,39 @@ DOC_ACTIONS = {"doc", "reflection", "plan", "diagram"}
 OVERCLAIM_RE = re.compile(r"(agi\s*(is|completed|done)|completed\s*agi|agi完成|agiできた|完全なagi)", re.IGNORECASE)
 PRIVATE_LEAK_RE = re.compile(r"(/home/|raw db|db dump|diary text|phone data|private log|oauth|token|credential|\.env)", re.IGNORECASE)
 
+GOAL_STORE_ERROR_RISK = {
+    "write_enabled_forbidden": "critical",
+    "autonomous_goal_updates_forbidden": "critical",
+    "self_preservation_goals_forbidden": "critical",
+    "self_preservation_goal_forbidden": "critical",
+    "forbidden_goal_key": "critical",
+    "risky_text_detected": "critical",
+    "safety_flag_must_be_false": "high",
+    "metadata_only_required": "high",
+    "duplicate_goal_id": "medium",
+    "required_key_missing": "medium",
+}
+
 
 def _risk_max(*risks: str) -> str:
     values = [risk for risk in risks if risk]
     if not values:
         return "low"
     return max(values, key=lambda risk: RISK_ORDER.get(risk, 1))
+
+
+
+
+def _goal_store_error_risk(error_codes: list[str]) -> str:
+    if not error_codes:
+        return "high"
+    return _risk_max(*(GOAL_STORE_ERROR_RISK.get(code, "high") for code in error_codes))
+
+
+def _goal_store_error_summary(error_codes: list[str]) -> str:
+    if not error_codes:
+        return "unknown_error"
+    return ",".join(sorted(set(error_codes)))
 
 
 def _load_json_text(path: str | None) -> dict[str, Any]:
@@ -159,10 +186,16 @@ def evaluate_proposed_action(
         reasons.append("late-night high-stakes caution applies")
 
     goal_store_validation = world.get("goal_store_validation")
+    goal_store_error_codes: list[str] = []
     if goal_store_validation and not goal_store_validation.get("ok"):
-        risks.append("high")
-        blocking_issues.append("goal store validation failed; fix goal store before relying on persisted goals")
-        reasons.append("goal store validation is not clean")
+        goal_store_error_codes = [str(code) for code in (goal_store_validation.get("error_codes") or [])]
+        goal_store_risk = _goal_store_error_risk(goal_store_error_codes)
+        risks.append(goal_store_risk)
+        blocking_issues.append(
+            "goal store validation failed; fix goal store before relying on persisted goals "
+            f"(codes={_goal_store_error_summary(goal_store_error_codes)}, risk={goal_store_risk})"
+        )
+        reasons.append(f"goal store validation is not clean ({_goal_store_error_summary(goal_store_error_codes)})")
 
     if world.get("release", {}).get("final_v0_1_1_paused") and action_type == "release":
         risks.append("high")
@@ -205,6 +238,8 @@ def evaluate_proposed_action(
         "suggested_next_action": suggested,
         "goal_summary_used": goals.get("schema") == "kagioneko.goal_summary.v1",
         "world_model_used": world.get("schema") == "kagioneko.world_model_snapshot.v1",
+        "goal_store_validation_used": bool(goal_store_validation),
+        "goal_store_error_codes": goal_store_error_codes,
         **SAFETY_FLAGS,
     }
 

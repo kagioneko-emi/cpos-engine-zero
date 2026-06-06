@@ -1001,3 +1001,39 @@ Behavior:
 - keeps metadata-only / no-execute safety flags
 
 Goal state update: `reflection_goal_store_gate` is now `done`.
+
+## Reflection Evaluator Phase 2 + Goal Store summary/export + tape-memory bridge design
+
+Implemented the next safety chain:
+
+1. Reflection Evaluator Phase 2 goal-store error severity
+   - `GOAL_STORE_ERROR_RISK` maps validation error codes to risk levels.
+   - critical examples: `write_enabled_forbidden`, `autonomous_goal_updates_forbidden`, `self_preservation_goal_forbidden`, `forbidden_goal_key`, `risky_text_detected`.
+   - lower-structure examples: `duplicate_goal_id` is medium but still blocks reliance on persisted goals.
+   - evaluation output now includes `goal_store_validation_used` and `goal_store_error_codes`.
+
+2. Goal Store summary/export output
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.goal_store summary --path goals/goals.example.json --json
+```
+
+Safety posture:
+
+- read-only; no files written
+- metadata-only merged summary
+- includes counts, IDs, validation error codes, and state/scope/priority counts
+- does not print raw goal bodies, success criteria, safety constraints, raw logs, DB rows, Android data, or secrets
+
+3. tape-memory bridge design
+
+Added `docs/TAPE_MEMORY_BRIDGE_DESIGN.md` as a design-only metadata pointer plan.
+
+Safety posture:
+
+- no runtime integration enabled
+- future writes require explicit human confirmation
+- pointer schema stores summary/risk/count/status metadata only
+- no raw command output, raw diffs, raw request bodies, full handoff bodies, private repo content, DB rows, diary text, phone data, or secrets
+
+Goal state updates: `goal_store_summary_export` and `tape_memory_bridge_design` are now `done`.

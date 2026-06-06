@@ -26,12 +26,14 @@ See `docs/backlog/V0_1_2_BACKLOG.md` for parked post-RC ideas; implementation is
 See `docs/COGNITIVE_AGENT_OS_ARCHITECTURE.md` for the repo-family Cognitive Agent OS architecture draft.
 See `docs/SENSOR_AND_GOAL_MANAGER_SPEC.md` for the first sensor/goal-manager spec draft.
 See `docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md` for the event bus/world-model spec draft.
+See `docs/TAPE_MEMORY_BRIDGE_DESIGN.md` for the metadata-only tape-memory resume-pointer bridge design.
 See `docs/COGNITIVE_AGENT_OS_ROADMAP.md` for the doc-only implementation roadmap.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --json` for a read-only current-state snapshot.
 Add `--goal-store goals/goals.example.json` to include compact read-only goal store validation.
 Add `--include-db-inventory` and/or `--include-android-emilia` to include compact optional sensor summaries.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goals list --json` for read-only default goal state.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goal_store validate --path goals/goals.example.json --json` for read-only goal store validation.
+Run `PYTHONPATH=. .venv/bin/python -m cpos.goal_store summary --path goals/goals.example.json --json` for metadata-only merged goal summary/export output.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --json` for read-only proposed-action evaluation. Add `--goal-store goals/goals.example.json` to let the evaluator consume compact goal-store validation via the World Model.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.db_inventory_sensor --root . --json` for path-only DB inventory.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.android_emilia_sensor --json` for observe-only Android Emilia bridge reference inventory.

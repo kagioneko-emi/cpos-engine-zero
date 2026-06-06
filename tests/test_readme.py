@@ -503,3 +503,23 @@ def test_world_model_goal_store_summary_is_documented():
     assert 'goal_store_validation_failed' in world_model
     assert 'goal_store_validation' in world_model
     assert '_compact_goal_store_validation' in world_model
+
+
+def test_goal_store_summary_and_tape_memory_bridge_are_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    goal_store = open('cpos/goal_store.py', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+    bridge = open('docs/TAPE_MEMORY_BRIDGE_DESIGN.md', encoding='utf-8').read()
+
+    assert 'cpos.goal_store summary --path goals/goals.example.json --json' in readme
+    assert 'kagioneko.goal_store_summary.v1' in goal_store
+    assert 'build_goal_store_summary' in goal_store
+    assert 'Goal Store summary/export' in handoff
+    assert 'docs/TAPE_MEMORY_BRIDGE_DESIGN.md' in readme
+    assert 'kagioneko.tape_memory_bridge_pointer.v1' in bridge
+    assert 'metadata-only resume pointers' in bridge
+    assert 'secret_values_stored' in bridge
+    assert 'execute_automatically' in bridge
+    assert 'goal_store_summary_export' in goals
+    assert 'tape_memory_bridge_design' in goals

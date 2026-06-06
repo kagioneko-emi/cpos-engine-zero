@@ -9,6 +9,7 @@ from typing import Any
 from .goals import ALLOWED_STATES, GOAL_SCHEMA, GOAL_SET_SCHEMA, SAFETY_FLAGS, default_goals
 
 STORE_SCHEMA = "kagioneko.goal_store_validation.v1"
+SUMMARY_SCHEMA = "kagioneko.goal_store_summary.v1"
 ALLOWED_SCOPES = {"project", "wellbeing", "release", "article", "system"}
 ALLOWED_PRIORITIES = {"low", "medium", "high", "critical"}
 FORBIDDEN_GOAL_KEYS = {
@@ -182,6 +183,42 @@ def validate_file(path: str | Path, *, include_merged_summary: bool = False) -> 
     return result
 
 
+
+
+def _count_by(goals: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for goal in goals:
+        value = str(goal.get(key) or "unknown")
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def build_goal_store_summary(path: str | Path) -> dict[str, Any]:
+    payload = load_goal_set(path)
+    validation = validate_goal_set(payload)
+    external_goals = payload.get("goals") if isinstance(payload, dict) and isinstance(payload.get("goals"), list) else []
+    merged_goals = merge_with_defaults(external_goals) if validation["ok"] else default_goals()
+    error_codes = sorted({str(error.get("code")) for error in validation.get("errors", []) if isinstance(error, dict)})
+    return {
+        "schema": SUMMARY_SCHEMA,
+        "source_path": str(path),
+        "validation_ok": bool(validation.get("ok")),
+        "validation_error_count": len(validation.get("errors") or []),
+        "validation_error_codes": error_codes,
+        "default_goal_count": len(default_goals()),
+        "external_goal_count": len(external_goals),
+        "merged_goal_count": len(merged_goals),
+        "merged_goal_ids": sorted(str(goal.get("goal_id")) for goal in merged_goals),
+        "counts_by_state": _count_by(merged_goals, "state"),
+        "counts_by_scope": _count_by(merged_goals, "scope"),
+        "counts_by_priority": _count_by(merged_goals, "priority"),
+        "write_enabled": False,
+        "autonomous_goal_updates": False,
+        "self_preservation_goals": False,
+        **SAFETY_FLAGS,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate read-only CPOS goal store JSON.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -189,20 +226,31 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--path", required=True, help="Path to goal set JSON.")
     validate.add_argument("--include-merged-summary", action="store_true", help="Include merged-with-defaults counts only.")
     validate.add_argument("--json", action="store_true", help="Print JSON output.")
+    summary = sub.add_parser("summary", help="Print metadata-only merged goal summary without writing files.")
+    summary.add_argument("--path", required=True, help="Path to goal set JSON.")
+    summary.add_argument("--json", action="store_true", help="Print JSON output.")
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
-    if args.command != "validate":
-        raise SystemExit(2)
-    result = validate_file(args.path, include_merged_summary=args.include_merged_summary)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-    else:
-        print(f"goal_store_validation: ok={result['ok']} goal_count={result['goal_count']}")
-    if not result["ok"]:
-        raise SystemExit(1)
+    if args.command == "validate":
+        result = validate_file(args.path, include_merged_summary=args.include_merged_summary)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        else:
+            print(f"goal_store_validation: ok={result['ok']} goal_count={result['goal_count']}")
+        if not result["ok"]:
+            raise SystemExit(1)
+        return
+    if args.command == "summary":
+        result = build_goal_store_summary(args.path)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        else:
+            print(f"goal_store_summary: validation_ok={result['validation_ok']} merged_goal_count={result['merged_goal_count']}")
+        return
+    raise SystemExit(2)
 
 
 if __name__ == "__main__":

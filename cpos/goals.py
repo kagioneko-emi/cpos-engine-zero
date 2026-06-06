@@ -173,6 +173,30 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/reflection_evaluator.py", "cpos/world_model.py", "tests/test_reflection_evaluator.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="goal_store_summary_export",
+            title="Add metadata-only Goal Store summary export",
+            scope="project",
+            state="done",
+            priority="medium",
+            success_criteria=["summary command exists", "merged counts and IDs only", "tests pass", "no files written"],
+            safety_constraints=["read-only", "metadata-only", "no raw goal bodies", "no secrets/raw logs/raw DB/Android data"],
+            source_of_truth=["cpos/goal_store.py", "tests/test_goal_store.py"],
+            requires_human_confirmation=False,
+        ),
+
+        _goal(
+            goal_id="tape_memory_bridge_design",
+            title="Document metadata-only tape-memory bridge design",
+            scope="system",
+            state="done",
+            priority="medium",
+            success_criteria=["pointer schema documented", "write/read safety policy documented", "tests pass"],
+            safety_constraints=["design-only", "no runtime writes", "no raw handoff/private content", "human confirmation before future write path"],
+            source_of_truth=["docs/TAPE_MEMORY_BRIDGE_DESIGN.md"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 

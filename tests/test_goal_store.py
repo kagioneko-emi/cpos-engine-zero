@@ -127,3 +127,31 @@ def test_goal_store_cli_json_success_and_failure(tmp_path, capsys):
     with pytest.raises(SystemExit):
         goal_store.main(['validate', '--path', str(bad), '--json'])
     assert '"ok": false' in capsys.readouterr().out
+
+
+def test_goal_store_summary_is_metadata_only():
+    result = goal_store.build_goal_store_summary('goals/goals.example.json')
+
+    assert result['schema'] == 'kagioneko.goal_store_summary.v1'
+    assert result['metadata_only'] is True
+    assert result['raw_request_stored'] is False
+    assert result['raw_diff_stored'] is False
+    assert result['raw_outputs_stored'] is False
+    assert result['secret_values_stored'] is False
+    assert result['execute_automatically'] is False
+    assert result['validation_ok'] is True
+    assert result['external_goal_count'] == 1
+    assert result['merged_goal_count'] >= result['default_goal_count']
+    assert 'zenn_cognitive_agent_os_article' in result['merged_goal_ids']
+    assert 'counts_by_state' in result
+
+
+def test_goal_store_summary_cli_json(tmp_path, capsys):
+    good = tmp_path / 'goals.json'
+    good.write_text(json.dumps(valid_goal_set()), encoding='utf-8')
+
+    goal_store.main(['summary', '--path', str(good), '--json'])
+
+    out = capsys.readouterr().out
+    assert 'kagioneko.goal_store_summary.v1' in out
+    assert 'merged_goal_count' in out
