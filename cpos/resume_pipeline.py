@@ -7,10 +7,12 @@ from typing import Any
 
 from .reflection_evaluator import evaluate_proposed_action
 from .resume_pointer import build_resume_pointer, build_tape_memory_write_plan, validate_resume_pointer
+from .secret_scan import PATTERNS
 from .world_model import build_world_model_snapshot
 
 PIPELINE_SCHEMA = "kagioneko.resume_pipeline_bundle.v1"
 COMPACT_PIPELINE_SCHEMA = "kagioneko.resume_pipeline_compact.v1"
+COMPACT_SCAN_SCHEMA = "kagioneko.resume_pipeline_compact_secret_scan.v1"
 SAFETY_FLAGS = {
     "metadata_only": True,
     "raw_request_stored": False,
@@ -54,6 +56,28 @@ def _compact_reflection(evaluation: dict[str, Any]) -> dict[str, Any]:
         "blocking_issue_count": len(evaluation.get("blocking_issues") or []),
         "goal_store_validation_used": bool(evaluation.get("goal_store_validation_used")),
         "goal_store_error_codes": evaluation.get("goal_store_error_codes", []),
+        **SAFETY_FLAGS,
+    }
+
+
+def scan_compact_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    findings: list[dict[str, Any]] = []
+    for name, pattern in PATTERNS:
+        matches = pattern.findall(text)
+        if matches:
+            findings.append({
+                "pattern": name,
+                "count": len(matches),
+            })
+    return {
+        "schema": COMPACT_SCAN_SCHEMA,
+        "ok": not findings,
+        "count": sum(int(item["count"]) for item in findings),
+        "patterns": sorted(item["pattern"] for item in findings),
+        "findings": findings,
+        "payload_body_printed": False,
+        "secret_values_printed": False,
         **SAFETY_FLAGS,
     }
 
@@ -185,6 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--no-handoff-digest", action="store_false", dest="include_handoff_digest")
     run.add_argument("--handoff-path", default="NEXT_HANDOFF.md")
     run.add_argument("--compact", action="store_true", help="Print compact metadata-only pipeline summary.")
+    run.add_argument("--scan-compact", action="store_true", help="Attach secret-pattern scan result for compact payload. Implies --compact.")
     run.add_argument("--json", action="store_true", help="Print JSON output.")
     return parser
 
@@ -205,8 +230,10 @@ def main(argv: list[str] | None = None) -> None:
         include_handoff_digest=args.include_handoff_digest,
         handoff_path=args.handoff_path,
     )
-    if args.compact:
+    if args.compact or args.scan_compact:
         result = compact_resume_pipeline_bundle(result)
+    if args.scan_compact:
+        result["compact_secret_scan"] = scan_compact_payload(result)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     else:

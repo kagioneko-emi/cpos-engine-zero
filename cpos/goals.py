@@ -257,6 +257,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/resume_pipeline.py", "tests/test_resume_pipeline.py", "docs/backlog/V0_1_2_BACKLOG.md"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="resume_pipeline_secret_scan_summary",
+            title="Add compact resume pipeline secret scan and v0.1.2 summary",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["compact payload scan exists", "summary doc exists", "tests pass", "no writes"],
+            safety_constraints=["pattern/count output only", "no secret values printed", "metadata-only", "dry-run write plan only"],
+            source_of_truth=["cpos/resume_pipeline.py", "docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md", "tests/test_resume_pipeline.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 

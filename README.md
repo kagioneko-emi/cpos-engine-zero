@@ -34,7 +34,7 @@ Add `--include-db-inventory` and/or `--include-android-emilia` to include compac
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goals list --json` for read-only default goal state.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goal_store validate --path goals/goals.example.json --json` for read-only goal store validation.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goal_store summary --path goals/goals.example.json --json` for metadata-only merged goal summary/export output.
-Run `PYTHONPATH=. .venv/bin/python -m cpos.resume_pipeline run --goal-store goals/goals.example.json --json` for the read-only integrated reflection → pointer → validation → dry-run write-plan bundle; add `--compact` for a smaller handoff/article-friendly summary.
+Run `PYTHONPATH=. .venv/bin/python -m cpos.resume_pipeline run --goal-store goals/goals.example.json --json` for the read-only integrated reflection → pointer → validation → dry-run write-plan bundle; add `--compact` for a smaller handoff/article-friendly summary, or `--scan-compact` to attach a secret-pattern scan gate for compact payloads.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.resume_pointer build --goal-store goals/goals.example.json --json` for a stdout-only resume pointer. Add `--reflection-json eval.json --include-handoff-digest` to include Reflection Evaluator metadata and a heading-only handoff digest. Use `cpos.resume_pointer validate --pointer-json pointer.json --json` and `cpos.resume_pointer write-plan --pointer-json pointer.json --json` for validation and dry-run tape-memory write planning.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --json` for read-only proposed-action evaluation. Add `--goal-store goals/goals.example.json` to let the evaluator consume compact goal-store validation via the World Model.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.db_inventory_sensor --root . --json` for path-only DB inventory.
@@ -42,6 +42,7 @@ Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.android_emilia_sensor --json`
 See `docs/ANDROID_EMILIA_SENSOR_BRIDGE.md` for Android Emilia observe-only sensor bridge notes.
 See `docs/DB_REFLECTION_SOURCE_INVENTORY.md` for DB inventory/reflection-source safety notes.
 See `docs/V0_1_1_SUMMARY.md` for the completed v0.1.1 stabilization summary.
+See `docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md` for the post-RC resume pipeline summary.
 See `RELEASE_NOTES_v0.1.1.md` and `GITHUB_RELEASE_DRAFT_v0.1.1.md` for v0.1.1 release prep drafts.
 See `docs/ANNOUNCEMENT_COPY_v0.1.0.md` for reusable post-release announcement/social copy.
 See `docs/LOCAL_RUNTIME_FILE_INVENTORY.md` for ignored local/runtime artifact handling.

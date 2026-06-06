@@ -601,3 +601,19 @@ def test_resume_pipeline_compact_and_v012_backlog_are_documented():
     assert 'Resume Pipeline stabilization' in backlog
     assert 'fast resume without raw logs' in backlog
     assert 'resume_pipeline_compact' in goals
+
+
+def test_resume_pipeline_secret_scan_and_summary_are_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    pipeline = open('cpos/resume_pipeline.py', encoding='utf-8').read()
+    summary = open('docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert '--scan-compact' in readme
+    assert 'docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md' in readme
+    assert 'kagioneko.resume_pipeline_compact_secret_scan.v1' in pipeline
+    assert 'compact payload secret-pattern scan' in summary
+    assert 'would_write=false' in summary
+    assert 'Resume Pipeline compact secret scan + summary doc' in handoff
+    assert 'resume_pipeline_secret_scan_summary' in goals

@@ -1150,3 +1150,24 @@ Behavior:
 Updated `docs/backlog/V0_1_2_BACKLOG.md` with completed Resume Pipeline stabilization work and future candidates around secret-scanned compact payloads, external-agent docs, and “fast resume without raw logs” narrative.
 
 Goal state update: `resume_pipeline_compact` is now `done`.
+
+## Resume Pipeline compact secret scan + summary doc
+
+Added compact payload secret-pattern scan for the integrated resume pipeline:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pipeline run --goal-store goals/goals.example.json --scan-compact --json
+```
+
+Behavior:
+
+- `--scan-compact` implies compact output.
+- scan schema: `kagioneko.resume_pipeline_compact_secret_scan.v1`
+- reports pattern names and counts only
+- does not print matching secret values
+- remains read-only, metadata-only, and dry-run-only
+- no tape-memory writes; write plan remains `dry_run=true`, `would_write=false`, `write_enabled=false`
+
+Added `docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md` as a review summary for the post-RC resume pipeline work. This is not a release declaration.
+
+Goal state update: `resume_pipeline_secret_scan_summary` is now `done`.

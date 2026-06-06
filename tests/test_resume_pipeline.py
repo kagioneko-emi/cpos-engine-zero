@@ -113,3 +113,32 @@ def test_resume_pipeline_cli_compact_json(monkeypatch, tmp_path, capsys):
     assert 'kagioneko.resume_pipeline_compact.v1' in out
     assert 'recent_headings' not in out
     assert 'body omitted' not in out
+
+
+def test_compact_payload_secret_scan_detects_patterns_without_values(monkeypatch):
+    monkeypatch.setattr(resume_pipeline, 'build_world_model_snapshot', lambda **kwargs: _world())
+    bundle = resume_pipeline.build_resume_pipeline_bundle()
+    compact = resume_pipeline.compact_resume_pipeline_bundle(bundle)
+    compact['resume_pointer']['commit'] = 'sk-' + '1234567890abcdef1234567890abcdef'
+
+    scan = resume_pipeline.scan_compact_payload(compact)
+
+    assert scan['schema'] == 'kagioneko.resume_pipeline_compact_secret_scan.v1'
+    assert scan['ok'] is False
+    assert 'openai_like_key' in scan['patterns']
+    assert '1234567890abcdef' not in str(scan['findings'])
+    assert scan['secret_values_printed'] is False
+
+
+def test_resume_pipeline_cli_scan_compact(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(resume_pipeline, 'build_world_model_snapshot', lambda **kwargs: _world())
+    handoff = tmp_path / 'NEXT_HANDOFF.md'
+    handoff.write_text('# Start\n## Latest Handoff\nbody omitted\n', encoding='utf-8')
+
+    resume_pipeline.main(['run', '--goal-store', 'goals/goals.example.json', '--handoff-path', str(handoff), '--scan-compact', '--json'])
+
+    out = capsys.readouterr().out
+    assert 'kagioneko.resume_pipeline_compact.v1' in out
+    assert 'kagioneko.resume_pipeline_compact_secret_scan.v1' in out
+    assert '"ok": true' in out
+    assert 'body omitted' not in out
