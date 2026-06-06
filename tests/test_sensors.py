@@ -153,3 +153,49 @@ def test_db_inventory_sensor_empty_root_is_low_risk(tmp_path):
     assert event['event_type'] == 'db_source_inventory_empty'
     assert event['risk'] == 'low'
     assert event['metadata']['candidate_count'] == 0
+
+
+def test_android_emilia_sensor_observe_only_inventory(tmp_path):
+    from cpos.sensors.android_emilia_sensor import observe_android_emilia_bridge
+
+    android_repo = tmp_path / 'emilia-spirit-android'
+    android_repo.mkdir()
+    receiver = tmp_path / 'vps-spirit' / 'emilia_receiver.py'
+    receiver.parent.mkdir()
+    receiver.write_text('SECRET_VALUE_SHOULD_NOT_BE_READ\n', encoding='utf-8')
+    article = tmp_path / 'zenn' / 'articles' / 'emilia-tamagotchi-sensor.md'
+    article.parent.mkdir(parents=True)
+    article.write_text('private article body should not be read\n', encoding='utf-8')
+
+    event = observe_android_emilia_bridge({
+        'android_app_repo': str(android_repo),
+        'vps_receiver': str(receiver),
+        'public_article': str(article),
+    })
+
+    assert_sensor_safety(event)
+    assert event['source'] == 'android_emilia'
+    assert event['event_type'] == 'android_emilia_bridge_detected'
+    assert event['risk'] == 'medium'
+    assert event['requires_human_review'] is True
+    assert event['metadata']['existing_count'] == 3
+    assert event['metadata']['content_read'] is False
+    assert event['metadata']['phone_data_read'] is False
+    assert event['metadata']['diary_text_read'] is False
+    assert event['metadata']['sensor_stream_read'] is False
+    assert event['metadata']['upload_triggered'] is False
+    assert event['metadata']['phone_control_enabled'] is False
+    assert 'SECRET_VALUE_SHOULD_NOT_BE_READ' not in str(event)
+    assert 'private article body should not be read' not in str(event)
+
+
+def test_android_emilia_sensor_missing_refs_is_low_risk(tmp_path):
+    from cpos.sensors.android_emilia_sensor import observe_android_emilia_bridge
+
+    event = observe_android_emilia_bridge({'missing_android': str(tmp_path / 'missing')})
+
+    assert_sensor_safety(event)
+    assert event['event_type'] == 'android_emilia_bridge_not_detected'
+    assert event['risk'] == 'low'
+    assert event['requires_human_review'] is False
+    assert event['metadata']['existing_count'] == 0

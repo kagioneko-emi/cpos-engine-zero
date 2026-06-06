@@ -862,3 +862,26 @@ Note: scanning broad roots such as `/home/mayutama` may print private path names
 
 Goal state update: `db_inventory_sensor` is now `done`; `android_emilia_bridge_sensor` remains `planned`.
 
+
+## Android Emilia bridge inventory sensor MVP
+
+Added `cpos.sensors.android_emilia_sensor` with an observe-only reference inventory command:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.sensors.android_emilia_sensor --json
+```
+
+For local/private references, pass explicit paths, for example `--android-repo`, `--receiver`, `--article`, or repeated `--ref NAME=PATH`. Public CPOS has no hardcoded local private paths by default.
+
+Safety posture:
+
+- content is not read
+- phone data is not read
+- microphone/camera/location are not read
+- diary text is not read
+- sensor streams are not read
+- upload/publish/video/notification actions are not triggered
+- phone control is not enabled
+
+Goal state update: `android_emilia_bridge_sensor` is now `done`. Privacy review is still required before any actual Android data ingestion.
+

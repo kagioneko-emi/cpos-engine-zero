@@ -6,13 +6,13 @@ It does not implement Android integration and does not read private phone data.
 
 ## Local reference points
 
-Observed local references:
+Reference categories:
 
-- `/home/mayutama/workspace/emilia-spirit-android`
-- `/home/mayutama/workspace/vps-spirit/emilia_receiver.py`
-- `/home/mayutama/zenn/articles/emilia-tamagotchi-sensor.md`
+- Android app repository path, supplied explicitly by the operator
+- VPS receiver file path, supplied explicitly by the operator
+- public article path, supplied explicitly by the operator
 
-These are treated as external/experimental sources. CPOS should observe metadata only unless explicitly reviewed.
+Concrete local paths belong in the private lab repo or local handoff notes, not in public defaults. These references are treated as external/experimental sources. CPOS should observe metadata only unless explicitly reviewed.
 
 ## Why this matters
 

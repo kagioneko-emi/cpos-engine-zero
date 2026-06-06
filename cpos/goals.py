@@ -128,13 +128,13 @@ def default_goals() -> list[dict[str, Any]]:
         ),
         _goal(
             goal_id="android_emilia_bridge_sensor",
-            title="Design observe-only Android Emilia bridge inventory sensor",
+            title="Build observe-only Android Emilia bridge inventory sensor",
             scope="project",
-            state="planned",
+            state="done",
             priority="medium",
-            success_criteria=["bridge/reference availability only", "privacy review", "no raw phone data"],
+            success_criteria=["bridge/reference availability only", "privacy review before ingestion", "no raw phone data", "tests pass"],
             safety_constraints=["observe-only", "no microphone/camera/location/diary ingestion by default", "no upload/publish triggers"],
-            source_of_truth=["docs/ANDROID_EMILIA_SENSOR_BRIDGE.md"],
+            source_of_truth=["docs/ANDROID_EMILIA_SENSOR_BRIDGE.md", "cpos/sensors/android_emilia_sensor.py"],
             requires_human_confirmation=False,
         ),
     ]

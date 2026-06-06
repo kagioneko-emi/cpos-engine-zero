@@ -30,6 +30,7 @@ See `docs/COGNITIVE_AGENT_OS_ROADMAP.md` for the doc-only implementation roadmap
 Run `PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --json` for a read-only current-state snapshot.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.goals list --json` for read-only default goal state.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.db_inventory_sensor --root . --json` for path-only DB inventory.
+Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.android_emilia_sensor --json` for observe-only Android Emilia bridge reference inventory.
 See `docs/ANDROID_EMILIA_SENSOR_BRIDGE.md` for Android Emilia observe-only sensor bridge notes.
 See `docs/DB_REFLECTION_SOURCE_INVENTORY.md` for DB inventory/reflection-source safety notes.
 See `docs/V0_1_1_SUMMARY.md` for the completed v0.1.1 stabilization summary.

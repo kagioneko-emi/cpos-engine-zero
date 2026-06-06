@@ -32,11 +32,11 @@ def test_list_goals_returns_read_only_default_goal_set():
 
 
 def test_list_goals_filters_by_state_and_scope():
-    planned = goals.list_goals(state='planned')
+    done = goals.list_goals(state='done')
     release = goals.list_goals(scope='release')
 
-    assert planned['count'] >= 1
-    assert all(goal['state'] == 'planned' for goal in planned['goals'])
+    assert done['count'] >= 4
+    assert all(goal['state'] == 'done' for goal in done['goals'])
     assert release['count'] == 1
     assert release['goals'][0]['goal_id'] == 'cpos_v0_1_1_final'
 

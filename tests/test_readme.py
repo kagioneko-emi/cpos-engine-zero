@@ -418,3 +418,23 @@ def test_db_inventory_sensor_command_is_linked_and_path_only():
     assert 'sensitive_skipped' in sensor
     assert 'goal_id="db_inventory_sensor"' in goals
     assert 'state="done"' in goals
+
+
+
+def test_android_emilia_sensor_command_is_linked_and_observe_only():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    sensor = open('cpos/sensors/android_emilia_sensor.py', encoding='utf-8').read()
+    doc = open('docs/ANDROID_EMILIA_SENSOR_BRIDGE.md', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert 'cpos.sensors.android_emilia_sensor --json' in readme
+    assert 'Android Emilia bridge inventory sensor MVP' in handoff
+    assert 'content is not read' in handoff
+    assert 'phone_data_read' in sensor
+    assert 'microphone_content_read' in sensor
+    assert 'video_pipeline_triggered' in sensor
+    assert 'phone_control_enabled' in sensor
+    assert 'Concrete local paths belong in the private lab repo' in doc
+    assert 'goal_id="android_emilia_bridge_sensor"' in goals
+    assert 'state="done"' in goals
