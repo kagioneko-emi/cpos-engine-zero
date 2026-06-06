@@ -84,3 +84,32 @@ def test_resume_pipeline_cli_json(monkeypatch, tmp_path, capsys):
     assert 'kagioneko.resume_pipeline_bundle.v1' in out
     assert 'kagioneko.tape_memory_write_plan.v1' in out
     assert 'body omitted' not in out
+
+
+def test_resume_pipeline_compact_bundle_omits_verbose_handoff_headings(monkeypatch, tmp_path):
+    monkeypatch.setattr(resume_pipeline, 'build_world_model_snapshot', lambda **kwargs: _world())
+    handoff = tmp_path / 'NEXT_HANDOFF.md'
+    handoff.write_text('# Start\n## Latest Handoff\n### Secret-looking body should not appear\n', encoding='utf-8')
+
+    bundle = resume_pipeline.build_resume_pipeline_bundle(goal_store_path='goals/goals.example.json', handoff_path=handoff)
+    compact = resume_pipeline.compact_resume_pipeline_bundle(bundle)
+
+    assert compact['schema'] == 'kagioneko.resume_pipeline_compact.v1'
+    assert compact['metadata_only'] is True
+    assert compact['resume_pointer']['handoff']['latest_heading'] == 'Secret-looking body should not appear'
+    assert 'recent_headings' not in compact['resume_pointer']['handoff']
+    assert compact['tape_memory_write_plan']['would_write'] is False
+    assert compact['tape_memory_write_plan']['write_enabled'] is False
+
+
+def test_resume_pipeline_cli_compact_json(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(resume_pipeline, 'build_world_model_snapshot', lambda **kwargs: _world())
+    handoff = tmp_path / 'NEXT_HANDOFF.md'
+    handoff.write_text('# Start\n## Latest Handoff\nbody omitted\n', encoding='utf-8')
+
+    resume_pipeline.main(['run', '--goal-store', 'goals/goals.example.json', '--handoff-path', str(handoff), '--compact', '--json'])
+
+    out = capsys.readouterr().out
+    assert 'kagioneko.resume_pipeline_compact.v1' in out
+    assert 'recent_headings' not in out
+    assert 'body omitted' not in out

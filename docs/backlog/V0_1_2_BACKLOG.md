@@ -140,3 +140,37 @@ gh release view v0.1.1-rc1 --repo kagioneko/cpos-engine-zero --json tagName,isDr
 - More generated report snippets for CPOS for Agents.
 - Optional diagrams for adapter flow.
 - More Zenn/Notion copy based on the RC feedback.
+
+
+## Implemented during post-RC exploration — Resume Pipeline stabilization
+
+These items were implemented after the original v0.1.2 parking lot was created.
+They should be treated as completed seed work to review before cutting any future
+v0.1.2 plan or release.
+
+Completed pieces:
+
+- Goal Store validation summary in World Model.
+- Reflection Evaluator consumption of Goal Store validation.
+- Goal Store metadata-only summary/export output.
+- tape-memory bridge design, still no runtime writes.
+- read-only Resume Pointer CLI.
+- safe heading-only handoff digest.
+- Resume Pointer validator.
+- tape-memory write dry-run plan.
+- integrated `cpos.resume_pipeline run` bundle.
+- compact `cpos.resume_pipeline run --compact` output for handoff/article use.
+
+Safety status:
+
+- still read-only / metadata-only
+- no tape-memory writes
+- no automatic commit/push/release/publish
+- no raw command output, raw diffs, request bodies, full handoff bodies, DB rows, Android/phone data, or secrets
+
+Future candidates from here:
+
+1. Secret-scan a compact pipeline payload before any future memory write path.
+2. Add docs-only examples for external agents consuming compact pipeline JSON.
+3. Add Zenn/README narrative around “fast resume without raw logs.”
+4. Keep real tape-memory writes behind explicit human confirmation.

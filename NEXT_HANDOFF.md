@@ -1130,3 +1130,23 @@ Safety posture:
 - raw command output, raw diffs, request bodies, full handoff content, private repo content, DB rows, Android/phone data, and secrets are not stored
 
 Goal state update: `resume_pipeline_bundle` is now `done`.
+
+## Resume Pipeline compact output and v0.1.2 backlog update
+
+Added compact output for the integrated resume pipeline:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.resume_pipeline run --goal-store goals/goals.example.json --compact --json
+```
+
+Behavior:
+
+- compact schema: `kagioneko.resume_pipeline_compact.v1`
+- keeps overall decision, compact reflection, compact resume pointer, validation result, and dry-run write plan
+- omits verbose handoff heading list while preserving latest heading/count metadata
+- remains read-only, metadata-only, and dry-run-only
+- no tape-memory writes, raw outputs, raw diffs, request bodies, handoff bodies, DB rows, Android/phone data, or secrets
+
+Updated `docs/backlog/V0_1_2_BACKLOG.md` with completed Resume Pipeline stabilization work and future candidates around secret-scanned compact payloads, external-agent docs, and “fast resume without raw logs” narrative.
+
+Goal state update: `resume_pipeline_compact` is now `done`.

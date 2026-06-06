@@ -245,6 +245,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/resume_pipeline.py", "tests/test_resume_pipeline.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="resume_pipeline_compact",
+            title="Add compact resume pipeline output",
+            scope="project",
+            state="done",
+            priority="medium",
+            success_criteria=["compact option exists", "verbose handoff heading list omitted", "tests pass", "no writes"],
+            safety_constraints=["metadata-only", "no raw handoff body", "no raw outputs/diffs/request bodies/secrets", "dry-run write plan only"],
+            source_of_truth=["cpos/resume_pipeline.py", "tests/test_resume_pipeline.py", "docs/backlog/V0_1_2_BACKLOG.md"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 

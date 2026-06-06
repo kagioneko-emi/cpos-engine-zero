@@ -585,3 +585,19 @@ def test_resume_pipeline_bundle_is_documented():
     assert 'tape_memory_write_plan_dry_run' in pipeline
     assert 'would_write' in pipeline
     assert 'resume_pipeline_bundle' in goals
+
+
+def test_resume_pipeline_compact_and_v012_backlog_are_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    pipeline = open('cpos/resume_pipeline.py', encoding='utf-8').read()
+    backlog = open('docs/backlog/V0_1_2_BACKLOG.md', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert '--compact' in readme
+    assert 'kagioneko.resume_pipeline_compact.v1' in pipeline
+    assert 'compact_resume_pipeline_bundle' in pipeline
+    assert 'Resume Pipeline compact output and v0.1.2 backlog update' in handoff
+    assert 'Resume Pipeline stabilization' in backlog
+    assert 'fast resume without raw logs' in backlog
+    assert 'resume_pipeline_compact' in goals
