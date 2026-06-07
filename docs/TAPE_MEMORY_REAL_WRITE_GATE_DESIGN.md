@@ -148,3 +148,30 @@ Fail closed when:
 3. Add a mock writer that writes to a temp file in tests only.
 4. Add backend adapter only after explicit approval.
 5. Run full tests, prepublish, and manual review before enabling any real write path.
+
+## Test-only mock writer
+
+The test-only mock writer exists to exercise the safety gate without connecting
+to tape-memory:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.tape_memory_mock_writer write \
+  --pointer-json pointer.json \
+  --output-dir /tmp/cpos-tape-memory-mock \
+  --confirm-write "WRITE TAPE MEMORY RESUME POINTER" \
+  --json
+```
+
+Safety properties:
+
+- backend is `local_mock_file_for_tests_only`
+- `real_tape_memory_write = false`
+- output directory must already exist and be explicit
+- exact confirmation phrase is required
+- `ぷす`, `ok`, or `go` are rejected
+- pointer validation must pass
+- payload secret scan must pass
+- confirmation phrase is not stored in the output envelope
+
+This mock writer is not a tape-memory adapter and does not grant permission to
+enable a real writer.

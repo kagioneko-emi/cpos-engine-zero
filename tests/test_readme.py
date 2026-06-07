@@ -681,3 +681,19 @@ def test_tape_memory_real_write_gate_design_is_linked():
     assert 'would_write = false' in gate
     assert 'write_enabled = false' in gate
     assert 'This writer does not exist yet' in gate
+
+
+def test_tape_memory_mock_writer_gate_is_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    bridge = open('docs/TAPE_MEMORY_BRIDGE_DESIGN.md', encoding='utf-8').read()
+    gate = open('docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+    writer = open('cpos/tape_memory_mock_writer.py', encoding='utf-8').read()
+
+    assert 'cpos.tape_memory_mock_writer write' in readme
+    assert 'local_mock_file_for_tests_only' in bridge
+    assert 'Test-only mock writer' in gate
+    assert 'real_tape_memory_write = false' in gate
+    assert 'ぷす`, `ok`, or `go` are rejected' in gate
+    assert 'CONFIRMATION_PHRASE = "WRITE TAPE MEMORY RESUME POINTER"' in writer
+    assert 'tape_memory_mock_writer_gate' in goals

@@ -235,6 +235,18 @@ def default_goals() -> list[dict[str, Any]]:
         ),
 
         _goal(
+            goal_id="tape_memory_mock_writer_gate",
+            title="Add test-only tape-memory mock writer gate",
+            scope="project",
+            state="done",
+            priority="medium",
+            success_criteria=["mock writer requires exact confirmation phrase", "invalid pointers and secret-like payloads fail closed", "writes only to explicit local mock directory", "tests pass", "no real tape-memory backend writes"],
+            safety_constraints=["test-only local file backend", "real_tape_memory_write=false", "no shorthand confirmation", "pre-write secret scan", "no confirmation phrase stored"],
+            source_of_truth=["cpos/tape_memory_mock_writer.py", "tests/test_tape_memory_mock_writer.py", "docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md"],
+            requires_human_confirmation=True,
+        ),
+
+        _goal(
             goal_id="resume_pipeline_bundle",
             title="Build integrated read-only resume pipeline bundle",
             scope="project",

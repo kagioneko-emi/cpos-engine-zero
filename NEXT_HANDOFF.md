@@ -1425,3 +1425,17 @@ Added design-only safety gate for possible future tape-memory real writes.
 - Current behavior remains `dry_run=true`, `would_write=false`, `write_enabled=false`.
 - Future real write must require exact confirmation phrase, pre-write secret scan, pointer validation, and metadata-only audit.
 - Shorthand such as `ぷす`, `ok`, or `go` must not be accepted for real memory writes.
+
+## tape-memory mock writer gate
+
+Added a test-only local mock writer for the future tape-memory real-write gate.
+
+- Module: `cpos/tape_memory_mock_writer.py`
+- Tests: `tests/test_tape_memory_mock_writer.py`
+- Docs: `docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md`
+- Backend is local mock file only: `local_mock_file_for_tests_only`
+- `real_tape_memory_write=false`
+- Requires exact confirmation phrase: `WRITE TAPE MEMORY RESUME POINTER`
+- Rejects shorthand such as `ぷす`, `ok`, or `go`
+- Validates pointer and scans payload for secret-like patterns before writing
+- Does not store the confirmation phrase in the mock output envelope

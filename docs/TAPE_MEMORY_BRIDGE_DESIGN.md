@@ -99,3 +99,17 @@ write path:
 Current implementation remains dry-run only. The proposed real write path would
 require an exact confirmation phrase, immediate pre-write secret scan, pointer
 validation, audit metadata, and explicit human confirmation. It is not enabled.
+
+## Test-only mock writer
+
+`cpos.tape_memory_mock_writer` provides a local-file mock writer for tests. It
+requires the exact real-write confirmation phrase, validates the resume pointer,
+scans the payload for secret-like patterns, and writes only to an explicit
+existing local directory.
+
+It is not a tape-memory backend adapter:
+
+- `mock_backend=local_mock_file_for_tests_only`
+- `real_tape_memory_write=false`
+- shorthand such as `ぷす`, `ok`, or `go` is rejected
+- the confirmation phrase is not stored in the mock output envelope
