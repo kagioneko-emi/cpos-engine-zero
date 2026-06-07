@@ -1256,3 +1256,15 @@ Recommended next options:
 2. Zenn publish preflight review; keep `published: false` until explicit publish confirmation.
 3. v0.1.2 readiness review based on `docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md`.
 4. If considering tape-memory real writes, design an explicit human-confirmation + pre-write secret scan flow first.
+
+## Local Notion credential hygiene note
+
+Added a local credential hygiene note after finding old Notion helper scripts with hardcoded credential patterns.
+
+- Doc: `docs/LOCAL_NOTION_CREDENTIAL_HYGIENE_2026_06_07.md`
+- No credential values are recorded.
+- No old helper script was used for the Resume Pipeline Notion page.
+- No destructive action was taken.
+- Revoke/rotate remains recommended but not yet performed.
+
+Affected local helper scripts listed in the doc should not be reused as-is. Future Notion tooling must use Vault `secret/notion` only and must not print tokens/database IDs.
