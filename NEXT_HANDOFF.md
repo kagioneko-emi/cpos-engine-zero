@@ -1297,3 +1297,20 @@ Safety posture:
 - old local helper scripts with hardcoded credentials still should not be reused as-is
 
 Goal state update: `vault_backed_notion_helper` is now `done`.
+
+## Notion helper replacement plan
+
+Added a plan for replacing old local Notion helper scripts with the Vault-backed helper.
+
+- Doc: `docs/NOTION_HELPER_REPLACEMENT_PLAN_2026_06_07.md`
+- Old helper scripts were not edited, deleted, renamed, or executed.
+- Plan keeps migration dry-run first and Vault-only.
+- Revoke/rotate of old exposed Notion credential remains recommended but not performed.
+- Any deletion/overwrite/archive of old helper scripts requires explicit user confirmation.
+
+Recommended next options:
+
+1. Review the replacement plan.
+2. If approved, rotate the Notion credential and update Vault.
+3. Migrate one low-risk helper as a wrapper around `cpos.notion_vault_client`.
+4. Keep diary/chronicle/private-content helpers paused until privacy review.
