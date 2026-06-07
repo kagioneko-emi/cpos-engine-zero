@@ -713,3 +713,15 @@ def test_v0_1_2_release_drafts_are_linked_and_safety_scoped():
     assert 'no real tape-memory writes' in draft
     assert 'Not an AGI-completion claim' in draft
     assert 'v0.1.2 release draft prep' in handoff
+
+
+def test_v0_1_2_readiness_review_is_current():
+    review = open('docs/V0_1_2_READINESS_REVIEW.md', encoding='utf-8').read()
+
+    assert '428 passed' in review
+    assert 'test-only local mock writer gate' in review
+    assert 'local_mock_file_for_tests_only' in review
+    assert 'Zenn-to-Notion dry-run bridge' in review
+    assert 'v0.1.2 release notes draft' in review
+    assert 'not an AGI-completion claim' in review
+    assert 'does not authorize a release' in review

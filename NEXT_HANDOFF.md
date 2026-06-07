@@ -1452,3 +1452,12 @@ Prepared draft-only release materials for a possible future v0.1.2.
 - Draft theme: fast resume without raw logs.
 - Public wording must avoid AGI-completion claims.
 - Real tape-memory writes remain disabled.
+
+## v0.1.2 readiness review refresh
+
+Updated `docs/V0_1_2_READINESS_REVIEW.md` after the mock writer gate and v0.1.2 draft work.
+
+- Latest baseline recorded: `428 passed`
+- prepublish baseline recorded: `ok=true`, secret scan count `0`
+- Added mock writer gate, Zenn-to-Notion bridge, and v0.1.2 draft references
+- Still no tag, no GitHub Release, no Zenn publication, and no real tape-memory write
