@@ -664,3 +664,20 @@ def test_zenn_to_notion_bridge_dry_run_is_documented():
     assert 'old_helper_modified' in bridge
     assert 'does not read Vault' in doc
     assert 'zenn_to_notion_bridge_dry_run' in goals
+
+
+def test_tape_memory_real_write_gate_design_is_linked():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    bridge = open('docs/TAPE_MEMORY_BRIDGE_DESIGN.md', encoding='utf-8').read()
+    gate = open('docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md', encoding='utf-8').read()
+
+    assert 'docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md' in readme
+    assert 'tape-memory real write gate design' in handoff
+    assert 'Real write gate design' in bridge
+    assert 'WRITE TAPE MEMORY RESUME POINTER' in gate
+    assert 'Shorthand such as `ぷす`, `ok`, or `go` must not be accepted' in gate
+    assert 'dry_run = true' in gate
+    assert 'would_write = false' in gate
+    assert 'write_enabled = false' in gate
+    assert 'This writer does not exist yet' in gate

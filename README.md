@@ -27,6 +27,7 @@ See `docs/COGNITIVE_AGENT_OS_ARCHITECTURE.md` for the repo-family Cognitive Agen
 See `docs/SENSOR_AND_GOAL_MANAGER_SPEC.md` for the first sensor/goal-manager spec draft.
 See `docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md` for the event bus/world-model spec draft.
 See `docs/TAPE_MEMORY_BRIDGE_DESIGN.md` for the metadata-only tape-memory resume-pointer bridge design.
+See `docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md` for the design-only real write safety gate; real writes are not enabled.
 See `docs/VAULT_BACKED_NOTION_HELPER.md` for the Vault-backed Notion helper replacing old hardcoded scripts.
 See `docs/ZENN_TO_NOTION_BRIDGE_DRY_RUN.md` for the safe dry-run replacement path for Zenn draft uploads to Notion.
 See `docs/COGNITIVE_AGENT_OS_ROADMAP.md` for the doc-only implementation roadmap.

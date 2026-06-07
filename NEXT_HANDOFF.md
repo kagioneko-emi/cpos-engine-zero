@@ -1414,3 +1414,14 @@ Safety posture:
 - no tokens or database IDs are printed
 
 Goal state update: `zenn_to_notion_bridge_dry_run` is now `done`.
+
+## tape-memory real write gate design
+
+Added design-only safety gate for possible future tape-memory real writes.
+
+- Doc: `docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md`
+- Linked from: `docs/TAPE_MEMORY_BRIDGE_DESIGN.md`
+- No real writer was implemented.
+- Current behavior remains `dry_run=true`, `would_write=false`, `write_enabled=false`.
+- Future real write must require exact confirmation phrase, pre-write secret scan, pointer validation, and metadata-only audit.
+- Shorthand such as `ぷす`, `ok`, or `go` must not be accepted for real memory writes.

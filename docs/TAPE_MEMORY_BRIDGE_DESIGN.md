@@ -88,3 +88,14 @@ that tape-memory writes are disabled, and that handoff bodies are not embedded.
 The write plan is deliberately non-executing: `dry_run=true`, `would_write=false`,
 and `write_enabled=false`. A real write path would require explicit human
 confirmation and a secret scan immediately before writing.
+
+## Real write gate design
+
+A separate design note defines the minimum safety gate before any future real
+write path:
+
+- `docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md`
+
+Current implementation remains dry-run only. The proposed real write path would
+require an exact confirmation phrase, immediate pre-write secret scan, pointer
+validation, audit metadata, and explicit human confirmation. It is not enabled.
