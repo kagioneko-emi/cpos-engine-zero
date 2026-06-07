@@ -649,3 +649,18 @@ def test_v012_readiness_rotate_and_zenn_publish_docs_are_linked():
     assert 'does not authorize a release' in readiness
     assert 'does not rotate credentials by itself' in rotate
     assert 'This document does not publish the article' in zenn
+
+
+def test_zenn_to_notion_bridge_dry_run_is_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    bridge = open('cpos/notion_zenn_bridge.py', encoding='utf-8').read()
+    doc = open('docs/ZENN_TO_NOTION_BRIDGE_DRY_RUN.md', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert 'cpos.notion_zenn_bridge bridge' in readme
+    assert 'Zenn-to-Notion dry-run bridge' in handoff
+    assert 'kagioneko.notion_zenn_bridge.v1' in bridge
+    assert 'old_helper_modified' in bridge
+    assert 'does not read Vault' in doc
+    assert 'zenn_to_notion_bridge_dry_run' in goals

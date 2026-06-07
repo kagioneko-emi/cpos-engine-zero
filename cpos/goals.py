@@ -281,6 +281,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/notion_vault_client.py", "docs/VAULT_BACKED_NOTION_HELPER.md", "tests/test_notion_vault_client.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="zenn_to_notion_bridge_dry_run",
+            title="Add Zenn-to-Notion dry-run replacement bridge",
+            scope="project",
+            state="done",
+            priority="medium",
+            success_criteria=["bridge command exists", "dry-run does not read Vault or contact Notion", "tests pass", "old helper untouched"],
+            safety_constraints=["dry-run by default", "--execute requires explicit confirmation", "no tokens/database IDs printed", "old hardcoded helper not reused"],
+            source_of_truth=["cpos/notion_zenn_bridge.py", "docs/ZENN_TO_NOTION_BRIDGE_DRY_RUN.md", "tests/test_notion_zenn_bridge.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 

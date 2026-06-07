@@ -1388,3 +1388,29 @@ Safety reminders:
 - Keep Notion credentials in Vault only.
 - Zenn publish, GitHub release, tag, push, credential rotation, destructive edits, and real tape-memory writes are Human Escalation actions.
 - tape-memory real write remains disabled; write plans are dry-run only.
+
+## Zenn-to-Notion dry-run bridge
+
+Added the first low-risk replacement path for an old Notion helper script:
+
+- module: `cpos.notion_zenn_bridge`
+- doc: `docs/ZENN_TO_NOTION_BRIDGE_DRY_RUN.md`
+- tests: `tests/test_notion_zenn_bridge.py`
+
+Dry-run command:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.notion_zenn_bridge bridge \
+  --article /home/mayutama/zenn/articles/cognitive-agent-os-safety-kernel.md \
+  --json
+```
+
+Safety posture:
+
+- dry-run by default
+- does not read Vault or contact Notion in dry-run
+- does not edit/delete/execute old helper scripts
+- `--execute` exists but requires explicit human confirmation before use
+- no tokens or database IDs are printed
+
+Goal state update: `zenn_to_notion_bridge_dry_run` is now `done`.

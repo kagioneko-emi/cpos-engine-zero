@@ -28,6 +28,7 @@ See `docs/SENSOR_AND_GOAL_MANAGER_SPEC.md` for the first sensor/goal-manager spe
 See `docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md` for the event bus/world-model spec draft.
 See `docs/TAPE_MEMORY_BRIDGE_DESIGN.md` for the metadata-only tape-memory resume-pointer bridge design.
 See `docs/VAULT_BACKED_NOTION_HELPER.md` for the Vault-backed Notion helper replacing old hardcoded scripts.
+See `docs/ZENN_TO_NOTION_BRIDGE_DRY_RUN.md` for the safe dry-run replacement path for Zenn draft uploads to Notion.
 See `docs/COGNITIVE_AGENT_OS_ROADMAP.md` for the doc-only implementation roadmap.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.world_model snapshot --json` for a read-only current-state snapshot. Add `--include-resume-pointer` to embed a compact tape-memory-style resume pointer without writing to tape-memory.
 Add `--goal-store goals/goals.example.json` to include compact read-only goal store validation.
@@ -38,6 +39,7 @@ Run `PYTHONPATH=. .venv/bin/python -m cpos.goal_store summary --path goals/goals
 Run `PYTHONPATH=. .venv/bin/python -m cpos.resume_pipeline run --goal-store goals/goals.example.json --json` for the read-only integrated reflection → pointer → validation → dry-run write-plan bundle; add `--compact` for a smaller handoff/article-friendly summary, or `--scan-compact` to attach a secret-pattern scan gate for compact payloads.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.resume_pointer build --goal-store goals/goals.example.json --json` for a stdout-only resume pointer. Add `--reflection-json eval.json --include-handoff-digest` to include Reflection Evaluator metadata and a heading-only handoff digest. Use `cpos.resume_pointer validate --pointer-json pointer.json --json` and `cpos.resume_pointer write-plan --pointer-json pointer.json --json` for validation and dry-run tape-memory write planning.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.notion_vault_client page --source docs/NOTION_RESUME_PIPELINE_SUMMARY_2026_06_07.md --title "Cognitive Agent OS / CPOS Resume Pipeline まとめ" --json` for a Notion dry-run using Vault placeholders.
+Run `PYTHONPATH=. .venv/bin/python -m cpos.notion_zenn_bridge bridge --article /home/mayutama/zenn/articles/cognitive-agent-os-safety-kernel.md --json` for a Zenn-to-Notion dry-run bridge.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.reflection_evaluator evaluate --json` for read-only proposed-action evaluation. Add `--goal-store goals/goals.example.json` to let the evaluator consume compact goal-store validation via the World Model.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.db_inventory_sensor --root . --json` for path-only DB inventory.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.sensors.android_emilia_sensor --json` for observe-only Android Emilia bridge reference inventory.
