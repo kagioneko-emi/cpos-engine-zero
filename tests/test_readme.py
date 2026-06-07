@@ -617,3 +617,19 @@ def test_resume_pipeline_secret_scan_and_summary_are_documented():
     assert 'would_write=false' in summary
     assert 'Resume Pipeline compact secret scan + summary doc' in handoff
     assert 'resume_pipeline_secret_scan_summary' in goals
+
+
+def test_vault_backed_notion_helper_is_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    helper = open('cpos/notion_vault_client.py', encoding='utf-8').read()
+    doc = open('docs/VAULT_BACKED_NOTION_HELPER.md', encoding='utf-8').read()
+    goals = open('cpos/goals.py', encoding='utf-8').read()
+
+    assert 'cpos.notion_vault_client page' in readme
+    assert 'Vault-backed Notion helper' in handoff
+    assert 'secret/notion' in helper
+    assert 'VAULT_ADDR' in helper
+    assert '--execute' in doc
+    assert 'Do not hardcode Notion tokens' in doc
+    assert 'vault_backed_notion_helper' in goals

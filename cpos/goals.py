@@ -269,6 +269,18 @@ def default_goals() -> list[dict[str, Any]]:
             source_of_truth=["cpos/resume_pipeline.py", "docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md", "tests/test_resume_pipeline.py"],
             requires_human_confirmation=False,
         ),
+
+        _goal(
+            goal_id="vault_backed_notion_helper",
+            title="Add Vault-backed Notion helper dry-run path",
+            scope="project",
+            state="done",
+            priority="high",
+            success_criteria=["dry-run helper exists", "Vault-only execute path exists", "tests pass", "no hardcoded credentials"],
+            safety_constraints=["dry-run by default", "--execute required for network write", "no tokens/database IDs printed", "Vault secret/notion only"],
+            source_of_truth=["cpos/notion_vault_client.py", "docs/VAULT_BACKED_NOTION_HELPER.md", "tests/test_notion_vault_client.py"],
+            requires_human_confirmation=False,
+        ),
     ]
 
 

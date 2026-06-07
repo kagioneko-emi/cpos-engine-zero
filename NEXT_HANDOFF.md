@@ -1268,3 +1268,32 @@ Added a local credential hygiene note after finding old Notion helper scripts wi
 - Revoke/rotate remains recommended but not yet performed.
 
 Affected local helper scripts listed in the doc should not be reused as-is. Future Notion tooling must use Vault `secret/notion` only and must not print tokens/database IDs.
+
+## Vault-backed Notion helper
+
+Added a safe replacement path for old hardcoded Notion helper scripts:
+
+- module: `cpos.notion_vault_client`
+- doc: `docs/VAULT_BACKED_NOTION_HELPER.md`
+- tests: `tests/test_notion_vault_client.py`
+
+Default behavior is dry-run only:
+
+```bash
+PYTHONPATH=. .venv/bin/python -m cpos.notion_vault_client page \
+  --source docs/NOTION_RESUME_PIPELINE_SUMMARY_2026_06_07.md \
+  --title "Cognitive Agent OS / CPOS Resume Pipeline まとめ" \
+  --json
+```
+
+Real Notion page creation requires explicit `--execute`, and then reads credentials from Vault `secret/notion(api_key)` and `secret/notion(memo_db_id)`.
+
+Safety posture:
+
+- dry-run does not read Vault and does not contact Notion
+- tokens/database IDs are not printed
+- no credentials are hardcoded
+- `--execute` remains a human-confirmed action
+- old local helper scripts with hardcoded credentials still should not be reused as-is
+
+Goal state update: `vault_backed_notion_helper` is now `done`.
