@@ -1334,3 +1334,57 @@ Safety reminders:
 - release/tag/publish still require explicit confirmation.
 - Notion token rotation is recommended but not performed.
 - Do not run old Notion helper scripts as-is.
+
+## Latest Handoff — Readiness / Notion safety / Zenn review checkpoint
+
+Generated: `2026-06-07T00:00:00+09:00`
+
+Final clean states at checkpoint:
+
+- CPOS repo `/home/mayutama/cpos_defensive_agent`: `main...origin/main`, clean/synced
+- CPOS `prepublish_check`: `ok=true`, secret scan `count=0`
+- Zenn repo `/home/mayutama/zenn`: `main...origin/main`, clean/synced
+- Zenn article `articles/cognitive-agent-os-safety-kernel.md`: `published: false`
+
+Completed after the previous handoff:
+
+1. Vault-backed Notion helper
+   - module: `cpos.notion_vault_client`
+   - doc: `docs/VAULT_BACKED_NOTION_HELPER.md`
+   - dry-run by default; `--execute` required for actual Notion creation
+   - Vault-only credential path: `secret/notion(api_key)` and `secret/notion(memo_db_id)`
+   - pushed commit: `f95e700 Add Vault backed Notion helper`
+
+2. Notion helper replacement plan
+   - doc: `docs/NOTION_HELPER_REPLACEMENT_PLAN_2026_06_07.md`
+   - old local Notion helper scripts were not edited/deleted/executed
+   - migration remains dry-run first, Vault-only
+   - pushed commit: `7b20be5 Add Notion helper replacement plan`
+
+3. v0.1.2 readiness / rotate / publish checklists
+   - docs added:
+     - `docs/V0_1_2_READINESS_REVIEW.md`
+     - `docs/NOTION_CREDENTIAL_ROTATE_RUNBOOK.md`
+     - `docs/ZENN_COGNITIVE_AGENT_OS_PUBLISH_CHECKLIST.md`
+   - all are review/runbook/checklist docs only
+   - no v0.1.2 tag/release created
+   - no Notion credential rotation performed
+   - no Zenn publish performed
+   - full tests before commit: `414 passed`
+   - prepublish after commit: `ok=true`, secret scan `count=0`
+   - pushed commit: `635a7e3 Add readiness rotate and publish checklists`
+
+Current recommended next options:
+
+1. If continuing safely: review the checklists/docs.
+2. If doing Notion credential rotation: require explicit confirmation, then follow `docs/NOTION_CREDENTIAL_ROTATE_RUNBOOK.md`.
+3. If publishing Zenn: require explicit confirmation, then follow `docs/ZENN_COGNITIVE_AGENT_OS_PUBLISH_CHECKLIST.md`; keep `published:false` until that moment.
+4. If preparing v0.1.2: start with release notes/draft only; do not tag/release without explicit confirmation.
+
+Safety reminders:
+
+- Do not run old hardcoded Notion helper scripts as-is.
+- Do not print or store tokens/database IDs.
+- Keep Notion credentials in Vault only.
+- Zenn publish, GitHub release, tag, push, credential rotation, destructive edits, and real tape-memory writes are Human Escalation actions.
+- tape-memory real write remains disabled; write plans are dry-run only.
