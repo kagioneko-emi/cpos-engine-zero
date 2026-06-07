@@ -697,3 +697,19 @@ def test_tape_memory_mock_writer_gate_is_documented():
     assert 'ぷす`, `ok`, or `go` are rejected' in gate
     assert 'CONFIRMATION_PHRASE = "WRITE TAPE MEMORY RESUME POINTER"' in writer
     assert 'tape_memory_mock_writer_gate' in goals
+
+
+def test_v0_1_2_release_drafts_are_linked_and_safety_scoped():
+    readme = open('README.md', encoding='utf-8').read()
+    notes = open('RELEASE_NOTES_v0.1.2.md', encoding='utf-8').read()
+    draft = open('GITHUB_RELEASE_DRAFT_v0.1.2.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+
+    assert 'RELEASE_NOTES_v0.1.2.md' in readme
+    assert 'GITHUB_RELEASE_DRAFT_v0.1.2.md' in readme
+    assert 'Draft only' in notes
+    assert 'does not authorize a tag' in notes
+    assert 'Fast resume without raw logs' in draft
+    assert 'no real tape-memory writes' in draft
+    assert 'Not an AGI-completion claim' in draft
+    assert 'v0.1.2 release draft prep' in handoff

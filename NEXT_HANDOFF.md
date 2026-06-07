@@ -1439,3 +1439,16 @@ Added a test-only local mock writer for the future tape-memory real-write gate.
 - Rejects shorthand such as `ぷす`, `ok`, or `go`
 - Validates pointer and scans payload for secret-like patterns before writing
 - Does not store the confirmation phrase in the mock output envelope
+
+## v0.1.2 release draft prep
+
+Prepared draft-only release materials for a possible future v0.1.2.
+
+- `RELEASE_NOTES_v0.1.2.md`
+- `GITHUB_RELEASE_DRAFT_v0.1.2.md`
+- README links added
+- No tag was created.
+- No GitHub Release was created.
+- Draft theme: fast resume without raw logs.
+- Public wording must avoid AGI-completion claims.
+- Real tape-memory writes remain disabled.
