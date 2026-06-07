@@ -1314,3 +1314,23 @@ Recommended next options:
 2. If approved, rotate the Notion credential and update Vault.
 3. Migrate one low-risk helper as a wrapper around `cpos.notion_vault_client`.
 4. Keep diary/chronicle/private-content helpers paused until privacy review.
+
+## v0.1.2 readiness / Notion rotate runbook / Zenn publish checklist
+
+Added three safety/review docs:
+
+- `docs/V0_1_2_READINESS_REVIEW.md`
+- `docs/NOTION_CREDENTIAL_ROTATE_RUNBOOK.md`
+- `docs/ZENN_COGNITIVE_AGENT_OS_PUBLISH_CHECKLIST.md`
+
+Scope:
+
+- v0.1.2 readiness review only; no tag/release created.
+- Notion credential rotation runbook only; no rotation performed.
+- Zenn publish checklist only; article remains draft until explicit publish confirmation.
+
+Safety reminders:
+
+- release/tag/publish still require explicit confirmation.
+- Notion token rotation is recommended but not performed.
+- Do not run old Notion helper scripts as-is.

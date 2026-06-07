@@ -633,3 +633,19 @@ def test_vault_backed_notion_helper_is_documented():
     assert '--execute' in doc
     assert 'Do not hardcode Notion tokens' in doc
     assert 'vault_backed_notion_helper' in goals
+
+
+def test_v012_readiness_rotate_and_zenn_publish_docs_are_linked():
+    readme = open('README.md', encoding='utf-8').read()
+    handoff = open('NEXT_HANDOFF.md', encoding='utf-8').read()
+    readiness = open('docs/V0_1_2_READINESS_REVIEW.md', encoding='utf-8').read()
+    rotate = open('docs/NOTION_CREDENTIAL_ROTATE_RUNBOOK.md', encoding='utf-8').read()
+    zenn = open('docs/ZENN_COGNITIVE_AGENT_OS_PUBLISH_CHECKLIST.md', encoding='utf-8').read()
+
+    assert 'docs/V0_1_2_READINESS_REVIEW.md' in readme
+    assert 'docs/NOTION_CREDENTIAL_ROTATE_RUNBOOK.md' in readme
+    assert 'docs/ZENN_COGNITIVE_AGENT_OS_PUBLISH_CHECKLIST.md' in readme
+    assert 'v0.1.2 readiness / Notion rotate runbook / Zenn publish checklist' in handoff
+    assert 'does not authorize a release' in readiness
+    assert 'does not rotate credentials by itself' in rotate
+    assert 'This document does not publish the article' in zenn
