@@ -1232,3 +1232,27 @@ Safety reminders:
 - API keys/tokens/SSH keys stay in Vault only.
 - GitHub push/publish/tag/release remains Human Escalation.
 - Zenn article is draft-only until explicit publish confirmation.
+
+## Notion summary — Resume Pipeline / fast resume without raw logs
+
+Created a Japanese Notion summary page for the post-RC Resume Pipeline work.
+
+- Notion URL: https://app.notion.com/p/Cognitive-Agent-OS-CPOS-Resume-Pipeline-37876d12b6d28154865dec056f02cba6
+- Source Markdown: `docs/NOTION_RESUME_PIPELINE_SUMMARY_2026_06_07.md`
+- Topic: Cognitive Agent OS / CPOS Resume Pipeline / fast resume without raw logs
+- Notion DB used: Vault `secret/notion` field `memo_db_id`; title property `タイトル`
+- Secret handling: Notion API token was read from Vault `secret/notion(api_key)` and was not printed or stored in repo.
+
+Important local credential hygiene note:
+
+- During tool discovery, old local Notion helper scripts outside this repo were found with hardcoded Notion credentials.
+- Those scripts were not used for this page.
+- Do not use those scripts as-is.
+- Revoke/rotate the exposed Notion credential when practical, then update future tooling to Vault-only access.
+
+Recommended next options:
+
+1. Review the Notion summary for wording.
+2. Zenn publish preflight review; keep `published: false` until explicit publish confirmation.
+3. v0.1.2 readiness review based on `docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md`.
+4. If considering tape-memory real writes, design an explicit human-confirmation + pre-write secret scan flow first.
