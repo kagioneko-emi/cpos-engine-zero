@@ -718,7 +718,7 @@ def test_v0_1_2_release_drafts_are_linked_and_safety_scoped():
 def test_v0_1_2_readiness_review_is_current():
     review = open('docs/V0_1_2_READINESS_REVIEW.md', encoding='utf-8').read()
 
-    assert '430 passed' in review
+    assert '431 passed' in review
     assert 'test-only local mock writer gate' in review
     assert 'local_mock_file_for_tests_only' in review
     assert 'Zenn-to-Notion dry-run bridge' in review
@@ -752,3 +752,15 @@ def test_v0_1_2_announcement_copy_pack_is_documented():
     assert 'test-only mock writer gate' in copy
     assert 'AGI is complete' in copy
     assert 'ぷす / `ok` / `go` as a memory-write approval' in copy
+
+
+def test_v0_1_2_notion_summary_is_aligned_with_zenn():
+    readme = open('README.md', encoding='utf-8').read()
+    notion = open('docs/POST_RELEASE_NOTION_SUMMARY_v0.1.2.md', encoding='utf-8').read()
+
+    assert 'docs/POST_RELEASE_NOTION_SUMMARY_v0.1.2.md' in readme
+    assert 'fast resume without raw logs' in notion
+    assert 'WRITE TAPE MEMORY RESUME POINTER' in notion
+    assert 'ぷす / `ok` / `go`' in notion
+    assert 'AGI完成宣言' in notion
+    assert 'Cognitive Agent OS' in notion

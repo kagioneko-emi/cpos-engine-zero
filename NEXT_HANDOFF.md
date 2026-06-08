@@ -1457,7 +1457,7 @@ Prepared draft-only release materials for a possible future v0.1.2.
 
 Updated `docs/V0_1_2_READINESS_REVIEW.md` after the mock writer gate and v0.1.2 draft work.
 
-- Latest baseline recorded: `430 passed`
+- Latest baseline recorded: `431 passed`
 - prepublish baseline recorded: `ok=true`, secret scan count `0`
 - Added mock writer gate, Zenn-to-Notion bridge, and v0.1.2 draft references
 - Still no tag, no GitHub Release, no Zenn publication, and no real tape-memory write
@@ -1483,3 +1483,11 @@ Added `docs/ANNOUNCEMENT_COPY_v0.1.2.md` for post-release/social/community copy.
 - Public theme: `fast resume without raw logs`
 - Must avoid AGI-completion claims
 - Real tape-memory writes remain disabled
+
+## v0.1.2 Notion summary alignment
+
+Added `docs/POST_RELEASE_NOTION_SUMMARY_v0.1.2.md` as a Japanese Notion summary aligned with the Zenn wording.
+
+- Theme: `fast resume without raw logs`
+- Release link: `https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.2`
+- Keep public framing as Cognitive Agent OS / safety kernel, not AGI-completion wording

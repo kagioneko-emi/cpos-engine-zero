@@ -54,6 +54,7 @@ See `docs/V0_1_2_READINESS_REVIEW.md` for v0.1.2 readiness review, `docs/NOTION_
 See `RELEASE_NOTES_v0.1.1.md` and `GITHUB_RELEASE_DRAFT_v0.1.1.md` for v0.1.1 release prep drafts.
 See `RELEASE_NOTES_v0.1.2.md` and `GITHUB_RELEASE_DRAFT_v0.1.2.md` for v0.1.2 release prep drafts; no tag/release is authorized by these drafts.
 See `docs/ANNOUNCEMENT_COPY_v0.1.2.md` for post-release announcement/community copy and safer wording guidance.
+See `docs/POST_RELEASE_NOTION_SUMMARY_v0.1.2.md` for a Japanese Notion summary aligned with the Zenn wording.
 See `docs/ANNOUNCEMENT_COPY_v0.1.0.md` for reusable post-release announcement/social copy.
 See `docs/LOCAL_RUNTIME_FILE_INVENTORY.md` for ignored local/runtime artifact handling.
 
