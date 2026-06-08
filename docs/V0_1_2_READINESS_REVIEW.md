@@ -79,7 +79,7 @@ git status --short
 # clean before push/checkpoint
 
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-# 433 passed
+# 434 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 # ok=true; secret_scan count=0; destructive_actions_performed=false
@@ -91,7 +91,7 @@ Recent full-test baselines during this work:
 - `413 passed` after Vault-backed Notion helper work
 - `419 passed` after tape-memory real write gate design
 - `426 passed` after test-only tape-memory mock writer gate
-- `433 passed` after v0.1.2 release draft links/tests
+- `434 passed` after v0.1.2 release draft links/tests
 
 ## Safety invariants preserved
 

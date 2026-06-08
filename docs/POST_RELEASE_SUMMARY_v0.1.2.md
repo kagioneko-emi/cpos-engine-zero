@@ -79,7 +79,7 @@ Latest known baseline at the time of this summary:
 
 ```text
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-431 passed
+434 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 ok=true

@@ -1457,7 +1457,7 @@ Prepared draft-only release materials for a possible future v0.1.2.
 
 Updated `docs/V0_1_2_READINESS_REVIEW.md` after the mock writer gate and v0.1.2 draft work.
 
-- Latest baseline recorded: `433 passed`
+- Latest baseline recorded: `434 passed`
 - prepublish baseline recorded: `ok=true`, secret scan count `0`
 - Added mock writer gate, Zenn-to-Notion bridge, and v0.1.2 draft references
 - Still no tag, no GitHub Release, no Zenn publication, and no real tape-memory write
@@ -1497,6 +1497,15 @@ Added `docs/POST_RELEASE_NOTION_SUMMARY_v0.1.2.md` as a Japanese Notion summary 
 Added `docs/POST_RELEASE_SUMMARY_v0.1.2.md` as a short release/Zenn/Notion bridge summary.
 
 - Theme: `fast resume without raw logs`
-- Validated baseline: `433 passed`
+- Validated baseline: `434 passed`
 - Keep Zenn as draft unless explicit publication is requested
 - Keep real tape-memory writes disabled
+
+## v0.1.2 post-release checklist
+
+Added `docs/V0_1_2_POST_RELEASE_CHECKLIST.md` for the immediate post-release period.
+
+- Keep Zenn as draft unless explicitly asked to publish
+- Keep Notion aligned with Zenn wording
+- Keep real tape-memory writes disabled
+- Keep the test-only mock writer test-only
