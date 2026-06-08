@@ -718,7 +718,7 @@ def test_v0_1_2_release_drafts_are_linked_and_safety_scoped():
 def test_v0_1_2_readiness_review_is_current():
     review = open('docs/V0_1_2_READINESS_REVIEW.md', encoding='utf-8').read()
 
-    assert '429 passed' in review
+    assert '430 passed' in review
     assert 'test-only local mock writer gate' in review
     assert 'local_mock_file_for_tests_only' in review
     assert 'Zenn-to-Notion dry-run bridge' in review
@@ -740,3 +740,15 @@ def test_v0_1_2_release_runbook_and_tape_backend_interface_are_documented():
     assert 'real backend: not implemented' in backend
     assert 'WRITE TAPE MEMORY RESUME POINTER' in backend
     assert 'Design-only and mock paths must not read credentials' in backend
+
+
+def test_v0_1_2_announcement_copy_pack_is_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    copy = open('docs/ANNOUNCEMENT_COPY_v0.1.2.md', encoding='utf-8').read()
+
+    assert 'docs/ANNOUNCEMENT_COPY_v0.1.2.md' in readme
+    assert 'GitHub Release: https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.2' in copy
+    assert 'fast resume without raw logs' in copy
+    assert 'test-only mock writer gate' in copy
+    assert 'AGI is complete' in copy
+    assert 'ぷす / `ok` / `go` as a memory-write approval' in copy

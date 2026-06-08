@@ -53,6 +53,7 @@ See `docs/V0_1_2_RESUME_PIPELINE_SUMMARY.md` for the post-RC resume pipeline sum
 See `docs/V0_1_2_READINESS_REVIEW.md` for v0.1.2 readiness review, `docs/NOTION_CREDENTIAL_ROTATE_RUNBOOK.md` for Notion credential rotation steps, and `docs/ZENN_COGNITIVE_AGENT_OS_PUBLISH_CHECKLIST.md` before publishing the Zenn draft.
 See `RELEASE_NOTES_v0.1.1.md` and `GITHUB_RELEASE_DRAFT_v0.1.1.md` for v0.1.1 release prep drafts.
 See `RELEASE_NOTES_v0.1.2.md` and `GITHUB_RELEASE_DRAFT_v0.1.2.md` for v0.1.2 release prep drafts; no tag/release is authorized by these drafts.
+See `docs/ANNOUNCEMENT_COPY_v0.1.2.md` for post-release announcement/community copy and safer wording guidance.
 See `docs/ANNOUNCEMENT_COPY_v0.1.0.md` for reusable post-release announcement/social copy.
 See `docs/LOCAL_RUNTIME_FILE_INVENTORY.md` for ignored local/runtime artifact handling.
 

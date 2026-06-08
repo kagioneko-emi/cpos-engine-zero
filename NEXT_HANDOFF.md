@@ -1457,7 +1457,7 @@ Prepared draft-only release materials for a possible future v0.1.2.
 
 Updated `docs/V0_1_2_READINESS_REVIEW.md` after the mock writer gate and v0.1.2 draft work.
 
-- Latest baseline recorded: `429 passed`
+- Latest baseline recorded: `430 passed`
 - prepublish baseline recorded: `ok=true`, secret scan count `0`
 - Added mock writer gate, Zenn-to-Notion bridge, and v0.1.2 draft references
 - Still no tag, no GitHub Release, no Zenn publication, and no real tape-memory write
@@ -1474,3 +1474,12 @@ Added two design/runbook docs.
 - Final release requires exact phrase: `RELEASE CPOS v0.1.2 FINAL`
 - Real memory write remains gated by exact phrase: `WRITE TAPE MEMORY RESUME POINTER`
 - Shorthand such as `ぷす`, `ok`, or `go` is explicitly insufficient for final release or real memory writes.
+
+## v0.1.2 announcement copy pack
+
+Added `docs/ANNOUNCEMENT_COPY_v0.1.2.md` for post-release/social/community copy.
+
+- Canonical release link: `https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.2`
+- Public theme: `fast resume without raw logs`
+- Must avoid AGI-completion claims
+- Real tape-memory writes remain disabled
