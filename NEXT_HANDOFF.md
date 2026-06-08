@@ -1457,7 +1457,7 @@ Prepared draft-only release materials for a possible future v0.1.2.
 
 Updated `docs/V0_1_2_READINESS_REVIEW.md` after the mock writer gate and v0.1.2 draft work.
 
-- Latest baseline recorded: `434 passed`
+- Latest baseline recorded: `441 passed`
 - prepublish baseline recorded: `ok=true`, secret scan count `0`
 - Added mock writer gate, Zenn-to-Notion bridge, and v0.1.2 draft references
 - Still no tag, no GitHub Release, no Zenn publication, and no real tape-memory write
@@ -1497,7 +1497,7 @@ Added `docs/POST_RELEASE_NOTION_SUMMARY_v0.1.2.md` as a Japanese Notion summary 
 Added `docs/POST_RELEASE_SUMMARY_v0.1.2.md` as a short release/Zenn/Notion bridge summary.
 
 - Theme: `fast resume without raw logs`
-- Validated baseline: `434 passed`
+- Validated baseline: `441 passed`
 - Keep Zenn as draft unless explicit publication is requested
 - Keep real tape-memory writes disabled
 
@@ -1509,3 +1509,31 @@ Added `docs/V0_1_2_POST_RELEASE_CHECKLIST.md` for the immediate post-release per
 - Keep Notion aligned with Zenn wording
 - Keep real tape-memory writes disabled
 - Keep the test-only mock writer test-only
+
+## いったん一区切り
+
+2026-06-08 時点で、v0.1.2 の post-release 整理、Zenn/Notion の見せ方合わせ、README 導線の微調整まで完了。
+
+- Zenn: `published: false` のまま、`fast resume without raw logs` 寄りの文面
+- Notion: Zenn と語り口を揃えた日本語まとめ
+- README: v0.1.2 の Quick links を追加
+- release / runbook / readiness / announcement / post-release / checklist まで整理済み
+- real tape-memory writes はまだ無効
+- ここでいったん停止してOK
+
+## Zenn final judgment
+
+After review, keep `articles/cognitive-agent-os-safety-kernel.md` as `published: false` for now.
+
+- The article already matches the `fast resume without raw logs` theme
+- No AGI-completion wording should be added
+- Publish only if explicitly requested later
+
+## tape-memory backend foundation
+
+Added `cpos/tape_memory_backend.py` and tests as an in-memory fake backend foundation.
+
+- `TapeMemoryBackendProtocol` available
+- metadata-only fake backend only
+- no real tape-memory backend implemented
+- real writes remain disabled

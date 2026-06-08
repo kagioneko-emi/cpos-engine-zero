@@ -38,3 +38,5 @@ credential rotation, or any real tape-memory write.
 1. Whether to keep Zenn as draft or publish it.
 2. Whether to keep the Notion summary as-is or expand it.
 3. Whether to leave tape-memory backend work parked.
+
+- `cpos.tape_memory_backend.py` is test-only and fake-backed; do not treat it as a real backend.

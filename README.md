@@ -29,6 +29,7 @@ See `docs/EVENT_BUS_AND_WORLD_MODEL_SPEC.md` for the event bus/world-model spec 
 See `docs/TAPE_MEMORY_BRIDGE_DESIGN.md` for the metadata-only tape-memory resume-pointer bridge design.
 See `docs/TAPE_MEMORY_REAL_WRITE_GATE_DESIGN.md` for the design-only real write safety gate; real writes are not enabled.
 See `docs/TAPE_MEMORY_BACKEND_INTERFACE_DESIGN.md` for the design-only future backend adapter boundary; no real backend is implemented.
+Run `PYTHONPATH=. .venv/bin/python -m cpos.tape_memory_backend inspect --json` for the in-memory fake backend foundation used for tests only.
 Run `PYTHONPATH=. .venv/bin/python -m cpos.tape_memory_mock_writer write --pointer-json pointer.json --output-dir /tmp/cpos-tape-memory-mock --confirm-write "WRITE TAPE MEMORY RESUME POINTER" --json` for a test-only local mock write; it is not a real tape-memory backend.
 See `docs/VAULT_BACKED_NOTION_HELPER.md` for the Vault-backed Notion helper replacing old hardcoded scripts.
 See `docs/ZENN_TO_NOTION_BRIDGE_DRY_RUN.md` for the safe dry-run replacement path for Zenn draft uploads to Notion.

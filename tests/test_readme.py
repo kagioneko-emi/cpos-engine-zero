@@ -718,7 +718,7 @@ def test_v0_1_2_release_drafts_are_linked_and_safety_scoped():
 def test_v0_1_2_readiness_review_is_current():
     review = open('docs/V0_1_2_READINESS_REVIEW.md', encoding='utf-8').read()
 
-    assert '434 passed' in review
+    assert '441 passed' in review
     assert 'test-only local mock writer gate' in review
     assert 'local_mock_file_for_tests_only' in review
     assert 'Zenn-to-Notion dry-run bridge' in review
@@ -781,7 +781,7 @@ def test_v0_1_2_post_release_summary_is_documented():
 
     assert 'docs/POST_RELEASE_SUMMARY_v0.1.2.md' in readme
     assert 'fast resume without raw logs' in summary
-    assert '434 passed' in summary
+    assert '441 passed' in summary
     assert 'tape-memory write-plan remains dry-run only' in summary
     assert 'not an AGI completion claim' in summary
     assert 'JP Notion summary' not in summary
@@ -797,3 +797,15 @@ def test_v0_1_2_post_release_checklist_is_documented():
     assert 'ぷす, `ok`, or `go`' in checklist
     assert 'AGI-completion language' in checklist
     assert 'post-release period' in checklist
+
+
+def test_tape_memory_backend_foundation_is_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    backend = open('cpos/tape_memory_backend.py', encoding='utf-8').read()
+    design = open('docs/TAPE_MEMORY_BACKEND_INTERFACE_DESIGN.md', encoding='utf-8').read()
+
+    assert 'cpos.tape_memory_backend inspect --json' in readme
+    assert 'TapeMemoryBackendProtocol' in backend
+    assert 'InMemoryTapeMemoryBackend' in backend
+    assert 'kagioneko.tape_memory_backend_fake.v1' in backend
+    assert 'cpos/tape_memory_backend.py' in design

@@ -181,3 +181,8 @@ Return a structured failure without writing when:
 - `cpos/tape_memory_mock_writer.py` tests the gate locally only.
 - This document defines the future backend interface boundary before any real
   adapter exists.
+
+
+## Current foundation module
+
+`cpos/tape_memory_backend.py` now provides the test-only in-memory fake backend foundation and the `TapeMemoryBackendProtocol`. It remains metadata-only and does not implement a real tape-memory backend.

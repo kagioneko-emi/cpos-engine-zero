@@ -49,6 +49,11 @@ interface boundary.
 - future backend interface design boundary
 - no real tape-memory backend implemented yet
 
+### Current follow-up state
+
+- Zenn remains draft-only unless explicitly published later
+- test-only in-memory fake backend foundation added for future interface work
+
 ### Notion/Zenn/publication preparation
 
 - Vault-backed Notion helper dry-run path
@@ -79,7 +84,7 @@ Latest known baseline at the time of this summary:
 
 ```text
 PYTHONPATH=. .venv/bin/python -m pytest tests -q
-434 passed
+441 passed
 
 PYTHONPATH=. .venv/bin/python -m cpos.prepublish_check --json
 ok=true
