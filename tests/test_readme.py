@@ -718,10 +718,25 @@ def test_v0_1_2_release_drafts_are_linked_and_safety_scoped():
 def test_v0_1_2_readiness_review_is_current():
     review = open('docs/V0_1_2_READINESS_REVIEW.md', encoding='utf-8').read()
 
-    assert '428 passed' in review
+    assert '429 passed' in review
     assert 'test-only local mock writer gate' in review
     assert 'local_mock_file_for_tests_only' in review
     assert 'Zenn-to-Notion dry-run bridge' in review
     assert 'v0.1.2 release notes draft' in review
     assert 'not an AGI-completion claim' in review
     assert 'does not authorize a release' in review
+
+
+def test_v0_1_2_release_runbook_and_tape_backend_interface_are_documented():
+    readme = open('README.md', encoding='utf-8').read()
+    runbook = open('docs/V0_1_2_FINAL_RELEASE_RUNBOOK.md', encoding='utf-8').read()
+    backend = open('docs/TAPE_MEMORY_BACKEND_INTERFACE_DESIGN.md', encoding='utf-8').read()
+
+    assert 'docs/TAPE_MEMORY_BACKEND_INTERFACE_DESIGN.md' in readme
+    assert 'RELEASE CPOS v0.1.2 FINAL' in runbook
+    assert 'does not authorize a tag' in runbook
+    assert 'ぷす`, `ok`, or `go` must not authorize tag/release creation' in runbook
+    assert 'TapeMemoryBackendProtocol' in backend
+    assert 'real backend: not implemented' in backend
+    assert 'WRITE TAPE MEMORY RESUME POINTER' in backend
+    assert 'Design-only and mock paths must not read credentials' in backend

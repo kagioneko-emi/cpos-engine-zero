@@ -1457,7 +1457,20 @@ Prepared draft-only release materials for a possible future v0.1.2.
 
 Updated `docs/V0_1_2_READINESS_REVIEW.md` after the mock writer gate and v0.1.2 draft work.
 
-- Latest baseline recorded: `428 passed`
+- Latest baseline recorded: `429 passed`
 - prepublish baseline recorded: `ok=true`, secret scan count `0`
 - Added mock writer gate, Zenn-to-Notion bridge, and v0.1.2 draft references
 - Still no tag, no GitHub Release, no Zenn publication, and no real tape-memory write
+
+## v0.1.2 final release runbook and tape-memory backend interface design
+
+Added two design/runbook docs.
+
+- `docs/V0_1_2_FINAL_RELEASE_RUNBOOK.md`
+- `docs/TAPE_MEMORY_BACKEND_INTERFACE_DESIGN.md`
+- No tag was created.
+- No GitHub Release was created.
+- No real tape-memory backend adapter was implemented.
+- Final release requires exact phrase: `RELEASE CPOS v0.1.2 FINAL`
+- Real memory write remains gated by exact phrase: `WRITE TAPE MEMORY RESUME POINTER`
+- Shorthand such as `ぷす`, `ok`, or `go` is explicitly insufficient for final release or real memory writes.
