@@ -56,6 +56,7 @@ See `RELEASE_NOTES_v0.1.2.md` and `GITHUB_RELEASE_DRAFT_v0.1.2.md` for v0.1.2 re
 See `docs/ANNOUNCEMENT_COPY_v0.1.2.md` for post-release announcement/community copy and safer wording guidance.
 Quick v0.1.2 links: `https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.2`, `docs/V0_1_2_FINAL_RELEASE_RUNBOOK.md`, `docs/V0_1_2_READINESS_REVIEW.md`.
 See `docs/POST_RELEASE_NOTION_SUMMARY_v0.1.2.md` for a Japanese Notion summary aligned with the Zenn wording.
+See `docs/POST_RELEASE_SUMMARY_v0.1.2.md` for the short post-release summary that ties release, Zenn, and Notion together.
 See `docs/ANNOUNCEMENT_COPY_v0.1.0.md` for reusable post-release announcement/social copy.
 See `docs/LOCAL_RUNTIME_FILE_INVENTORY.md` for ignored local/runtime artifact handling.
 
