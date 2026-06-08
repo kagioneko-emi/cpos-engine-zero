@@ -764,3 +764,12 @@ def test_v0_1_2_notion_summary_is_aligned_with_zenn():
     assert 'ぷす / `ok` / `go`' in notion
     assert 'AGI完成宣言' in notion
     assert 'Cognitive Agent OS' in notion
+
+
+def test_readme_quick_v0_1_2_links_are_present():
+    readme = open('README.md', encoding='utf-8').read()
+
+    assert 'Quick v0.1.2 links:' in readme
+    assert 'docs/V0_1_2_FINAL_RELEASE_RUNBOOK.md' in readme
+    assert 'docs/V0_1_2_READINESS_REVIEW.md' in readme
+    assert 'https://github.com/kagioneko/cpos-engine-zero/releases/tag/v0.1.2' in readme
