@@ -9,6 +9,9 @@ import hmac
 import hashlib
 import time
 import ipaddress
+from pathlib import Path
+
+import yaml
 
 # Configure logging to stdout
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -50,6 +53,7 @@ from cpos.competitive_demo_fixture import create_competitive_demo_fixture
 from cpos.sandbox_flow_graph import build_sandbox_flow_graph
 from cpos.patch_generation_review import create_patch_generation_review, pending_patch_generation_reviews, approve_patch_generation_review, reject_patch_generation_review, validate_patch_generation_output, advance_patch_generation_to_execution_review, create_github_diff_review_from_patch_generation
 from cpos.agent_adapter import intake_external_agent_action, pending_external_agent_actions, approve_external_agent_action, reject_external_agent_action, build_external_agent_result_scoreboard
+from cpos.ai_white_hatter import build_dashboard_summary, build_task_catalog, clone_task_scaffold, compare_task_against_many, compare_task_data, list_task_files, load_task, load_task_path, display_task_path
 
 apply_security_profile_defaults()
 
@@ -984,6 +988,76 @@ def sandbox_execution_scoreboard():
 @app.route('/demo/readiness', methods=['GET'])
 def competitive_demo_readiness():
     result = build_competitive_demo_readiness(agent.task_tape, mcp_registry=mcp_registry())
+    return jsonify(result), 200
+
+
+@app.route('/ai-white-hatter/dashboard', methods=['GET'])
+def ai_white_hatter_dashboard():
+    task_file = request.args.get('task_file') or 'docs/AI_WHITE_HATTER_TASK.example.yaml'
+    result = build_dashboard_summary(goal_store='goals/goals.example.json', task_file=task_file)
+    return jsonify(result), 200
+
+
+@app.route('/ai-white-hatter/tasks', methods=['GET'])
+def ai_white_hatter_tasks():
+    result = build_task_catalog()
+    return jsonify(result), 200
+
+
+@app.route('/ai-white-hatter/clone-task', methods=['POST'])
+def ai_white_hatter_clone_task():
+    data = request.get_json(silent=True) or {}
+    source = data.get('source') or data.get('source_file') or 'docs/AI_WHITE_HATTER_TASK.example.yaml'
+    file_name = data.get('file') or data.get('output') or data.get('destination')
+    if not file_name:
+        return jsonify({'ok': False, 'error': 'file_required'}), 400
+    source_path = load_task_path(source)
+    output_path = Path(file_name)
+    cloned, issues = clone_task_scaffold(
+        source_path,
+        output_path,
+        task_id=data.get('task_id'),
+        title=data.get('title'),
+        target_program=data.get('target_program'),
+        owner=data.get('owner'),
+        scope_status=data.get('scope_status'),
+        human_review_required=data.get('human_review_required'),
+        next_action=data.get('next_action'),
+    )
+    output_path = output_path.expanduser()
+    compare = compare_task_data(load_task(source_path), cloned, left_label=display_task_path(source_path), right_label=display_task_path(output_path))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(yaml.safe_dump(cloned, sort_keys=False, allow_unicode=True), encoding='utf-8')
+    return jsonify({'ok': True, 'source': display_task_path(source_path), 'file': display_task_path(output_path), 'task': cloned, 'issues': issues, 'compare': compare}), 200
+
+
+@app.route('/ai-white-hatter/compare', methods=['GET'])
+def ai_white_hatter_compare():
+    left = request.args.get('left') or 'docs/AI_WHITE_HATTER_TASK.example.yaml'
+    right = request.args.get('right') or 'docs/AI_WHITE_HATTER_TASK.example.yaml'
+    left_path = load_task_path(left)
+    right_path = load_task_path(right)
+    result = compare_task_data(load_task(left_path), load_task(right_path), left_label=display_task_path(left_path), right_label=display_task_path(right_path))
+    return jsonify(result), 200
+
+
+@app.route('/ai-white-hatter/compare-many', methods=['GET'])
+def ai_white_hatter_compare_many():
+    base = request.args.get('base') or 'docs/AI_WHITE_HATTER_TASK.example.yaml'
+    candidate_args = request.args.getlist('candidate') or request.args.getlist('candidates')
+    top_n_raw = request.args.get('top_n') or request.args.get('top-n') or '5'
+    try:
+        top_n = int(top_n_raw)
+    except Exception:
+        top_n = 5
+    if top_n < 0:
+        top_n = None
+    base_path = load_task_path(base)
+    if candidate_args:
+        candidate_paths = [load_task_path(path) for path in candidate_args if path]
+    else:
+        candidate_paths = [path for path in list_task_files() if path.resolve() != base_path.resolve()]
+    result = compare_task_against_many(base_path, candidate_paths, top_n=top_n)
     return jsonify(result), 200
 
 

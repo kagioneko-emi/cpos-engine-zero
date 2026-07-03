@@ -270,6 +270,7 @@
             <a href="#" class="nav-item">Task Tape</a>
             <a href="#" class="nav-item">Security Audit</a>
             <a href="#mcp-review-section" class="nav-item">MCP Review</a>
+            <a href="#ai-white-hatter-section" class="nav-item">AI White-Hatter</a>
             <a href="#github-pr-section" class="nav-item">GitHub PR</a>
             <a href="#" class="nav-item">Settings</a>
         </nav>
@@ -327,6 +328,11 @@
                 <h2>Secret Inventory</h2>
                 <div class="metric" id="secret-inventory-count">--</div>
                 <div class="muted" id="secret-inventory-detail">Vault migration metadata</div>
+            </div>
+            <div class="card" id="ai-white-hatter-card" style="border-color: var(--accent-orange);">
+                <h2>AI White-Hatter</h2>
+                <div class="metric" id="ai-white-hatter-task-status">--</div>
+                <div class="muted" id="ai-white-hatter-task-detail">Dashboard-ready task + CLI summary</div>
             </div>
             <div class="card" id="footprint-card" style="border-color: var(--accent-green);">
                 <h2>Lightweight Footprint</h2>
@@ -417,6 +423,38 @@
                 <button class="btn btn-warning" onclick="createCompetitiveDemoFixture()">Create Metadata-only Demo Fixture</button>
             </div>
             <div id="competitive-demo-readiness-container"></div>
+        </div>
+
+        <div id="ai-white-hatter-section" class="card" style="border-color: var(--accent-purple); margin-bottom: 30px;">
+            <h2>AI White-Hatter Dashboard Mode</h2>
+            <p class="muted">Codex base + Gemini + Claude Code. Task validation, repo comparison, read-only pipeline, and dashboard-ready summaries stay metadata-only.</p>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;">
+                <label class="muted" for="ai-white-hatter-task-select">Task file</label>
+                <select id="ai-white-hatter-task-select" class="btn" style="min-width: 360px;" onchange="updateDashboard()"></select>
+                <label class="muted" for="ai-white-hatter-compare-select">Compare to</label>
+                <select id="ai-white-hatter-compare-select" class="btn" style="min-width: 360px;" onchange="updateDashboard()"></select>
+                <button class="btn btn-success" onclick="refreshAiWhiteHatter()">Refresh</button>
+            </div>
+            <div class="card" style="background: #161b22; border-color: var(--accent-blue); margin-bottom: 12px;">
+                <h2>Clone Task</h2>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
+                    <label class="muted" for="ai-white-hatter-clone-file">Output file</label>
+                    <input id="ai-white-hatter-clone-file" class="btn" style="min-width: 360px;" placeholder="docs/AI_WHITE_HATTER_TASK.clone.yaml" />
+                    <label class="muted" for="ai-white-hatter-clone-task-id">Task ID</label>
+                    <input id="ai-white-hatter-clone-task-id" class="btn" style="min-width: 220px;" placeholder="wh-2026-999" />
+                    <label class="muted" for="ai-white-hatter-clone-title">Title</label>
+                    <input id="ai-white-hatter-clone-title" class="btn" style="min-width: 260px;" placeholder="Clone title" />
+                    <label class="muted" for="ai-white-hatter-clone-target-program">Program</label>
+                    <input id="ai-white-hatter-clone-target-program" class="btn" style="min-width: 180px;" placeholder="bounty-lab" />
+                    <label class="muted"><input id="ai-white-hatter-clone-human-review" type="checkbox" checked style="margin-right: 6px;">Human review required</label>
+                    <button class="btn btn-success" onclick="cloneAiWhiteHatterTask()">Clone selected task</button>
+                </div>
+                <div id="ai-white-hatter-clone-result" class="muted">Select a task and clone it into a new file.</div>
+            </div>
+            <div id="ai-white-hatter-summary" class="muted" style="margin-bottom: 12px;">Loading AI White-Hatter summary...</div>
+            <div id="ai-white-hatter-container"></div>
+            <div id="ai-white-hatter-compare-section" style="margin-top: 16px;"></div>
+            <div id="ai-white-hatter-batch-compare-section" style="margin-top: 16px;"></div>
         </div>
 
         <div id="autonomy-loop-demo-section" class="card" style="border-color: var(--accent-green); margin-bottom: 30px;">
@@ -616,6 +654,31 @@
                 const demoReadinessRes = await fetch('/demo/readiness');
                 const demoReadinessData = demoReadinessRes.ok ? await demoReadinessRes.json() : {ok: false, ready: false, stages: [], counts: {}, safety_flags: {}};
                 renderCompetitiveDemoReadiness(demoReadinessData);
+
+                const whiteHatterTaskSelect = document.getElementById('ai-white-hatter-task-select');
+                const whiteHatterCompareSelect = document.getElementById('ai-white-hatter-compare-select');
+                if ((whiteHatterTaskSelect && whiteHatterTaskSelect.options.length === 0) || (whiteHatterCompareSelect && whiteHatterCompareSelect.options.length === 0)) {
+                    const taskListRes = await fetch('/ai-white-hatter/tasks');
+                    const taskListData = taskListRes.ok ? await taskListRes.json() : {ok: false, tasks: []};
+                    populateAiWhiteHatterTaskSelect(taskListData.tasks || []);
+                }
+                const selectedWhiteHatterTask = document.getElementById('ai-white-hatter-task-select')?.value || 'docs/AI_WHITE_HATTER_TASK.example.yaml';
+                const selectedWhiteHatterCompare = document.getElementById('ai-white-hatter-compare-select')?.value || selectedWhiteHatterTask;
+                const whiteHatterParams = new URLSearchParams();
+                whiteHatterParams.set('task_file', selectedWhiteHatterTask);
+                const whiteHatterRes = await fetch(`/ai-white-hatter/dashboard?${whiteHatterParams.toString()}`);
+                const whiteHatterData = whiteHatterRes.ok ? await whiteHatterRes.json() : {ok: false, checklist: [], commands: [], docs: [], status: {}};
+                const compareParams = new URLSearchParams();
+                compareParams.set('left', selectedWhiteHatterTask);
+                compareParams.set('right', selectedWhiteHatterCompare);
+                const whiteHatterCompareRes = await fetch(`/ai-white-hatter/compare?${compareParams.toString()}`);
+                const whiteHatterCompareData = whiteHatterCompareRes.ok ? await whiteHatterCompareRes.json() : {ok: false, differences: {}, summary: {}, validation: {}};
+                const whiteHatterBatchParams = new URLSearchParams();
+                whiteHatterBatchParams.set('base', selectedWhiteHatterTask);
+                whiteHatterBatchParams.set('top_n', '5');
+                const whiteHatterBatchRes = await fetch(`/ai-white-hatter/compare-many?${whiteHatterBatchParams.toString()}`);
+                const whiteHatterBatchData = whiteHatterBatchRes.ok ? await whiteHatterBatchRes.json() : {ok: false, count: 0, comparisons: []};
+                renderAiWhiteHatter(whiteHatterData, whiteHatterCompareData, whiteHatterBatchData);
 
                 const footprintRes = await fetch('/footprint');
                 if (footprintRes.ok) {
@@ -995,6 +1058,198 @@
                         <div class="step-label">Demo Path</div>
                         <p>${path}</p>
                         <table><thead><tr><th>Stage</th><th>Count</th><th>Endpoint</th><th>Next Action</th></tr></thead><tbody>${stages}</tbody></table>
+                    `;
+                }
+
+                function populateAiWhiteHatterTaskSelect(tasks) {
+                    const select = document.getElementById('ai-white-hatter-task-select');
+                    const compareSelect = document.getElementById('ai-white-hatter-compare-select');
+                    if (!select || !compareSelect) return;
+                    const current = select.value || '';
+                    const currentCompare = compareSelect.value || '';
+                    select.innerHTML = '';
+                    compareSelect.innerHTML = '';
+                    (tasks || []).forEach(task => {
+                        const suffix = task.issues && task.issues.length ? ` ⚠${task.issues.length}` : '';
+                        const label = `${task.file || '-'} — ${task.title || 'Untitled'}${suffix}`;
+                        const option = document.createElement('option');
+                        option.value = task.file || '';
+                        option.textContent = label;
+                        select.appendChild(option.cloneNode(true));
+                        compareSelect.appendChild(option);
+                    });
+                    if (current) select.value = current;
+                    if (currentCompare) compareSelect.value = currentCompare;
+                    if (!select.value && select.options.length > 0) select.selectedIndex = 0;
+                    if (!compareSelect.value && compareSelect.options.length > 0) compareSelect.selectedIndex = 0;
+                }
+
+                async function refreshAiWhiteHatter() {
+                    await updateDashboard();
+                }
+
+                async function cloneAiWhiteHatterTask() {
+                    const source = document.getElementById('ai-white-hatter-task-select')?.value || 'docs/AI_WHITE_HATTER_TASK.example.yaml';
+                    const outputFile = document.getElementById('ai-white-hatter-clone-file')?.value?.trim() || '';
+                    const taskId = document.getElementById('ai-white-hatter-clone-task-id')?.value?.trim() || '';
+                    const title = document.getElementById('ai-white-hatter-clone-title')?.value?.trim() || '';
+                    const targetProgram = document.getElementById('ai-white-hatter-clone-target-program')?.value?.trim() || '';
+                    const humanReviewRequired = !!document.getElementById('ai-white-hatter-clone-human-review')?.checked;
+                    const resultEl = document.getElementById('ai-white-hatter-clone-result');
+                    if (!outputFile) {
+                        if (resultEl) resultEl.innerText = 'Output file is required.';
+                        return;
+                    }
+                    if (resultEl) resultEl.innerText = 'Cloning task...';
+                    const payload = {
+                        source,
+                        file: outputFile,
+                        task_id: taskId || undefined,
+                        title: title || undefined,
+                        target_program: targetProgram || undefined,
+                        human_review_required: humanReviewRequired,
+                    };
+                    const res = await fetch('/ai-white-hatter/clone-task', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) {
+                        if (resultEl) resultEl.innerText = `Clone failed: ${data.error || 'unknown_error'}`;
+                        return;
+                    }
+                    if (resultEl) {
+                        const issueCount = (data.issues || []).length;
+                        const compare = data.compare || {};
+                        const summary = compare.summary || {};
+                        resultEl.innerText = `Cloned ${data.source} -> ${data.file}.${issueCount ? ` issues=${issueCount}` : ' issues=0'} compare(repo=${summary.repo_diff_count || 0}, field=${summary.field_diff_count || 0}, scope=${summary.scope_diff_count || 0}, ai=${summary.ai_role_diff_count || 0})`;
+                    }
+                    const select = document.getElementById('ai-white-hatter-task-select');
+                    const compareSelect = document.getElementById('ai-white-hatter-compare-select');
+                    if (select) select.value = data.file;
+                    if (compareSelect) compareSelect.value = source;
+                    await updateDashboard();
+                }
+
+                function renderAiWhiteHatter(data, compareData, batchCompareData) {
+                    const section = document.getElementById('ai-white-hatter-section');
+                    const summary = document.getElementById('ai-white-hatter-summary');
+                    const container = document.getElementById('ai-white-hatter-container');
+                    const statusEl = document.getElementById('ai-white-hatter-task-status');
+                    const detailEl = document.getElementById('ai-white-hatter-task-detail');
+                    if (!section || !summary || !container || !statusEl || !detailEl) return;
+                    if (!data || data.ok === false) {
+                        section.style.display = 'none';
+                        return;
+                    }
+                    section.style.display = 'block';
+                    const goal = data.goal_store || {};
+                    const task = data.task || {};
+                    const status = data.status || {};
+                    const checklist = (data.checklist || []).map(item => `<span class="pill">${item}</span>`).join(' ');
+                    const commands = (data.commands || []).map(item => `<li><code>${item}</code></li>`).join('');
+                    const docs = (data.docs || []).map(item => `<li><code>${item}</code></li>`).join('');
+                    const taskOptions = (data.task_options || []).map(item => `<span class="pill">${item.file} — ${item.title || 'Untitled'}</span>`).join(' ');
+                    summary.innerText = `task_validation_ok=${status.task_validation_ok}, goal_validation_ok=${status.goal_validation_ok}, task_review_required=${status.task_review_required}, validation_ok=${goal.validation_ok}, goal_errors=${goal.validation_error_count || 0}`;
+                    statusEl.innerText = `${task.status || 'planned'} ${status.task_validation_ok && status.goal_validation_ok ? 'READY' : 'CHECK'}`;
+                    statusEl.style.color = status.task_validation_ok && status.goal_validation_ok ? 'var(--accent-green)' : 'var(--accent-orange)';
+                    detailEl.innerText = `${task.title || '-'} / ${task.next_action || '-'}`;
+                    const compareSummary = compareData && compareData.summary ? compareData.summary : {};
+                    const repoDiffs = (compareData && compareData.differences && compareData.differences.repos) || [];
+                    const fieldDiffs = (compareData && compareData.differences && compareData.differences.fields) || [];
+                    const scopeDiffs = (compareData && compareData.differences && compareData.differences.scope) || [];
+                    const aiRoleDiffs = (compareData && compareData.differences && compareData.differences.ai_roles) || [];
+                    const batchComparisons = (batchCompareData && batchCompareData.comparisons) || [];
+                    const batchScoreBg = score => score >= 10 ? 'rgba(248, 81, 73, 0.16)' : score >= 5 ? 'rgba(247, 181, 0, 0.16)' : score > 0 ? 'rgba(63, 185, 80, 0.14)' : 'rgba(110, 118, 129, 0.10)';
+                    const batchScoreColor = score => score >= 10 ? 'var(--accent-red)' : score >= 5 ? 'var(--accent-yellow)' : score > 0 ? 'var(--accent-green)' : 'var(--muted)';
+                    const batchCompareHtml = `
+                        <div class="card" style="background: #161b22; border-color: var(--accent-green); margin-top: 16px;">
+                            <h2>Batch Compare</h2>
+                            <p>
+                                <span class="pill">base=${batchCompareData?.base?.file || task.file || '-'}</span>
+                                <span class="pill">shown=${batchComparisons.length || 0}</span>
+                                <span class="pill">total=${batchCompareData?.count || 0}</span>
+                            </p>
+                            <table>
+                                <thead>
+                                    <tr><th>File</th><th>Score</th><th>Repo</th><th>Field</th><th>Scope</th><th>AI</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${batchComparisons.length ? batchComparisons.map((row, idx) => {
+                                        const summary = row.compare && row.compare.summary ? row.compare.summary : {};
+                                        const score = row.score || 0;
+                                        const isTop = idx < 3;
+                                        return `<tr style="background: ${batchScoreBg(score)};${isTop ? ' font-weight: 700;' : ''}">
+                                            <td>${isTop ? '<span class="pill" style="margin-right: 6px; border-color: var(--accent-gold); color: var(--accent-gold);">TOP</span>' : ''}<code>${row.file || '-'}</code></td>
+                                            <td><span class="pill" style="background: ${batchScoreBg(score)}; color: ${batchScoreColor(score)}; border-color: ${batchScoreColor(score)};">${score}</span></td>
+                                            <td>${summary.repo_diff_count || 0}</td>
+                                            <td>${summary.field_diff_count || 0}</td>
+                                            <td>${summary.scope_diff_count || 0}</td>
+                                            <td>${summary.ai_role_diff_count || 0}</td>
+                                        </tr>`;
+                                    }).join('') : '<tr><td colspan="6" class="muted">none</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    const compareHtml = `
+                        <div class="card" style="background: #161b22; border-color: var(--accent-blue); margin-top: 16px;">
+                            <h2>Task Compare</h2>
+                            <p>
+                                <span class="pill">left=${compareData?.left?.file || task.file || '-'}</span>
+                                <span class="pill">right=${compareData?.right?.file || task.file || '-'}</span>
+                                <span class="pill">repo_diffs=${compareSummary.repo_diff_count || 0}</span>
+                                <span class="pill">field_diffs=${compareSummary.field_diff_count || 0}</span>
+                                <span class="pill">scope_diffs=${compareSummary.scope_diff_count || 0}</span>
+                                <span class="pill">ai_role_diffs=${compareSummary.ai_role_diff_count || 0}</span>
+                            </p>
+                            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 0;">
+                                <div class="card" style="background: #0f1720;">
+                                    <h2>Repo differences</h2>
+                                    <ul>${repoDiffs.length ? repoDiffs.map(item => `<li><code>${item.repo}</code>: ${item.left} → ${item.right}</li>`).join('') : '<li class="muted">none</li>'}</ul>
+                                </div>
+                                <div class="card" style="background: #0f1720;">
+                                    <h2>Field differences</h2>
+                                    <ul>${fieldDiffs.length ? fieldDiffs.map(item => `<li><code>${item.field}</code>: ${item.left} → ${item.right}</li>`).join('') : '<li class="muted">none</li>'}</ul>
+                                </div>
+                            </div>
+                            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                                <div class="card" style="background: #0f1720;">
+                                    <h2>Scope differences</h2>
+                                    <ul>${scopeDiffs.length ? scopeDiffs.map(item => `<li><code>${item.field}</code>: ${item.left} → ${item.right}</li>`).join('') : '<li class="muted">none</li>'}</ul>
+                                </div>
+                                <div class="card" style="background: #0f1720;">
+                                    <h2>AI role differences</h2>
+                                    <ul>${aiRoleDiffs.length ? aiRoleDiffs.map(item => `<li><code>${item.field}</code>: ${item.left} → ${item.right}</li>`).join('') : '<li class="muted">none</li>'}</ul>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML = `
+                        <p>
+                            <span class="pill">task_id=${task.task_id || '-'}</span>
+                            <span class="pill">human_review_required=${task.human_review_required}</span>
+                            <span class="pill">goal_validation_ok=${goal.validation_ok}</span>
+                            <span class="pill">goal_errors=${goal.validation_error_count || 0}</span>
+                        </p>
+                        <div style="margin-bottom: 12px;">${taskOptions || '<span class="muted">No task files found</span>'}</div>
+                        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 0;">
+                            <div class="card" style="background: #161b22;">
+                                <h2>Checklist</h2>
+                                <p>${checklist || '<span class="muted">none</span>'}</p>
+                            </div>
+                            <div class="card" style="background: #161b22;">
+                                <h2>Commands</h2>
+                                <ul>${commands || '<li class="muted">none</li>'}</ul>
+                            </div>
+                        </div>
+                        <div class="card" style="background: #161b22; margin-top: 16px;">
+                            <h2>Docs</h2>
+                            <ul>${docs || '<li class="muted">none</li>'}</ul>
+                        </div>
+                        ${compareHtml}
+                        ${batchCompareHtml}
                     `;
                 }
 

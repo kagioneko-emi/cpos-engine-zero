@@ -1,3 +1,7 @@
+from pathlib import Path
+
+import yaml
+
 import server
 
 
@@ -386,6 +390,120 @@ def test_dashboard_contains_competitive_demo_readiness_ui():
     assert 'approval_separated' in html
     assert 'raw_diff_stored' in html
     assert 'Ready-to-Run Gate' in html
+
+
+def test_dashboard_contains_ai_white_hatter_mode_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'ai-white-hatter-section' in html
+    assert 'ai-white-hatter-summary' in html
+    assert 'ai-white-hatter-container' in html
+    assert 'ai-white-hatter-card' in html
+    assert 'AI White-Hatter Dashboard Mode' in html
+    assert 'Dashboard-ready task + CLI summary' in html
+    assert 'Codex base + Gemini + Claude Code' in html
+    assert '/ai-white-hatter/dashboard' in html
+    assert 'renderAiWhiteHatter' in html
+    assert 'task_validation_ok' in html
+    assert 'docs/AI_WHITE_HATTER_TASK.example.yaml' in html
+
+
+def test_dashboard_contains_ai_white_hatter_task_selector_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'ai-white-hatter-task-select' in html
+    assert 'refreshAiWhiteHatter' in html
+    assert '/ai-white-hatter/tasks' in html
+    assert 'Task file' in html
+
+
+def test_ai_white_hatter_tasks_api_lists_candidates():
+    client = server.app.test_client()
+    res = client.get('/ai-white-hatter/tasks')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['ok'] is True
+    assert data['count'] >= 1
+    assert any(task['file'].endswith('AI_WHITE_HATTER_TASK.example.yaml') for task in data['tasks'])
+
+
+def test_ai_white_hatter_dashboard_uses_task_file_query_param():
+    client = server.app.test_client()
+    res = client.get('/ai-white-hatter/dashboard?task_file=docs/AI_WHITE_HATTER_TASK.example.yaml')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['task']['file'] == 'docs/AI_WHITE_HATTER_TASK.example.yaml'
+    assert data['task']['task_id'] == 'wh-2026-002'
+
+
+def test_ai_white_hatter_compare_api_works():
+    client = server.app.test_client()
+    res = client.get('/ai-white-hatter/compare?left=docs/AI_WHITE_HATTER_TASK.example.yaml&right=docs/AI_WHITE_HATTER_TASK.example.yaml')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['ok'] is True
+    assert data['summary']['repo_diff_count'] == 0
+    assert data['summary']['field_diff_count'] == 0
+
+
+def test_ai_white_hatter_compare_many_api_works(tmp_path):
+    client = server.app.test_client()
+    base = tmp_path / 'base.yaml'
+    candidate = tmp_path / 'candidate.yaml'
+    base_data = yaml.safe_load(Path('docs/AI_WHITE_HATTER_TASK.example.yaml').read_text())
+    candidate_data = yaml.safe_load(Path('docs/AI_WHITE_HATTER_TASK.example.yaml').read_text())
+    candidate_data['title'] = 'Altered batch compare title'
+    base.write_text(yaml.safe_dump(base_data, sort_keys=False, allow_unicode=True), encoding='utf-8')
+    candidate.write_text(yaml.safe_dump(candidate_data, sort_keys=False, allow_unicode=True), encoding='utf-8')
+    res = client.get('/ai-white-hatter/compare-many', query_string={'base': str(base), 'candidate': str(candidate), 'top_n': 1})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['ok'] is True
+    assert data['count'] == 1
+    assert data['comparisons'][0]['file'].endswith('candidate.yaml')
+    assert data['comparisons'][0]['compare']['summary']['field_diff_count'] >= 1
+
+
+def test_dashboard_contains_ai_white_hatter_compare_ui():
+    client = server.app.test_client()
+    res = client.get('/dashboard')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'ai-white-hatter-compare-select' in html
+    assert 'ai-white-hatter-clone-file' in html
+    assert 'ai-white-hatter-batch-compare-section' in html
+    assert 'Batch Compare' in html
+    assert 'TOP' in html
+    assert 'Clone Task' in html
+    assert '/ai-white-hatter/compare' in html
+    assert '/ai-white-hatter/compare-many' in html
+    assert '/ai-white-hatter/clone-task' in html
+
+
+def test_ai_white_hatter_clone_api_works(tmp_path):
+    client = server.app.test_client()
+    output = tmp_path / 'cloned-task.yaml'
+    res = client.post('/ai-white-hatter/clone-task', json={
+        'source': 'docs/AI_WHITE_HATTER_TASK.example.yaml',
+        'file': str(output),
+        'task_id': 'wh-test-clone',
+        'title': 'Cloned in test',
+        'target_program': 'bounty-lab',
+        'human_review_required': False,
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['ok'] is True
+    assert data['file'].endswith('cloned-task.yaml')
+    assert data['task']['derived_from'].endswith('docs/AI_WHITE_HATTER_TASK.example.yaml')
+    assert data['task']['clone_source']['task_id'] == 'wh-2026-002'
+    assert data['compare']['summary']['repo_diff_count'] == 0
+    assert data['compare']['summary']['scope_diff_count'] == 0
+    assert output.exists()
 
 
 def test_dashboard_contains_external_agent_adapter_wording_polish():

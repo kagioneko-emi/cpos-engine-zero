@@ -1,0 +1,47 @@
+task_id: wh-2026-002
+title: Compare existing red-team assets
+date: "2026-06-10"
+owner: codex
+target_program: local-lab
+
+scope:
+  status: confirmed
+  notes: Use only local repos already present under /home/mayutama
+
+repos:
+  - name: cpos_defensive_agent
+    role: allowed
+  - name: ai-red-teaming-engine
+    role: reference_only
+  - name: ai-instruction-tape
+    role: reference_only
+  - name: claude-code-security-kit
+    role: reference_only
+
+ai_roles:
+  coordinator: codex
+  broad_survey: gemini
+  deep_review: claude
+  local_validation: codex
+  report_polish: codex
+
+hypothesis:
+  - Some templates can be shared across repos
+  - Some review gates can be normalized
+  - Some evidence formats can be unified
+
+constraints:
+  no_secrets: true
+  no_production_data: true
+  no_destructive_actions: true
+  minimal_reproduction: true
+
+evidence:
+  logs: []
+  screenshots: []
+  paths: []
+  commits: []
+
+status: planned
+next_action: repo_comparison
+human_review_required: false
