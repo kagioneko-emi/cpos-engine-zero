@@ -29,4 +29,4 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Run the server
-CMD ["python3", "engine_zero_server.py"]
+CMD ["/app/target_app/.venv/bin/python", "engine_zero_server.py"]
