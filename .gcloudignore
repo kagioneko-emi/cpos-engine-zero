@@ -14,6 +14,10 @@
 !static/
 !trigger_demo.py
 !PITCH.md
+!engine_zero_agent.py
+!engine_zero_server.py
+!ait_firewall/
+!target_app/
 .venv/
 .git/
 __pycache__/
