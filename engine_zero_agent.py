@@ -21,11 +21,22 @@ class EngineZeroAgent:
     def __init__(self, target_dir):
         self.target_dir = os.path.abspath(target_dir)
 
+    def print_banner(self, run_id):
+        banner = f"""\033[36m
+  /\\_/\\   🛡️  ENGINE-ZERO: SECURE DEVOPS RUNTIME
+ ( o.o )  -------------------------------------
+  > ^ <   [🔒 RUN_ID: {run_id}]
+ /     \\  [🔒 STATUS: ONLINE]
+( |   | ) [🔒 FIREWALL: ACTIVE (AIT V12)]
+(__d_b__) -------------------------------------\033[0m"""
+        logger.info(banner)
+
     def run_devops_cycle(self, instruction):
         # 0. Create an isolated temporary workspace for parallel execution (No locks needed!)
         run_id = str(uuid.uuid4())[:8]
         temp_workspace = f"{self.target_dir}_tmp_{run_id}"
         
+        self.print_banner(run_id)
         logger.info(f"--- [Engine-Zero] [Run: {run_id}] Received Instruction: {instruction} ---")
         
         calc_path = os.path.join(temp_workspace, "src/calc.py")
