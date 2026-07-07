@@ -206,8 +206,22 @@ class EngineZeroAgent:
                 logger.error(f"[!] Failed to kill container {container_name}: {kill_err}")
             return False
         except FileNotFoundError:
-            logger.error("[!] Docker executable not found. Unable to run sandbox tests.")
-            return False
+            logger.warning("[!] Docker executable not found. Falling back to local process execution with timeout limit (30s)...")
+            try:
+                # Fallback: Run pytest locally in the isolated workspace path with timeout
+                local_cmd = ["bash", "-c", f"cd {workspace_path} && PYTHONPATH=. pytest -s tests/test_calc.py"]
+                result = subprocess.run(local_cmd, capture_output=True, text=True, timeout=30)
+                if result.stdout:
+                    logger.info(result.stdout.strip())
+                if result.stderr:
+                    logger.warning(f"Stderr: {result.stderr.strip()}")
+                return result.returncode == 0
+            except subprocess.TimeoutExpired:
+                logger.error(f"[!] Local Execution TIMEOUT (30s) for workspace: {workspace_path}")
+                return False
+            except Exception as local_err:
+                logger.error(f"[!] Local Execution failed: {local_err}")
+                return False
         except Exception as e:
             logger.error(f"[!] Unexpected error during sandbox test execution: {e}")
             return False

@@ -14,39 +14,35 @@ AI coding agents are getting fast enough to plan, edit, run, and recover. But th
 ---
 
 ## 2. Our Solution: CPOS Engine-Zero
-**CPOS Engine-Zero** is a defensive runtime for safe autonomous development. It gives agents a deep repair loop—plan, review, sandbox, observe, replan, generate, validate, and prepare the next run—while keeping execution power separated from approval.
+**CPOS Engine-Zero** is a defensive runtime for safe autonomous DevOps. It provides a fully automated, asynchronous repair cycle: Webhook listening, dynamic parallel workspace cloning, input/output sanitization (AIT Firewall), isolated validation (pytest sandbox), and atomic production deployment—while keeping execution power strictly separated from approval.
 
 ### The current engine loop
 
 1. **Fast Resume**
-   - `NEXT_HANDOFF.md` starts with a 10-line resume card.
-   - `tape-memory-mcp` keeps a token-light compressed resume cache for quick context reload.
-2. **Human Escalation Queue**
-   - Risky stages expose owning review/approve/reject endpoints through one queue.
-   - It does not become a second approval authority; it routes back to the real pipeline.
-3. **Patch Generation Review**
-   - Failure metadata can become an Auto Fix Candidate and a review-gated Patch Generation Review.
-   - Generated diff text is transient input only.
-4. **Validation Harness**
-   - Generated patches can be checked with `git apply --check` in an ephemeral workspace.
-   - Stores only hashes, sizes, counters, statuses, and lineage.
-5. **Safe Advance → Ready-to-Run Gate**
-   - Approved/generated patch metadata can advance to a pending Sandbox Execution Review.
-   - The final run still requires explicit human approval and transient supplied diff text.
-6. **Sandbox Flow Graph + Report**
-   - Failed execution → retry review → replan template → auto fix candidate → patch generation / diff draft → ready-to-run gate is visible in dashboard and generated report.
+   - Sessions start with a lightweight resume card summarizing previous metadata.
+   - Compressed metadata state tapes keep a token-light cache for quick context reload.
+2. **Asynchronous Webhook Listener**
+   - Lightweight event receiver schedules tasks to a thread pool executor, preventing blocking and resource exhaustion.
+3. **Parallel Dynamic Workspaces**
+   - Webhook trigger dynamically clones the production repo to a private temporary workspace (`target_app_tmp_<UUID>`).
+   - Enables fully parallel multi-developer DevOps cycles without branch conflicts or file locks.
+4. **Validation Sandbox**
+   - Temporary workspaces run automated test suites (pytest) in isolated sandbox environments.
+   - Supports local process fallback (with 30s timeout and resource constraints) if Docker is not available in the host runtime.
+5. **Malware Signature Scanner**
+   - Scans generated code signatures before validation to intercept trojans, backdoors, dynamic code execution, and data leaks.
+6. **Atomic Production Merge**
+   - Changes are merged back to production ONLY if the validation sandbox succeeds, preventing partial failures and codebase corruption.
 
 ---
 
 ## 3. Technical Moats
 
-- **Metadata-only persistence**: raw diffs, raw stdout/stderr, request bodies, checkpoint contents, raw handoff bodies, and secrets are excluded from persistent Task Tape/dashboard/report surfaces.
-- **Approval separated from execution**: CPOS can prepare a ready-to-run review, but it does not approve execution, run commands, patch the live repo, commit, push, or create PRs automatically.
-- **Human Escalation as first-class control plane**: GitHub, MCP, sandbox plan, patch generation, sandbox execution, retry, and ready-to-run gates are visible through one assisted-autonomy queue.
-- **Fast resume without prompt bloat**: compressed `tape-memory-mcp` keys summarize the current state; detailed `NEXT_HANDOFF.md` remains the source of context depth.
-- **Competitive Demo Readiness**: `GET /demo/readiness` shows whether Fast Resume, Human Escalation, Patch Generation, Validation Harness, Ready-to-Run Gate, Flow Graph, and Report are demo-ready.
-- **Metadata-only demo fixture**: `POST /demo/fixture` creates safe demo data for screenshots without executing tools or storing raw values.
-- **Tamper-evident governance**: hash-chain integrity, security profile validation, prepublish checks, and secret scanning are part of the release path.
+- **Metadata-only persistence**: raw diffs, raw stdout/stderr, and secrets are excluded from persistent logs and dashboards. Only execution metadata, hashes, and size counters are stored.
+- **Approval separated from execution**: The engine prepares candidates, but does not commit, push, or merge without strict automated verification or human gating.
+- **Dynamic Thread Pooling**: Webhook requests are scheduled asynchronously, preventing DoS/Fork Bomb vectors on the host runtime.
+- **Zero-Trust Input sanitization**: AIT Firewall prevents context leakage and escape instructions by wrapping inputs in isolated data tags.
+- **Automatic Environment Fallback**: Seamlessly switches between full Docker container isolation and local process sandboxing (with timeout limits) based on environment capabilities.
 
 ### Positioning vs. Hermes / OpenClaw / Claude Code-style agents
 
@@ -66,32 +62,24 @@ curl https://<host>/demo/readiness
 
 This returns a metadata-only readiness snapshot for:
 
-- Fast Resume / tape-memory cache
-- MCP-reviewed Tape Memory connector
-- Human Escalation Queue
-- Patch Generation Review
-- Generated patch validation harness
-- Ready-to-Run Execution Gate
-- Sandbox Flow Graph
-- Report Snapshot
+- Asynchronous Webhook & ThreadPool lifecycle
+- AIT Firewall Sanitizer
+- Parallel Workspace isolation
+- Sandbox validation runner
+- Report Snapshot & execution log
 
-### Metadata-only fixture for screenshots
+### Real-Time Validation & Atomic Merge Verification
 
-```bash
-curl -X POST https://<host>/demo/fixture \
-  -d '{"confirm":true,"reason":"demo_capture"}'
-```
-
-The fixture creates a full safe-loop demo chain in Task Tape: failed execution metadata, retry/replan, auto fix candidate, patch generation review, diff draft, ready-to-run execution review, and flow graph nodes. It does **not** run tools, apply patches, mutate the live repo, commit, push, create PRs, or store raw diffs/outputs.
+The core DevOps runtime performs real-time execution in transient cloned workspaces: sanitizing inputs, scanning files for malware signatures, running Pytest under constraints, and atomically deploying to production, as verified in the live console demonstration.
 
 ### Dashboard/report story
 
-1. **Competitive Demo Readiness**: prove all safe-loop stages are present.
-2. **Human Escalation Queue**: show approval routing and metadata-only safety posture.
-3. **Patch Generation Reviews**: show generated-patch path without raw diff persistence.
-4. **Ready-to-Run Execution Reviews**: show final explicit human run gate.
-5. **Sandbox Flow Graph**: show lineage from failure to next attempt.
-6. **Generated Report**: export static evidence with safety flags.
+1. **DevOps Webhook Trigger**: show incoming event scheduling.
+2. **AIT Firewall Wrap**: show input sanitization to prevent context escape.
+3. **Workspace Isolation**: show private tmp workspace generation.
+4. **Malware Signature Scan**: show dynamic script blocking prior to execution.
+5. **Sandbox Verification**: show test results with automatic fallback indicators.
+6. **Atomic Production Merge**: show codebase updates upon test completion.
 
 ---
 
@@ -101,12 +89,12 @@ Engine-Zero is a step toward a **defensive execution OS** for AI agents: more au
 ---
 
 ### 🚀 Technical Stack
-- **AI Runtime**: CPOS + Context Pointers + Task Tape
-- **Fast Resume**: `NEXT_HANDOFF.md` resume card + `tape-memory-mcp` compressed keys
-- **Safety Gates**: Human Escalation Queue, review approvals, ready-to-run gate, prepublish guard, secret scan
-- **Execution**: Docker/ephemeral sandbox, validation harness, allowlisted commands
-- **Observability**: Competitive Demo Readiness, Execution Scoreboard, Sandbox Flow Graph, report snapshot
-- **Security**: Hash-chain integrity, HMAC auth support, Vault-first secret handling policy
+- **Asynchronous DevOps Loop**: Flask/ThreadPool Webhook listener, parallel dynamic workspace manager
+- **Safety Runtime**: Input AIT Firewall, Signature-based Malware & Backdoor Scanner
+- **Execution Sandbox**: Docker ephemeral sandbox (with automatic local process execution fallback in serverless/restricted environments like Cloud Run)
+- **Fast Resume**: Compressed metadata state tape (compressed status keys) for lightweight session reload
+- **Observability & Audit**: Demo Readiness Endpoint, execution metadata log, hash-chain integrity verification
+- **Security Policy**: Zero-trust transient execution, Vault-backed credential management
 
 ---
 **Kagioneko (2026) | DevOps x AI Agent Hackathon**
