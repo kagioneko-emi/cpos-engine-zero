@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Copy application files
 COPY target_app /app/target_app
+COPY ait_firewall /app/ait_firewall
 COPY engine_zero_agent.py /app/
 COPY engine_zero_server.py /app/
 
