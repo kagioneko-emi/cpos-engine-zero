@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ait-firewall"
+version = "0.1.0"
+authors = [
+    { name = "Kagioneko Emi", email = "emi@example.com" },
+]
+description = "A tape-based defense layer against LLM prompt injection"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ait_firewall*"]
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py", "*_test.py", "*_poc.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

@@ -1,70 +1,112 @@
 # 🛡️ CPOS Engine-Zero: Defensive Agent Runtime
-> **「自律実行のパワーを、安全かつ管理可能に。」**
+> **"Autonomous execution power, without hidden side effects."**
 
 ---
 
-## 1. コア・コンセプトと背景
+## 1. The Core Problem: Agent Power Without Operator Trust
+AI coding agents are getting fast enough to plan, edit, run, and recover. But the common failure mode is still the same:
 
-### 背景にある課題
-AIコーディングエージェント（GitHub Copilot、Claude Code、Hermesなど）は非常に強力ですが、以下の深刻なセキュリティリスクを抱えています。
-1.  **無制限の実行権限のリスク**: エージェントが直接リポジトリに変更を加えたり、危険なコマンドを実行したり、無承認でコミット・プッシュ・PR作成を行うことで、インフラ障害やデリバリー破壊を引き起こす可能性がある。
-2.  **コンテキスト肥大化とコスト**: 長時間のセッションや巨大なレポジトリでの開発時、過去の履歴やソースコードをプロンプトに詰め込みすぎることで、APIトークンが肥大化し、動作が遅く、かつ高コストになる。
-3.  **機密情報の漏洩**: WebhookやIssue経由で「間接的プロンプトインジェクション」を受けることで、AIが隠し持っているAPIキーや機密コードをログや外部に出力してしまう。
-
-### 私たちの解決策：CPOS Engine-Zero
-**CPOS Engine-Zero** は、**「安全性の高い防御的エージェント実行環境 (Defensive Agent Runtime)」**です。エージェントに「自律的なコード書き換え＋テストループ」を実行するパワーを与えながら、徹底したセキュリティガードで運用環境とデータを守ります。
+1. **Unsafe write power**: an agent that can silently patch, commit, push, or open PRs can create outages faster than humans can audit them.
+2. **Context decay**: long repositories and long sessions create prompt bloat, stale handoffs, and expensive re-discovery.
+3. **Weak failure lineage**: when a sandbox run fails, many systems show logs but do not turn failure metadata into a governed next-step pipeline.
+4. **Demo opacity**: it is hard to prove what the agent did *not* do: no raw secrets, no raw stdout, no live repo mutation, no hidden publish.
 
 ---
 
-## 2. 技術的特徴と主要コンポーネント
+## 2. Our Solution: CPOS Engine-Zero
+**CPOS Engine-Zero** is a defensive runtime for safe autonomous development. It gives agents a deep repair loop—plan, review, sandbox, observe, replan, generate, validate, and prepare the next run—while keeping execution power separated from approval.
 
-Engine-Zero を構成するコア技術は大きく分けて以下の3つです。
+### The current engine loop
 
-### ① 承認と実行の完全な分離 (Separated Execution Gate)
-*   **メタデータ限定の永続化 (Metadata-only persistence)**:
-    エージェントがSandbox内でテストを実行したり、パッチ（コードの差分）を生成したりした際、生のコード、ログ、環境変数は一切ダッシュボードやレポート用データベース（Task Tape）に永続化しません。ハッシュ値や成功・失敗のメタデータのみを保存し、リークを防ぎます。
-*   **人間による最終実行ゲート (Ready-to-Run Gate)**:
-    エージェントが自律的にコードを書き換えてテストが通ったとしても、最終的な本番リポジトリへの適用やPR作成には、人間がキュー（Human Escalation Queue）を通じてパッチを明示的に承認する必要があります。
-
-### ② AIT Firewall v12.0 "The Singularity Immune System"（自律防御）
-外部からの悪意あるプロンプト（プロンプトインジェクション）からエージェントとインフラを守る5層の防御システムです。
-*   **自律免疫 (Genetic Shield)**: 未知の攻撃パターンを監視し、防御ルールを動的に自動生成。
-*   **深淵の盾 (Abyss Shield/DLP 2.0)**: 絵文字や特殊文字、隠語の組み合わせによる「機密データの密輸（データリーク）」を統計的に検知。
-*   **持続的欺瞞 (Advanced Mirage)**: 攻撃的な命令を検知した場合、エラーを返すのではなく「無害なダミーの成功ログ」を返し続け、攻撃者をハニーポット（ダミー環境）に閉じ込める。
-*   **心理防壁 (Persona Shift)**: AIへの感情的なアビューズや操作誘導を検知し、AIの人格を極めて冷静・論理的な防衛人格に強制シフトする。
-*   **自動忘却 (Cognitive Decay)**: 使用されなくなった古いシークレットや機密コンテキストを、メモリバッファから自動的に忘却（パージ）させる。
-
-### ③ 高速再開とトークン節約 (Fast Resume)
-*   コンテキストの肥大化を防ぐため、`tape-memory-mcp` コネクタを使用。現在のタスク状態を数文字の圧縮パケット形式（例: `m1w9 f2f9` などのTOAパケット）に変換して外部のメモリ（しーちゃんメモリなど）へ退避。
-*   次回のエージェント起動時にこの「テープ」を読み込むだけで、巨大な履歴を全て送信することなく前回のコンテキストをロードできます。
-
----
-
-## 🚀 3. ハッカソン用のアピールポイント（ピッチでの魅せ方）
-
-1.  **「Safer-by-Design」な自律開発の提案**:
-    多くのハッカソン作品が「どれだけ高度なコードを書けるか」を競う中、この作品は「**どれだけ安全かつ管理可能（ガバナンス可能）にAIを組織で動かせるか**」にフォーカスしています。エンタープライズや規制の厳しい業界（金融、医療、インフラなど）でAIエージェントを採用する際の最大のボトルネックを解消します。
-2.  **実証済みの高い防御力と実用性の両立**:
-    CPOS v12.0 カーネルへの統合により、全265件のテストスイート（回帰テスト）をパスし、通常の開発サイクルを邪魔せずに堅牢なプロンプト防御とデータ隠蔽が実現できていることを示せます。
-3.  **Google Cloud へのデリバリー**:
-    `gcloud run` へのデプロイをサポートする Dockerfile を備え、Webhook 経由での自動修復（自律DevOpsサイクル）が構築されているため、Google Cloud の AI エージェントハッカソンに完全に適合します。
+1. **Fast Resume**
+   - `NEXT_HANDOFF.md` starts with a 10-line resume card.
+   - `tape-memory-mcp` keeps a token-light compressed resume cache for quick context reload.
+2. **Human Escalation Queue**
+   - Risky stages expose owning review/approve/reject endpoints through one queue.
+   - It does not become a second approval authority; it routes back to the real pipeline.
+3. **Patch Generation Review**
+   - Failure metadata can become an Auto Fix Candidate and a review-gated Patch Generation Review.
+   - Generated diff text is transient input only.
+4. **Validation Harness**
+   - Generated patches can be checked with `git apply --check` in an ephemeral workspace.
+   - Stores only hashes, sizes, counters, statuses, and lineage.
+5. **Safe Advance → Ready-to-Run Gate**
+   - Approved/generated patch metadata can advance to a pending Sandbox Execution Review.
+   - The final run still requires explicit human approval and transient supplied diff text.
+6. **Sandbox Flow Graph + Report**
+   - Failed execution → retry review → replan template → auto fix candidate → patch generation / diff draft → ready-to-run gate is visible in dashboard and generated report.
 
 ---
 
-## 💻 4. デモとダッシュボード
+## 3. Technical Moats
 
-### ① Readinessのワンコマンド確認
+- **Metadata-only persistence**: raw diffs, raw stdout/stderr, request bodies, checkpoint contents, raw handoff bodies, and secrets are excluded from persistent Task Tape/dashboard/report surfaces.
+- **Approval separated from execution**: CPOS can prepare a ready-to-run review, but it does not approve execution, run commands, patch the live repo, commit, push, or create PRs automatically.
+- **Human Escalation as first-class control plane**: GitHub, MCP, sandbox plan, patch generation, sandbox execution, retry, and ready-to-run gates are visible through one assisted-autonomy queue.
+- **Fast resume without prompt bloat**: compressed `tape-memory-mcp` keys summarize the current state; detailed `NEXT_HANDOFF.md` remains the source of context depth.
+- **Competitive Demo Readiness**: `GET /demo/readiness` shows whether Fast Resume, Human Escalation, Patch Generation, Validation Harness, Ready-to-Run Gate, Flow Graph, and Report are demo-ready.
+- **Metadata-only demo fixture**: `POST /demo/fixture` creates safe demo data for screenshots without executing tools or storing raw values.
+- **Tamper-evident governance**: hash-chain integrity, security profile validation, prepublish checks, and secret scanning are part of the release path.
+
+### Positioning vs. Hermes / OpenClaw / Claude Code-style agents
+
+CPOS is not trying to win by granting unrestricted write power. The bet is **safer-by-design execution depth**: comparable autonomous workflow breadth, but with stronger auditability, explicit approval boundaries, sandbox-first execution, metadata-only persistence, and failure-to-replan lineage.
+
+That makes CPOS especially strong for defensive, regulated, or team-operated environments where the question is not only “can the agent fix it?” but also “can we prove what it did and did not do?”
+
+---
+
+## 4. The Demo: Competitive Safe Autonomy Loop
+
+### One-command readiness view
+
 ```bash
 curl https://<host>/demo/readiness
 ```
-Fast Resume、Human Escalation Queue、Patch Validation、Sandbox Flow Graphなど、すべての安全レイヤーが稼働状態（Ready）であることを一括で検証します。
 
-### ② ダミーデモデータの自動生成 (Metadata-only Fixture)
+This returns a metadata-only readiness snapshot for:
+
+- Fast Resume / tape-memory cache
+- MCP-reviewed Tape Memory connector
+- Human Escalation Queue
+- Patch Generation Review
+- Generated patch validation harness
+- Ready-to-Run Execution Gate
+- Sandbox Flow Graph
+- Report Snapshot
+
+### Metadata-only fixture for screenshots
+
 ```bash
 curl -X POST https://<host>/demo/fixture \
   -d '{"confirm":true,"reason":"demo_capture"}'
 ```
-実際のインフラを破壊したりソースを変更したりすることなく、安全な「メタデータのみのシミュレーション履歴」を生成し、すぐにダッシュボード（`hackathon_report.html`）へデモデータを反映できます。
+
+The fixture creates a full safe-loop demo chain in Task Tape: failed execution metadata, retry/replan, auto fix candidate, patch generation review, diff draft, ready-to-run execution review, and flow graph nodes. It does **not** run tools, apply patches, mutate the live repo, commit, push, create PRs, or store raw diffs/outputs.
+
+### Dashboard/report story
+
+1. **Competitive Demo Readiness**: prove all safe-loop stages are present.
+2. **Human Escalation Queue**: show approval routing and metadata-only safety posture.
+3. **Patch Generation Reviews**: show generated-patch path without raw diff persistence.
+4. **Ready-to-Run Execution Reviews**: show final explicit human run gate.
+5. **Sandbox Flow Graph**: show lineage from failure to next attempt.
+6. **Generated Report**: export static evidence with safety flags.
 
 ---
-**Kagioneko (2026) | DevOps x AI Agent Hackathon 2026**
+
+## 5. Future Vision: The Defensive Agent OS
+Engine-Zero is a step toward a **defensive execution OS** for AI agents: more autonomy without less accountability. Agents should improve through failure metadata, governed memory, and operator-approved execution—not hidden side effects.
+
+---
+
+### 🚀 Technical Stack
+- **AI Runtime**: CPOS + Context Pointers + Task Tape
+- **Fast Resume**: `NEXT_HANDOFF.md` resume card + `tape-memory-mcp` compressed keys
+- **Safety Gates**: Human Escalation Queue, review approvals, ready-to-run gate, prepublish guard, secret scan
+- **Execution**: Docker/ephemeral sandbox, validation harness, allowlisted commands
+- **Observability**: Competitive Demo Readiness, Execution Scoreboard, Sandbox Flow Graph, report snapshot
+- **Security**: Hash-chain integrity, HMAC auth support, Vault-first secret handling policy
+
+---
+**Kagioneko (2026) | DevOps x AI Agent Hackathon**

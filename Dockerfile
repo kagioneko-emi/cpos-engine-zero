@@ -1,35 +1,32 @@
-# Use a Google Cloud compatible base image
-FROM python:3.11-slim
+FROM python:3.12-slim
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    docker.io \
-    gnupg \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+# Create a non-privileged user and group
+RUN groupadd -g 10001 appuser && \
+    useradd -u 10001 -g appuser -m -s /bin/bash appuser
 
-# Install Gemini CLI globally
-RUN npm install -g @google/gemini-cli
-
-# Set working directory
 WORKDIR /app
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install system dependencies
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
-# Copy the entire project
-COPY . .
+# Copy application files
+COPY target_app /app/target_app
+COPY engine_zero_agent.py /app/
+COPY engine_zero_server.py /app/
 
-# Set Python Path and unbuffered logging
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
+# Setup virtual environment for target_app
+RUN python3 -m venv /app/target_app/.venv && \
+    /app/target_app/.venv/bin/pip install pytest flask
 
-# Expose port (Cloud Run defaults to 8080)
+# Change ownership of /app
+RUN chown -R appuser:appuser /app
+
+# Switch to the non-privileged user
+USER appuser
+
+# Expose port
+ENV PORT=8080
 EXPOSE 8080
 
-# The sandbox needs Docker to run. On Cloud Run, this is tricky.
-# We've added a fallback in sandbox/runner.py to run locally if Docker fails.
-CMD ["python", "server.py"]
+# Run the server
+CMD ["python3", "engine_zero_server.py"]
