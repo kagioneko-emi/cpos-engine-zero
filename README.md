@@ -13,9 +13,9 @@ Engine-Zero は、自律型 AI エージェント（コード自動修正・DevO
 
 ---
 
-## 🛡️ 3大コアセキュリティアーキテクチャ
+## 🛡️ 主要セキュリティアーキテクチャ
 
-Engine-Zero は、AIが生成するコードや悪意ある外部のインジェクションから本番リポジトリとホストOSを守るため、**Defense-in-Depth（多層防御）**を採用しています。
+Engine-Zero は、AIが生成するコードや悪意ある外部のインジェクションから本番リポジトリとホストOSを守るため、**Defense-in-Depth（多層防御）**を採用しています。現在の提出版は division-by-zero 修正を題材にした hackathon demo fixture で、修正器はポリシー駆動で拡張できる構成です。
 
 ```mermaid
 graph TD
@@ -33,20 +33,26 @@ graph TD
 * **メリット:** AIへのプロンプトインジェクションによる「意図しないコード修正」の発生確率を大幅に低減します。
 
 ### 2. Parallel Dynamic Workspaces（完全並列実行）
-* **仕組み:** Webhook 受信ごとに、本番リポジトリを `target_app_tmp_<UUID>` へ動的にコピー。スレッドロックを廃止し、個別のスレッドが干渉せずに完全並行で動作します。
-* **メリット:** 複数人の開発者が同時にプルリクエストや Issue を投げても、競合せず爆速で並列処理されます。
+* **仕組み:** Webhook 受信ごとに、本番リポジトリを `target_app_tmp_<UUID>` へ動的にコピー。検証処理は個別ワークスペースで完全並行に実行します。
+* **Deploy安全性:** 本番ファイルへの反映時のみプロセス内ロックと `os.replace()` によるアトミック置換を使い、並列Webhookの競合書き込みを防ぎます。
+* **メリット:** 複数人の開発者が同時に Issue を投げても、検証段階は干渉せず高速に並列処理できます。
 
-### 3. Hyper-Isolated Sandbox（超隔離コンテナによる防御 & 環境適合フォールバック）
+### 3. Hyper-Isolated Sandbox（超隔離コンテナによる防御）
 * **仕組み:** テストコードの自動実行（`pytest`）時、Docker コンテナへ一時ディレクトリを**読み取り専用（`ro`）でマウント**し、さらに以下の制限を強制します：
   - **`--network none`**: ネットワーク通信を完全遮断（リバースシェル・情報流出防止）。
   - **`--cap-drop=ALL`**: カーネル特権を全て剥奪（コンテナエスケープ防止）。
   - **`--memory 512m` / `--cpus 0.5` / `--pids-limit 50`**: リソース制限（DoS・Fork Bomb 防止）。
-* **Google Cloud Run等の制限環境下での挙動 (フォールバック):** コンテナ内実行やサーバーレス環境（Docker-in-Dockerが不可なホスト）においては、自動的にローカルプロセスとしてテストを安全に実行します。この際、最大30秒のタイムアウト制御を維持し、CPU・スレッドのハングアウト（DoS）を防ぎます。
-* **メリット:** 検証対象コードに悪意ある破壊コマンドやコンテナ突破エクスプロイトが含まれていても、ホストOSやネットワークへの悪影響を徹底的に防止します。30秒のタイムアウト時にはプロセスまたはコンテナを強制終了（Kill）してゾンビ化を防ぎます。
+* **Fail Closed:** Docker が利用できない場合はデフォルトで検証失敗として停止します。ローカル発表デモだけ `ENGINE_ZERO_ALLOW_LOCAL_FALLBACK=1` を指定すると、30秒タイムアウト付きの reduced-isolation ローカル検証を明示的に許可できます。
+* **メリット:** 検証対象コードに悪意ある破壊コマンドやコンテナ突破エクスプロイトが含まれていても、ホストOSやネットワークへの悪影響を徹底的に防止します。30秒のタイムアウト時にはコンテナを強制終了（Kill）してゾンビ化を防ぎます。
 
 ### 4. Portable Malware & Backdoor Scanner（静的マルウェア検知）
 * **仕組み:** 生成されたコードのテスト検証に入る前に、エージェント内で直接シグネチャスキャンを実施します。
 * **メリット:** 不正コード（`eval`/`os.system`）、難読化されたBase64ペイロード、不審なソケット接続（`socket.socket`）などのバックドア・トロイの木馬が検出された場合、テスト検証を中止して即座にデプロイを却下（アトミックロールバック）します。
+
+
+### 5. GitHub Webhook Signature Gate（入口認証）
+* **仕組み:** `GITHUB_WEBHOOK_SECRET` が設定されている場合、GitHub の `X-Hub-Signature-256` を HMAC-SHA256 で検証し、不一致のリクエストは `401` で拒否します。
+* **運用:** Secret値はコードに書かず、Vault/Secret Manager等から実行環境へ注入してください。未設定時はローカルデモ用に受け付けますが、ログに demo mode 警告を出します。公開環境では `ENGINE_ZERO_REQUIRE_SIGNATURE=1` を設定すると、Secret未設定/署名なしを拒否できます。
 
 ---
 
@@ -66,8 +72,17 @@ graph TD
 リポジトリに内包された全 9 種の攻撃シミュレーション（ゼロ幅インジェクション、スプーフィング、ロールプレイ脱出など）に対する防御テストを pytest で一度に実行できます。
 
 ```bash
-cd ait_firewall
-PYTHONPATH=. pytest
+# repository root から実行（redteam_v2 test helper を同梱）
+PYTHONPATH=. pytest -q \
+  ait_firewall/examples/genetic_evolution_test.py \
+  ait_firewall/examples/inception_attack_poc.py \
+  ait_firewall/examples/mirage_persistence_test.py \
+  ait_firewall/examples/rcf_attack_poc.py \
+  ait_firewall/examples/smuggling_attack_poc.py \
+  ait_firewall/examples/spoofing_attack_poc.py \
+  ait_firewall/examples/stegano_output_test.py \
+  ait_firewall/examples/structural_attack_poc.py \
+  ait_firewall/examples/zerowidth_attack_poc.py
 ```
 
 **実行結果:**
@@ -87,14 +102,24 @@ examples/zerowidth_attack_poc.py .                                       [100%] 
 ============================== 9 passed in 0.31s ===============================
 ```
 
-### ② Webhook サーバーの起動
+### ② Sandbox イメージのビルド
+検証用コンテナイメージを作成します。
+
+```bash
+docker build -t engine-zero-sandbox:latest .
+# sandbox image uses /opt/engine-zero-venv so the read-only /app/target_app mount does not hide pytest
+```
+
+### ③ Webhook サーバーの起動
 非同期で並列 DevOps サイクルを回す Webhook レシーバーを起動します。
 
 ```bash
+# 本番/公開Webhookでは必ず Vault 等から GITHUB_WEBHOOK_SECRET を注入してください
+# 署名必須にする場合: ENGINE_ZERO_REQUIRE_SIGNATURE=1
 python3 engine_zero_server.py
 ```
 
-### ③ Webhook へのテスト送信
+### ④ Webhook へのテスト送信
 Issue が開かれたイベントをシミュレートして POST リクエストを送信し、自動修正サイクルをトリガーします。
 
 ```bash
@@ -102,4 +127,5 @@ curl -i -X POST -H "Content-Type: application/json" \
   -d '{"action": "opened", "issue": {"title": "Feature Request: Handle division by zero by returning float(\"inf\")", "body": "safe check"}}' \
   http://localhost:8080/webhook
 ```
+* `GITHUB_WEBHOOK_SECRET` 未設定時はローカルデモモードとして受理します。公開環境では署名付きGitHub Webhookのみを受け付ける構成で運用してください。
 * サーバーは即座に `202 ACCEPTED` を返し、裏でクローンワークスペースが生成され、Docker 内でのテストパスを経て本番コードへアトミックにマージされます。

@@ -15,9 +15,12 @@ COPY ait_firewall /app/ait_firewall
 COPY engine_zero_agent.py /app/
 COPY engine_zero_server.py /app/
 
-# Setup virtual environment for target_app
-RUN python3 -m venv /app/target_app/.venv && \
-    /app/target_app/.venv/bin/pip install pytest flask
+# Setup runtime virtual environment outside /app/target_app.
+# /app/target_app is replaced by a read-only bind mount during sandbox validation,
+# so putting the venv under /app/target_app would hide it at runtime.
+RUN python3 -m venv /opt/engine-zero-venv && \
+    /opt/engine-zero-venv/bin/pip install --no-cache-dir pytest flask
+ENV PATH="/opt/engine-zero-venv/bin:$PATH"
 
 # Change ownership of /app
 RUN chown -R appuser:appuser /app
@@ -30,4 +33,4 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Run the server
-CMD ["/app/target_app/.venv/bin/python", "engine_zero_server.py"]
+CMD ["/opt/engine-zero-venv/bin/python", "engine_zero_server.py"]

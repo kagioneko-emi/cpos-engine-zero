@@ -17,6 +17,8 @@ if not logger.handlers:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+DEPLOY_LOCK = threading.Lock()
+
 class EngineZeroAgent:
     def __init__(self, target_dir):
         self.target_dir = os.path.abspath(target_dir)
@@ -37,7 +39,10 @@ class EngineZeroAgent:
         temp_workspace = f"{self.target_dir}_tmp_{run_id}"
         
         self.print_banner(run_id)
-        logger.info(f"--- [Engine-Zero] [Run: {run_id}] Received Instruction: {instruction} ---")
+        instruction_preview = instruction.replace("\n", " ")[:240]
+        if len(instruction) > 240:
+            instruction_preview += "..."
+        logger.info(f"--- [Engine-Zero] [Run: {run_id}] Received Instruction Preview: {instruction_preview} ---")
         
         calc_path = os.path.join(temp_workspace, "src/calc.py")
         test_path = os.path.join(temp_workspace, "tests/test_calc.py")
@@ -85,11 +90,14 @@ class EngineZeroAgent:
             
             if success:
                 logger.info(f"[{run_id}] [4/4] Validation Succeeded. Deploying fix to production app...")
-                # Atomic Deploy: Write the verified code back to the production target_app
+                # Atomic Deploy: serialize production writes and replace the file atomically.
                 prod_calc_path = os.path.join(self.target_dir, "src/calc.py")
-                os.makedirs(os.path.dirname(prod_calc_path), exist_ok=True)
-                with open(prod_calc_path, 'w', encoding='utf-8') as f:
-                    f.write(new_code)
+                with DEPLOY_LOCK:
+                    os.makedirs(os.path.dirname(prod_calc_path), exist_ok=True)
+                    tmp_prod_calc_path = f"{prod_calc_path}.{run_id}.tmp"
+                    with open(tmp_prod_calc_path, 'w', encoding='utf-8') as f:
+                        f.write(new_code)
+                    os.replace(tmp_prod_calc_path, prod_calc_path)
                 logger.info(f"[{run_id}] [4/4] Cycle Complete: Deployment Ready.")
             else:
                 logger.info(f"[{run_id}] [4/4] Cycle Failed: Discarding changes (Safe Rollback).")
@@ -198,7 +206,7 @@ class EngineZeroAgent:
             "--pids-limit", "50",           # Limit process creation (prevents thread/fork-bomb attacks)
             "-v", f"{os.path.abspath(workspace_path)}:/app/target_app:ro",
             "engine-zero-sandbox:latest",
-            "bash", "-c", "cd /app/target_app && PYTHONPATH=. pytest -s tests/test_calc.py"
+            "bash", "-c", "cd /app/target_app && PYTHONPATH=. /opt/engine-zero-venv/bin/python -m pytest -p no:cacheprovider -s tests/test_calc.py"
         ]
         
         logger.info(f"[*] [Docker Sandbox: {container_name}] Running pytest inside container...")
@@ -217,11 +225,23 @@ class EngineZeroAgent:
                 logger.error(f"[!] Failed to kill container {container_name}: {kill_err}")
             return False
         except FileNotFoundError:
-            logger.warning("[!] Docker executable not found. Falling back to local process execution with timeout limit (30s)...")
+            if os.environ.get("ENGINE_ZERO_ALLOW_LOCAL_FALLBACK") != "1":
+                logger.error("[!] Docker executable not found. Failing closed. Set ENGINE_ZERO_ALLOW_LOCAL_FALLBACK=1 only for reduced-isolation local demos.")
+                return False
+
+            logger.warning("[!] Docker executable not found. ENGINE_ZERO_ALLOW_LOCAL_FALLBACK=1: running reduced-isolation local demo validation with timeout limit (30s)...")
             try:
                 # Fallback: Run pytest locally in the isolated workspace path with timeout
-                local_cmd = ["bash", "-c", f"cd {workspace_path} && PYTHONPATH=. pytest -s tests/test_calc.py"]
-                result = subprocess.run(local_cmd, capture_output=True, text=True, timeout=30)
+                env = os.environ.copy()
+                env["PYTHONPATH"] = "."
+                result = subprocess.run(
+                    [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-s", "tests/test_calc.py"],
+                    cwd=workspace_path,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
                 if result.stdout:
                     logger.info(result.stdout.strip())
                 if result.stderr:
@@ -238,5 +258,6 @@ class EngineZeroAgent:
             return False
 
 if __name__ == "__main__":
-    agent = EngineZeroAgent("/home/mayutama/target_app")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    agent = EngineZeroAgent(os.path.join(base_dir, "target_app"))
     agent.run_devops_cycle("Feature Request: Handle division by zero by returning float('inf') and log the event.")

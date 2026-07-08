@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from engine_zero_agent import EngineZeroAgent
 from ait_firewall.runtime import AITFirewallRuntime
+import hmac
+import hashlib
 import os
 import logging
 import sys
@@ -16,15 +18,49 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 app = Flask(__name__)
-target_dir = "/app/target_app" if os.path.exists("/app/target_app") else "/home/mayutama/target_app"
+app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("ENGINE_ZERO_MAX_BODY_BYTES", "1048576"))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+target_dir = "/app/target_app" if os.path.exists("/app/target_app") else os.path.join(BASE_DIR, "target_app")
 agent = EngineZeroAgent(target_dir)
 firewall = AITFirewallRuntime()
 
 # ThreadPoolExecutor to prevent Fork Bomb / resource exhaustion under load
 executor = ThreadPoolExecutor(max_workers=2)
 
+def verify_github_signature(raw_body: bytes) -> bool:
+    """Verify GitHub's X-Hub-Signature-256 when a webhook secret is configured.
+
+    Set GITHUB_WEBHOOK_SECRET from Vault/secret manager at runtime. If the secret
+    is unset, the server remains usable for local hackathon demos but logs that it
+    is running in reduced-authentication mode.
+    """
+    secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
+    require_signature = os.environ.get("ENGINE_ZERO_REQUIRE_SIGNATURE") == "1"
+    if not secret:
+        if require_signature:
+            logger.error("[!] ENGINE_ZERO_REQUIRE_SIGNATURE=1 but GITHUB_WEBHOOK_SECRET is not set; rejecting webhook.")
+            return False
+        logger.warning("[!] GITHUB_WEBHOOK_SECRET is not set; accepting webhook in demo mode.")
+        return True
+
+    header = request.headers.get("X-Hub-Signature-256", "")
+    if not header.startswith("sha256="):
+        return False
+
+    expected = "sha256=" + hmac.new(
+        secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, header)
+
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
+    raw_body = request.get_data(cache=True)
+    if not verify_github_signature(raw_body):
+        logger.warning("[!] Webhook rejected: invalid or missing GitHub signature.")
+        return jsonify({"status": "error", "message": "Invalid webhook signature"}), 401
+
     try:
         data = request.get_json(silent=True)
     except Exception as e:
