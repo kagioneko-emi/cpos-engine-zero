@@ -1,0 +1,82 @@
+# Google Cloud Build validation pipeline for CPOS Engine-Zero.
+# It intentionally validates the Docker sandbox in Cloud Build, where Docker is
+# available, while Cloud Run remains the public webhook/control-plane surface.
+
+steps:
+  - name: python:3.12-slim
+    id: python-tests
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        python -m py_compile engine_zero_cli.py engine_zero_agent.py engine_zero_server.py
+        PYTHONPATH=. pytest -q \
+          ait_firewall/examples/genetic_evolution_test.py \
+          ait_firewall/examples/inception_attack_poc.py \
+          ait_firewall/examples/mirage_persistence_test.py \
+          ait_firewall/examples/rcf_attack_poc.py \
+          ait_firewall/examples/smuggling_attack_poc.py \
+          ait_firewall/examples/spoofing_attack_poc.py \
+          ait_firewall/examples/stegano_output_test.py \
+          ait_firewall/examples/structural_attack_poc.py \
+          ait_firewall/examples/zerowidth_attack_poc.py
+        (cd target_app && PYTHONPATH=. pytest -q tests/test_calc.py)
+        PYTHONPATH=. pytest -q tests/test_secret_scan.py tests/test_security_validation.py
+
+  - name: gcr.io/cloud-builders/docker
+    id: build-sandbox-image
+    args: ['build', '-t', 'engine-zero-sandbox:latest', '.']
+
+  - name: gcr.io/cloud-builders/docker
+    id: docker-sandbox-smoke
+    args:
+      - run
+      - --rm
+      - --network
+      - none
+      - --cap-drop=ALL
+      - --memory
+      - 512m
+      - --cpus
+      - '0.5'
+      - --pids-limit
+      - '50'
+      - -v
+      - /workspace/target_app:/app/target_app:ro
+      - engine-zero-sandbox:latest
+      - bash
+      - -c
+      - cd /app/target_app && PYTHONPATH=. /opt/engine-zero-venv/bin/python -m pytest -p no:cacheprovider -q tests/test_calc.py
+
+  - name: python:3.12-slim
+    id: cli-demo-reduced-isolation-smoke
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        # Cloud Build Python step does not expose the local Docker image to this container.
+        # This smoke verifies the repeatable demo path with explicit reduced isolation.
+        PYTHONPATH=. python engine_zero_cli.py demo --allow-local-fallback
+
+  - name: gcr.io/cloud-builders/docker
+    id: build-cloud-run-image
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$SHORT_SHA'
+      - .
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$SHORT_SHA'
+
+substitutions:
+  _REGION: asia-northeast1
+  _REPOSITORY: engine-zero
+  _SERVICE: cpos-engine-zero
+
+options:
+  logging: CLOUD_LOGGING_ONLY

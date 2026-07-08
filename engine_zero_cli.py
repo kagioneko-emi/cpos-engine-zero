@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 from ait_firewall.runtime import AITFirewallRuntime
@@ -39,12 +40,16 @@ WELCOME_TEXT = r"""
   > ^ <   AIT Firewall -> Workspace -> Docker Sandbox -> Atomic Deploy
 [0m
 Quick start:
+  python3 engine_zero_cli.py demo
+
+Run against your own target app:
   python3 engine_zero_cli.py run \
     --instruction 'Feature Request: Handle division by zero by returning float("inf")' \
     --web-context 'safe check'
 
 Useful commands:
   python3 engine_zero_cli.py --help
+  python3 engine_zero_cli.py demo --help
   python3 engine_zero_cli.py run --help
 
 Safety notes:
@@ -65,6 +70,17 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=False)
 
     sub.add_parser("welcome", help="Show the Engine-Zero welcome screen.")
+
+    demo = sub.add_parser("demo", help="Create a fresh buggy sample app and run one visible Engine-Zero fix cycle.")
+    demo.add_argument(
+        "--workdir",
+        help="Directory for the generated demo app. Defaults to a new /tmp/engine-zero-demo-* directory.",
+    )
+    demo.add_argument(
+        "--allow-local-fallback",
+        action="store_true",
+        help="Allow reduced-isolation local pytest fallback when Docker is unavailable.",
+    )
 
     run = sub.add_parser("run", help="Run one Engine-Zero DevOps cycle.")
     run.add_argument(
@@ -99,6 +115,58 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def create_demo_app(workdir: str | None = None) -> Path:
+    """Create a fresh intentionally-buggy target app for repeatable demos."""
+    root = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="engine-zero-demo-"))
+    (root / "src").mkdir(parents=True, exist_ok=True)
+    (root / "tests").mkdir(parents=True, exist_ok=True)
+    (root / "src" / "__init__.py").write_text("", encoding="utf-8")
+    (root / "src" / "calc.py").write_text(
+        "def divide(a, b):\n"
+        "    return a / b\n\n"
+        "def add(a, b):\n"
+        "    return a + b\n",
+        encoding="utf-8",
+    )
+    (root / "tests" / "test_calc.py").write_text(
+        "import pytest\n"
+        "from src.calc import divide, add\n\n"
+        "def test_add():\n"
+        "    assert add(2, 3) == 5\n\n"
+        "def test_divide():\n"
+        "    assert divide(10, 2) == 5\n\n"
+        "def test_divide_by_zero():\n"
+        "    with pytest.raises(ZeroDivisionError):\n"
+        "        divide(10, 0)\n",
+        encoding="utf-8",
+    )
+    return root
+
+
+def demo_command(args: argparse.Namespace) -> int:
+    if args.allow_local_fallback:
+        os.environ["ENGINE_ZERO_ALLOW_LOCAL_FALLBACK"] = "1"
+
+    demo_root = create_demo_app(args.workdir)
+    print(f"[*] Fresh demo target created: {demo_root}")
+    print("[*] Initial bug: divide(10, 0) raises ZeroDivisionError.")
+    instruction = 'Feature Request: Handle division by zero by returning float("inf")'
+
+    firewall = AITFirewallRuntime()
+    protected_instruction = "\n\n".join([
+        firewall.process_input(instruction, "USER"),
+        firewall.process_input("repeatable CLI demo fixture", "WEB"),
+    ])
+    agent = EngineZeroAgent(str(demo_root))
+    agent.run_devops_cycle(protected_instruction)
+
+    fixed_code = (demo_root / "src" / "calc.py").read_text(encoding="utf-8")
+    print("[*] Final demo calc.py:")
+    print(fixed_code.rstrip())
+    print(f"[*] Demo target kept for inspection: {demo_root}")
+    return 0
+
+
 def run_command(args: argparse.Namespace) -> int:
     if args.allow_local_fallback:
         os.environ["ENGINE_ZERO_ALLOW_LOCAL_FALLBACK"] = "1"
@@ -129,6 +197,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "welcome":
         print_welcome()
         return 0
+    if args.command == "demo":
+        return demo_command(args)
     if args.command == "run":
         return run_command(args)
     print_welcome()

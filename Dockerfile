@@ -14,6 +14,7 @@ COPY target_app /app/target_app
 COPY ait_firewall /app/ait_firewall
 COPY engine_zero_agent.py /app/
 COPY engine_zero_server.py /app/
+COPY engine_zero_cli.py /app/
 
 # Setup runtime virtual environment outside /app/target_app.
 # /app/target_app is replaced by a read-only bind mount during sandbox validation,

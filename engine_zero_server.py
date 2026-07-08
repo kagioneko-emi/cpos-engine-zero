@@ -54,6 +54,16 @@ def verify_github_signature(raw_body: bytes) -> bool:
     ).hexdigest()
     return hmac.compare_digest(expected, header)
 
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        "service": "CPOS Engine-Zero",
+        "status": "online",
+        "mode": "zero-trust-devops-runtime",
+        "endpoints": ["/health", "/webhook"],
+        "cloud_run_note": "Docker sandbox validation is fail-closed unless explicitly configured for reduced-isolation demos.",
+    }), 200
+
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
     raw_body = request.get_data(cache=True)

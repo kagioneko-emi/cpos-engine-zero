@@ -177,6 +177,22 @@ class EngineZeroAgent:
             )
         return code
 
+
+    def prepare_workspace_for_sandbox(self, workspace_path):
+        """Make the disposable workspace readable by the non-root sandbox user.
+
+        Docker bind mounts preserve the source directory mode. Temporary demo
+        directories are often 0700, which prevents the container's appuser from
+        traversing /app/target_app even though the mount is read-only. This only
+        touches the copied disposable workspace, never the production target.
+        """
+        for root, dirs, files in os.walk(workspace_path):
+            os.chmod(root, 0o755)
+            for dirname in dirs:
+                os.chmod(os.path.join(root, dirname), 0o755)
+            for filename in files:
+                os.chmod(os.path.join(root, filename), 0o644)
+
     def run_tests(self, workspace_path, run_id):
         # Update test to match new requirement in temp workspace
         test_path = os.path.join(workspace_path, "tests/test_calc.py")
@@ -194,6 +210,12 @@ class EngineZeroAgent:
             logger.error(f"[!] OS Error while preparing test file in workspace: {e}")
             return False
         
+        try:
+            self.prepare_workspace_for_sandbox(workspace_path)
+        except OSError as e:
+            logger.error(f"[!] OS Error while preparing workspace permissions for sandbox: {e}")
+            return False
+
         # Docker Sandbox Execution with Unique Container Name for strict isolation
         container_name = f"engine-zero-sandbox-{run_id}"
         cmd = [

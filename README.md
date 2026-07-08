@@ -54,6 +54,20 @@ graph TD
 * **仕組み:** `GITHUB_WEBHOOK_SECRET` が設定されている場合、GitHub の `X-Hub-Signature-256` を HMAC-SHA256 で検証し、不一致のリクエストは `401` で拒否します。
 * **運用:** Secret値はコードに書かず、Vault/Secret Manager等から実行環境へ注入してください。未設定時はローカルデモ用に受け付けますが、ログに demo mode 警告を出します。公開環境では `ENGINE_ZERO_REQUIRE_SIGNATURE=1` を設定すると、Secret未設定/署名なしを拒否できます。
 
+
+## ☁️ Google Cloud 連携
+
+この提出版は Google Cloud 連携として、**Cloud Build による再現可能な検証パイプライン**と、**Cloud Run で公開可能な webhook/control-plane コンテナ**を用意しています。
+
+重要な制限として、Cloud Run は通常 Docker-in-Docker を提供しないため、Engine-Zero の Docker sandbox 検証は Cloud Run 上ではデフォルト **fail closed** です。審査・公開環境では Cloud Build で sandbox smoke を実行し、Cloud Run は署名付きWebhook受付・ヘルスチェック・デモ用control planeとして使う構成を推奨します。
+
+```bash
+# Google Cloud Build でテスト + Docker build + sandbox smoke
+gcloud builds submit --config cloudbuild.yaml .
+```
+
+詳細: [docs/GOOGLE_CLOUD_RUNBOOK.md](docs/GOOGLE_CLOUD_RUNBOOK.md)
+
 ---
 
 ## 📂 リポジトリ構成
@@ -64,6 +78,8 @@ graph TD
 * [ait_firewall/](ait_firewall/): 入力パケットの分類・サニタイズ・ハニーポットを行う AIT 防御層。
 * [cpos/core.py](cpos/core.py): 行動履歴を SHA-256 で暗号連結するハッシュチェーン追記ログモジュール。
 * [Dockerfile](Dockerfile): 非特権ユーザー（`appuser`）でサーバーを動かすセキュアなコンテナ構成定義。
+* [cloudbuild.yaml](cloudbuild.yaml): Google Cloud Build 上でテスト・Docker build・sandbox smoke を実行する検証パイプライン。
+* [docs/GOOGLE_CLOUD_RUNBOOK.md](docs/GOOGLE_CLOUD_RUNBOOK.md): Google Cloud / Cloud Run 提出用の構成、制限、運用手順。
 
 ---
 
@@ -112,14 +128,20 @@ docker build -t engine-zero-sandbox:latest .
 ```
 
 
-### ③ CLI から起動・1回だけ実行
+### ③ CLI から起動・リピート可能デモを実行
 引数なしで起動すると、Claude/Codex風のウェルカム画面とクイックスタートが表示されます。
 
 ```bash
 python3 engine_zero_cli.py
 ```
 
-Webhookを使わず、CLIから同じ Engine-Zero サイクルを実行できます。
+毎回 `/tmp/engine-zero-demo-*` に新しい「バグあり」サンプルアプリを作り、修正→Docker検証→反映まで見せるリピート可能デモです。
+
+```bash
+python3 engine_zero_cli.py demo
+```
+
+Webhookを使わず、任意の target app に対して同じ Engine-Zero サイクルを実行することもできます。
 
 ```bash
 python3 engine_zero_cli.py run \
@@ -130,9 +152,7 @@ python3 engine_zero_cli.py run \
 Docker がないローカル発表環境だけ、明示的に reduced-isolation fallback を許可できます。
 
 ```bash
-python3 engine_zero_cli.py run \
-  --allow-local-fallback \
-  --instruction 'Feature Request: Handle division by zero by returning float("inf")'
+python3 engine_zero_cli.py demo --allow-local-fallback
 ```
 
 ### ④ Webhook サーバーの起動
