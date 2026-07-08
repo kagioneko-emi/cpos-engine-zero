@@ -21,3 +21,10 @@
 .venv/
 .git/
 __pycache__/
+
+!engine_zero_cli.py
+!redteam_v2/
+!cloudbuild.yaml
+!.dockerignore
+!docs/
+!SUBMISSION.md
