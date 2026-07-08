@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 from ait_firewall.runtime import AITFirewallRuntime
@@ -31,11 +32,39 @@ def read_instruction(args: argparse.Namespace) -> str:
     return instruction
 
 
+WELCOME_TEXT = r"""
+[36m
+  /\_/\   CPOS ENGINE-ZERO CLI
+ ( o.o )  Zero-Trust Autonomous DevOps Runtime
+  > ^ <   AIT Firewall -> Workspace -> Docker Sandbox -> Atomic Deploy
+[0m
+Quick start:
+  python3 engine_zero_cli.py run \
+    --instruction 'Feature Request: Handle division by zero by returning float("inf")' \
+    --web-context 'safe check'
+
+Useful commands:
+  python3 engine_zero_cli.py --help
+  python3 engine_zero_cli.py run --help
+
+Safety notes:
+  - Do not pass secrets in --instruction or --instruction-file.
+  - Docker validation fails closed by default.
+  - Use --allow-local-fallback only for reduced-isolation local demos.
+"""
+
+
+def print_welcome() -> None:
+    print(WELCOME_TEXT)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run CPOS Engine-Zero from the CLI without starting the webhook server."
     )
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=False)
+
+    sub.add_parser("welcome", help="Show the Engine-Zero welcome screen.")
 
     run = sub.add_parser("run", help="Run one Engine-Zero DevOps cycle.")
     run.add_argument(
@@ -89,12 +118,21 @@ def run_command(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        print_welcome()
+        return 0
+
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "welcome":
+        print_welcome()
+        return 0
     if args.command == "run":
         return run_command(args)
-    parser.error(f"unknown command: {args.command}")
-    return 2
+    print_welcome()
+    return 0
 
 
 if __name__ == "__main__":

@@ -112,7 +112,13 @@ docker build -t engine-zero-sandbox:latest .
 ```
 
 
-### ③ CLI から1回だけ実行
+### ③ CLI から起動・1回だけ実行
+引数なしで起動すると、Claude/Codex風のウェルカム画面とクイックスタートが表示されます。
+
+```bash
+python3 engine_zero_cli.py
+```
+
 Webhookを使わず、CLIから同じ Engine-Zero サイクルを実行できます。
 
 ```bash
