@@ -4,6 +4,31 @@
 
 Engine-Zero は、自律型 AI エージェント（コード自動修正・DevOpsサイクル）の実務導入における「セキュリティ（ゼロトラスト）」と「開発の自由度（完全並列・柔軟な命令）」を両立した、次世代の DevOps エージェント・プラットフォームです。
 
+
+---
+
+## ⚡ Judge Quick Demo
+
+審査員向けの最短確認手順です。CLIは毎回 fresh なバグありサンプルアプリを `/tmp/engine-zero-demo-*` に生成し、AIT Firewall → 一時Workspace → Docker Sandbox → Atomic Deploy の流れを実演します。
+
+```bash
+git clone https://github.com/kagioneko-emi/cpos-engine-zero.git
+cd cpos-engine-zero
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+docker build -t engine-zero-sandbox:latest .
+python3 engine_zero_cli.py demo
+```
+
+Google Cloud Build での再現検証:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml .
+```
+
+提出URL: https://github.com/kagioneko-emi/cpos-engine-zero
+
 ---
 
 ## 📺 デモ解説動画 (YouTube)
