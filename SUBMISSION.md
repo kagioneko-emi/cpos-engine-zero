@@ -26,3 +26,9 @@ The core contribution is not a magic universal bug fixer. It is the safety runti
 
 - GitHub: https://github.com/kagioneko-emi/cpos-engine-zero
 - Demo video: https://www.youtube.com/watch?v=k8KWmq11De8
+
+## Verified deployment
+
+- Cloud Build ID: `04fe2b94-f43f-4336-81ff-8d6ad32af4d7` — SUCCESS
+- Cloud Run URL: https://cpos-engine-zero-951178130166.asia-northeast1.run.app
+- Container image: `asia-northeast1-docker.pkg.dev/engine-zero-hackathon-2026/engine-zero/cpos-engine-zero:04fe2b94-f43f-4336-81ff-8d6ad32af4d7`
