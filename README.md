@@ -59,6 +59,7 @@ graph TD
 ## 📂 リポジトリ構成
 
 * [engine_zero_server.py](engine_zero_server.py): Webhook のリクエストを非同期でキュー（ThreadPool）にスケジュールする軽量 Flask サーバー。
+* [engine_zero_cli.py](engine_zero_cli.py): Webhookを起動せず、CLIから1回だけ安全なDevOpsサイクルを実行するエントリポイント。
 * [engine_zero_agent.py](engine_zero_agent.py): ワークスペース複製、Speculative Fix、Docker サンドボックス検証、アトミックデプロイを行う自律エージェントのコア。
 * [ait_firewall/](ait_firewall/): 入力パケットの分類・サニタイズ・ハニーポットを行う AIT 防御層。
 * [cpos/core.py](cpos/core.py): 行動履歴を SHA-256 で暗号連結するハッシュチェーン追記ログモジュール。
@@ -110,7 +111,25 @@ docker build -t engine-zero-sandbox:latest .
 # sandbox image uses /opt/engine-zero-venv so the read-only /app/target_app mount does not hide pytest
 ```
 
-### ③ Webhook サーバーの起動
+
+### ③ CLI から1回だけ実行
+Webhookを使わず、CLIから同じ Engine-Zero サイクルを実行できます。
+
+```bash
+python3 engine_zero_cli.py run \
+  --instruction 'Feature Request: Handle division by zero by returning float("inf")' \
+  --web-context 'safe check'
+```
+
+Docker がないローカル発表環境だけ、明示的に reduced-isolation fallback を許可できます。
+
+```bash
+python3 engine_zero_cli.py run \
+  --allow-local-fallback \
+  --instruction 'Feature Request: Handle division by zero by returning float("inf")'
+```
+
+### ④ Webhook サーバーの起動
 非同期で並列 DevOps サイクルを回す Webhook レシーバーを起動します。
 
 ```bash
@@ -119,7 +138,7 @@ docker build -t engine-zero-sandbox:latest .
 python3 engine_zero_server.py
 ```
 
-### ④ Webhook へのテスト送信
+### ⑤ Webhook へのテスト送信
 Issue が開かれたイベントをシミュレートして POST リクエストを送信し、自動修正サイクルをトリガーします。
 
 ```bash
