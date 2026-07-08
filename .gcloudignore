@@ -28,3 +28,4 @@ __pycache__/
 !.dockerignore
 !docs/
 !SUBMISSION.md
+!tests/
