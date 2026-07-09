@@ -25,7 +25,7 @@ The core contribution is not a magic universal bug fixer. It is the safety runti
 ## Links
 
 - GitHub: https://github.com/kagioneko-emi/cpos-engine-zero
-- Demo video: https://www.youtube.com/watch?v=k8KWmq11De8
+- Demo video: https://www.youtube.com/watch?v=4SAGBobBjiY
 
 ## Verified deployment
 

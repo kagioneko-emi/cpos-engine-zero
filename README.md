@@ -33,7 +33,8 @@ gcloud builds submit --config cloudbuild.yaml .
 
 ## 📺 デモ解説動画 (YouTube)
 実機コンソールデモと仕組みの漫才解説動画：  
-🎥 **[YouTube デモ動画を視聴する](https://www.youtube.com/watch?v=k8KWmq11De8)**  
+🎥 **[YouTube デモ動画を視聴する](https://www.youtube.com/watch?v=4SAGBobBjiY)**  
+🎥 **提出用YouTube動画:** https://www.youtube.com/watch?v=4SAGBobBjiY
 🎥 **ローカルデモ動画ファイル:** [engine_zero_demo_20260707_003348.mp4](engine_zero_demo_20260707_003348.mp4) (直接ダウンロードして再生可能)
 
 ---
