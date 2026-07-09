@@ -4,6 +4,8 @@
 
 Engine-Zero は、自律型 AI エージェント（コード自動修正・DevOpsサイクル）の実務導入における「セキュリティ（ゼロトラスト）」と「開発の自由度（完全並列・柔軟な命令）」を両立した、次世代の DevOps エージェント・プラットフォームです。
 
+この提出版では、**Gemini CLI / Gemini API 等のAIコード修正エージェントが生成する修正案を、Engine-Zero が安全に受け止め、隔離・検証・デプロイする**構成を想定しています。デモでは再現性を優先して deterministic な division-by-zero 修正 fixture を使いますが、`agents/architect_gemini.py` により Gemini を修正案生成役として接続できる設計です。
+
 
 ---
 
@@ -45,13 +47,15 @@ Engine-Zero は、AIが生成するコードや悪意ある外部のインジェ
 
 ```mermaid
 graph TD
-    A[GitHub Webhook / Issue] --> B[AIT Firewall]
-    B -->|USER: 高信頼指示| C[一時ワークスペースを作成]
+    A[GitHub Webhook / Issue / CLI Demo] --> B[AIT Firewall]
+    B -->|USER: 高信頼指示| C[Gemini Architect / AI Fix Generator]
     B -->|WEB: 低信頼データ| D[データとしてカプセル化]
-    C --> E[Read-Only Docker Sandbox]
+    C --> E[一時ワークスペースを作成]
     D --> E
-    E -->|Pytest 合格| F[本番へアトミックマージ]
-    E -->|Pytest 失敗 / TimeOut| G[一時ワークスペースを完全破棄]
+    E --> H[Malware & Backdoor Scanner]
+    H --> I[Read-Only Docker Sandbox]
+    I -->|Pytest 合格| F[Atomic Deploy]
+    I -->|Pytest 失敗 / TimeOut| G[一時ワークスペースを破棄]
 ```
 
 ### 1. AIT Firewall（命令とデータの完全分離）
@@ -83,7 +87,13 @@ graph TD
 
 ## ☁️ Google Cloud 連携
 
-この提出版は Google Cloud 連携として、**Cloud Build による再現可能な検証パイプライン**と、**Cloud Run で公開可能な webhook/control-plane コンテナ**を用意しています。
+この提出版は Google Cloud 連携として、**Gemini を修正案生成エージェントとして接続できるAIレイヤー**、**Cloud Build による再現可能な検証パイプライン**、**Cloud Run で公開可能な webhook/control-plane コンテナ**を用意しています。
+
+### Gemini / Google Cloud AI の位置づけ
+
+- `agents/architect_gemini.py` は Gemini CLI を呼び出し、仕様からテスト生成、失敗したテスト結果から修正案生成、脆弱性 finding からコード修正案生成を行う adapter です。
+- Engine-Zero 本体は Gemini の出力を直接信用せず、AIT Firewall、静的スキャン、一時ワークスペース、Docker sandbox、atomic deploy の順で検証します。
+- 審査用CLIデモは再現性のため deterministic fixture を使いますが、プロダクトとしての役割は **Gemini 等のAIエージェントを本番DevOpsに安全に接続する制御プレーン**です。
 
 重要な制限として、Cloud Run は通常 Docker-in-Docker を提供しないため、Engine-Zero の Docker sandbox 検証は Cloud Run 上ではデフォルト **fail closed** です。審査・公開環境では Cloud Build で sandbox smoke を実行し、Cloud Run は署名付きWebhook受付・ヘルスチェック・デモ用control planeとして使う構成を推奨します。
 
@@ -114,11 +124,14 @@ curl https://cpos-engine-zero-951178130166.asia-northeast1.run.app/health
 * [engine_zero_server.py](engine_zero_server.py): Webhook のリクエストを非同期でキュー（ThreadPool）にスケジュールする軽量 Flask サーバー。
 * [engine_zero_cli.py](engine_zero_cli.py): Webhookを起動せず、CLIから1回だけ安全なDevOpsサイクルを実行するエントリポイント。
 * [engine_zero_agent.py](engine_zero_agent.py): ワークスペース複製、Speculative Fix、Docker サンドボックス検証、アトミックデプロイを行う自律エージェントのコア。
+* [agents/architect_gemini.py](agents/architect_gemini.py): Gemini CLI を使い、テスト生成・修正案生成を行うAI architect adapter。
 * [ait_firewall/](ait_firewall/): 入力パケットの分類・サニタイズ・ハニーポットを行う AIT 防御層。
 * [cpos/core.py](cpos/core.py): 行動履歴を SHA-256 で暗号連結するハッシュチェーン追記ログモジュール。
 * [Dockerfile](Dockerfile): 非特権ユーザー（`appuser`）でサーバーを動かすセキュアなコンテナ構成定義。
 * [cloudbuild.yaml](cloudbuild.yaml): Google Cloud Build 上でテスト・Docker build・sandbox smoke を実行する検証パイプライン。
 * [docs/GOOGLE_CLOUD_RUNBOOK.md](docs/GOOGLE_CLOUD_RUNBOOK.md): Google Cloud / Cloud Run 提出用の構成、制限、運用手順。
+* [docs/PROTOPEDIA_SUBMISSION.md](docs/PROTOPEDIA_SUBMISSION.md): ProtoPedia へ転記しやすい提出用本文。
+* [docs/engine_zero_architecture.svg](docs/engine_zero_architecture.svg): ProtoPedia のシステム構成欄へアップロードできる構成図。
 
 ---
 

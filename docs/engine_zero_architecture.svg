@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+  <title id="title">CPOS Engine-Zero Architecture</title>
+  <desc id="desc">Gemini AI fix generation is isolated by Engine-Zero, validated in Cloud Build and Docker sandbox, and delivered through Cloud Run control plane.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2563eb" />
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 34px system-ui, -apple-system, Segoe UI, sans-serif; fill: #0f172a; }
+      .sub { font: 500 18px system-ui, -apple-system, Segoe UI, sans-serif; fill: #475569; }
+      .box { fill: #ffffff; stroke: #2563eb; stroke-width: 3; rx: 18; }
+      .safe { fill: #ecfdf5; stroke: #059669; stroke-width: 3; rx: 18; }
+      .danger { fill: #fff7ed; stroke: #ea580c; stroke-width: 3; rx: 18; }
+      .cloud { fill: #eff6ff; stroke: #1d4ed8; stroke-width: 3; rx: 22; }
+      .text { font: 700 22px system-ui, -apple-system, Segoe UI, sans-serif; fill: #0f172a; }
+      .small { font: 500 15px system-ui, -apple-system, Segoe UI, sans-serif; fill: #334155; }
+      .arrow { stroke: #2563eb; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .reject { stroke: #ea580c; stroke-width: 4; stroke-dasharray: 9 7; fill: none; marker-end: url(#arrow); }
+      .label { font: 700 15px system-ui, -apple-system, Segoe UI, sans-serif; fill: #1d4ed8; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1400" height="820" />
+  <text class="title" x="60" y="60">CPOS Engine-Zero: Zero-Trust DevOps Runtime for Gemini / AI Code Fixes</text>
+  <text class="sub" x="60" y="94">AI-generated changes are treated as untrusted candidates, then isolated, scanned, sandbox-tested, and atomically deployed.</text>
+
+  <rect class="box" x="60" y="150" width="240" height="110" />
+  <text class="text" x="92" y="194">GitHub / CLI</text>
+  <text class="small" x="92" y="224">Issue, webhook, or</text>
+  <text class="small" x="92" y="246">judge demo command</text>
+
+  <rect class="danger" x="370" y="150" width="250" height="110" />
+  <text class="text" x="404" y="192">AIT Firewall</text>
+  <text class="small" x="404" y="222">Separates trusted</text>
+  <text class="small" x="404" y="244">instructions and data</text>
+
+  <rect class="box" x="690" y="150" width="260" height="110" />
+  <text class="text" x="724" y="192">Gemini Architect</text>
+  <text class="small" x="724" y="222">AI test / fix proposal</text>
+  <text class="small" x="724" y="244">adapter</text>
+
+  <rect class="safe" x="1030" y="150" width="270" height="110" />
+  <text class="text" x="1064" y="192">Disposable Workspace</text>
+  <text class="small" x="1064" y="222">Candidate change is</text>
+  <text class="small" x="1064" y="244">never edited in-place</text>
+
+  <rect class="danger" x="210" y="360" width="285" height="120" />
+  <text class="text" x="244" y="404">Malware Scanner</text>
+  <text class="small" x="244" y="434">Blocks eval, os.system,</text>
+  <text class="small" x="244" y="456">base64 payloads, sockets</text>
+
+  <rect class="cloud" x="575" y="360" width="300" height="120" />
+  <text class="text" x="612" y="404">Cloud Build</text>
+  <text class="small" x="612" y="434">Reproducible CI pipeline</text>
+  <text class="small" x="612" y="456">tests + Docker smoke</text>
+
+  <rect class="safe" x="955" y="360" width="310" height="120" />
+  <text class="text" x="994" y="404">Docker Sandbox</text>
+  <text class="small" x="994" y="434">network none, cap-drop all,</text>
+  <text class="small" x="994" y="456">CPU/memory/PID limits</text>
+
+  <rect class="safe" x="370" y="610" width="260" height="110" />
+  <text class="text" x="404" y="654">Atomic Deploy</text>
+  <text class="small" x="404" y="684">Only verified output</text>
+  <text class="small" x="404" y="706">is promoted</text>
+
+  <rect class="cloud" x="730" y="610" width="290" height="110" />
+  <text class="text" x="764" y="654">Cloud Run</text>
+  <text class="small" x="764" y="684">Webhook / control-plane</text>
+  <text class="small" x="764" y="706">health endpoint</text>
+
+  <rect class="danger" x="1080" y="610" width="245" height="110" />
+  <text class="text" x="1114" y="654">Fail Closed</text>
+  <text class="small" x="1114" y="684">Reject unsafe or</text>
+  <text class="small" x="1114" y="706">untested changes</text>
+
+  <path class="arrow" d="M300 205 H370" />
+  <path class="arrow" d="M620 205 H690" />
+  <path class="arrow" d="M950 205 H1030" />
+  <path class="arrow" d="M1165 260 V315 H352 V360" />
+  <path class="arrow" d="M495 420 H575" />
+  <path class="arrow" d="M875 420 H955" />
+  <path class="arrow" d="M1110 480 V535 H500 V610" />
+  <path class="arrow" d="M630 665 H730" />
+  <path class="reject" d="M1110 480 V610" />
+  <path class="reject" d="M352 480 V555 H1202 V610" />
+
+  <text class="label" x="318" y="190">request</text>
+  <text class="label" x="637" y="190">sanitized prompt</text>
+  <text class="label" x="966" y="190">candidate fix</text>
+  <text class="label" x="540" y="402">scan pass</text>
+  <text class="label" x="887" y="402">CI validates</text>
+  <text class="label" x="512" y="592">tests passed</text>
+  <text class="label" x="1124" y="592" fill="#ea580c">tests failed</text>
+
+  <text class="sub" x="60" y="780">Verified: GitHub public repo + YouTube demo + Cloud Build success + Cloud Run deployment.</text>
+</svg>
